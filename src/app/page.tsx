@@ -1588,6 +1588,18 @@ export default function HMSApp() {
   const [signUpError, setSignUpError] = useState('')
   const [signUpSuccess, setSignUpSuccess] = useState(false)
   
+  // Password Reset states
+  const [showForgotPassword, setShowForgotPassword] = useState(false)
+  const [forgotPasswordForm, setForgotPasswordForm] = useState({
+    email: '',
+    name: '',
+    newPassword: '',
+    confirmPassword: ''
+  })
+  const [forgotPasswordError, setForgotPasswordError] = useState('')
+  const [forgotPasswordSuccess, setForgotPasswordSuccess] = useState(false)
+  const [foundUserForReset, setFoundUserForReset] = useState<SystemUser | null>(null)
+  
   // Navigation
   const [activeTab, setActiveTab] = useState('dashboard')
   const [sidebarOpen, setSidebarOpen] = useState(true)
@@ -2712,6 +2724,90 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
     setTimeout(() => {
       setShowSignUp(false)
       setSignUpSuccess(false)
+    }, 2000)
+  }
+
+  // Handle Forgot Password - Find User
+  const handleFindUserForReset = (e: React.FormEvent) => {
+    e.preventDefault()
+    setForgotPasswordError('')
+    setFoundUserForReset(null)
+
+    if (!forgotPasswordForm.email.trim()) {
+      setForgotPasswordError('Please enter your email address')
+      return
+    }
+
+    // Find user by email
+    const foundUser = systemUsers.find(
+      u => u.email.toLowerCase() === forgotPasswordForm.email.toLowerCase() && u.isActive
+    )
+
+    if (!foundUser) {
+      setForgotPasswordError('No account found with this email address')
+      return
+    }
+
+    setFoundUserForReset(foundUser)
+  }
+
+  // Handle Password Reset
+  const handlePasswordReset = (e: React.FormEvent) => {
+    e.preventDefault()
+    setForgotPasswordError('')
+
+    if (!foundUserForReset) {
+      setForgotPasswordError('User not found. Please start over.')
+      return
+    }
+
+    // Verify name matches
+    if (forgotPasswordForm.name.trim().toLowerCase() !== foundUserForReset.name.toLowerCase()) {
+      setForgotPasswordError('The name you entered does not match our records')
+      return
+    }
+
+    // Validate new password
+    if (forgotPasswordForm.newPassword.length < 4) {
+      setForgotPasswordError('New password must be at least 4 characters')
+      return
+    }
+
+    if (forgotPasswordForm.newPassword !== forgotPasswordForm.confirmPassword) {
+      setForgotPasswordError('Passwords do not match')
+      return
+    }
+
+    // Update the user's password
+    setSystemUsers(prev => {
+      const updated = prev.map(u => 
+        u.id === foundUserForReset.id 
+          ? { ...u, password: forgotPasswordForm.newPassword }
+          : u
+      )
+      localStorage.setItem('run_hms_system_users', JSON.stringify(updated))
+      return updated
+    })
+
+    // Log the password reset
+    callAuditAPI('update', {
+      userId: foundUserForReset.id,
+      userName: foundUserForReset.name,
+      userRole: foundUserForReset.role,
+      entityType: 'user_account',
+      entityId: foundUserForReset.id,
+      description: `Password reset for ${foundUserForReset.name}`,
+      status: 'success'
+    })
+
+    setForgotPasswordSuccess(true)
+    
+    // Auto-switch to login after 2 seconds
+    setTimeout(() => {
+      setShowForgotPassword(false)
+      setForgotPasswordSuccess(false)
+      setFoundUserForReset(null)
+      setForgotPasswordForm({ email: '', name: '', newPassword: '', confirmPassword: '' })
     }, 2000)
   }
 
@@ -4129,19 +4225,165 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                   Sign In
                 </Button>
                 
+                {/* Forgot Password Link */}
+                <div className="text-center">
+                  <button 
+                    type="button"
+                    onClick={() => { setShowForgotPassword(true); setShowSignUp(false); setLoginError(''); }}
+                    className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+                  >
+                    Forgot Password?
+                  </button>
+                </div>
+                
                 {/* Sign Up Link */}
-                <div className="text-center pt-2">
+                <div className="text-center pt-2 border-t border-gray-100">
                   <p className="text-sm text-gray-600">
                     Don't have an account?{' '}
                     <button 
                       type="button"
-                      onClick={() => { setShowSignUp(true); setLoginError(''); }}
+                      onClick={() => { setShowSignUp(true); setShowForgotPassword(false); setLoginError(''); }}
                       className="text-blue-600 hover:text-blue-700 font-semibold underline"
                     >
                       Sign Up as Nurse
                     </button>
                   </p>
                 </div>
+              </form>
+            ) : showForgotPassword ? (
+              // FORGOT PASSWORD FORM
+              <form onSubmit={foundUserForReset ? handlePasswordReset : handleFindUserForReset} className="space-y-4">
+                {forgotPasswordSuccess ? (
+                  <div className="p-4 bg-green-50 border border-green-200 text-green-700 rounded-lg text-center">
+                    <CheckCircle className="w-8 h-8 mx-auto mb-2 text-green-600" />
+                    <p className="font-semibold">Password Reset Successful!</p>
+                    <p className="text-sm mt-1">You can now sign in with your new password.</p>
+                  </div>
+                ) : (
+                  <>
+                    {forgotPasswordError && (
+                      <div className="p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm flex items-center gap-2 animate-shake">
+                        <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+                        {forgotPasswordError}
+                      </div>
+                    )}
+                    
+                    <div className="text-center mb-4">
+                      <div className="w-12 h-12 mx-auto bg-blue-100 rounded-full flex items-center justify-center mb-2">
+                        <Key className="w-6 h-6 text-blue-600" />
+                      </div>
+                      <h3 className="font-semibold text-gray-900">Reset Your Password</h3>
+                      <p className="text-sm text-gray-500">We'll help you recover your account</p>
+                    </div>
+
+                    {!foundUserForReset ? (
+                      // Step 1: Enter Email
+                      <>
+                        <div className="space-y-2">
+                          <Label htmlFor="forgot-email" className="text-gray-700 font-medium">Email Address</Label>
+                          <Input
+                            id="forgot-email"
+                            type="email"
+                            placeholder="Enter your registered email"
+                            value={forgotPasswordForm.email}
+                            onChange={e => setForgotPasswordForm({ ...forgotPasswordForm, email: e.target.value })}
+                            required
+                            className="h-11 border-gray-200 focus:border-blue-500 focus:ring-blue-500"
+                          />
+                        </div>
+                        <Button 
+                          type="submit" 
+                          className="w-full h-11 bg-blue-600 hover:bg-blue-700 text-white font-semibold"
+                        >
+                          Find My Account
+                        </Button>
+                      </>
+                    ) : (
+                      // Step 2: Verify and Reset
+                      <>
+                        <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm">
+                          <p className="text-blue-800">
+                            Account found: <strong>{foundUserForReset.email}</strong>
+                          </p>
+                          <p className="text-blue-600 text-xs mt-1">
+                            Please enter your full name to verify your identity
+                          </p>
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="forgot-name" className="text-gray-700 font-medium">Your Full Name *</Label>
+                          <Input
+                            id="forgot-name"
+                            type="text"
+                            placeholder="Enter your full name"
+                            value={forgotPasswordForm.name}
+                            onChange={e => setForgotPasswordForm({ ...forgotPasswordForm, name: e.target.value })}
+                            required
+                            className="h-11 border-gray-200 focus:border-blue-500 focus:ring-blue-500"
+                          />
+                          <p className="text-xs text-gray-500">This must match the name on your account</p>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="space-y-2">
+                            <Label htmlFor="forgot-new-password" className="text-gray-700 font-medium">New Password *</Label>
+                            <Input
+                              id="forgot-new-password"
+                              type="password"
+                              placeholder="New password"
+                              value={forgotPasswordForm.newPassword}
+                              onChange={e => setForgotPasswordForm({ ...forgotPasswordForm, newPassword: e.target.value })}
+                              required
+                              className="h-11 border-gray-200 focus:border-blue-500 focus:ring-blue-500"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="forgot-confirm-password" className="text-gray-700 font-medium">Confirm *</Label>
+                            <Input
+                              id="forgot-confirm-password"
+                              type="password"
+                              placeholder="Confirm password"
+                              value={forgotPasswordForm.confirmPassword}
+                              onChange={e => setForgotPasswordForm({ ...forgotPasswordForm, confirmPassword: e.target.value })}
+                              required
+                              className="h-11 border-gray-200 focus:border-blue-500 focus:ring-blue-500"
+                            />
+                          </div>
+                        </div>
+
+                        <Button 
+                          type="submit" 
+                          className="w-full h-11 bg-green-600 hover:bg-green-700 text-white font-semibold"
+                        >
+                          Reset Password
+                        </Button>
+
+                        <button 
+                          type="button"
+                          onClick={() => { setFoundUserForReset(null); setForgotPasswordForm({ email: '', name: '', newPassword: '', confirmPassword: '' }); }}
+                          className="w-full text-sm text-gray-500 hover:text-gray-700"
+                        >
+                          ← Start Over
+                        </button>
+                      </>
+                    )}
+
+                    <div className="text-center pt-2 border-t border-gray-100">
+                      <button 
+                        type="button"
+                        onClick={() => { 
+                          setShowForgotPassword(false); 
+                          setFoundUserForReset(null); 
+                          setForgotPasswordForm({ email: '', name: '', newPassword: '', confirmPassword: '' });
+                          setForgotPasswordError('');
+                        }}
+                        className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+                      >
+                        ← Back to Sign In
+                      </button>
+                    </div>
+                  </>
+                )}
               </form>
             ) : (
               // SIGN UP FORM

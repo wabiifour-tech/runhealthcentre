@@ -129,13 +129,32 @@
   }
 }
 
-/* ===== LOCK ZOOM - Prevent all zooming ===== */
+/* ===== SCROLLING - Enable proper scrolling ===== */
 html {
-  touch-action: manipulation; /* Disable double-tap to zoom */
-  -webkit-text-size-adjust: 100%; /* Prevent text size adjustment */
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
   -ms-text-size-adjust: 100%;
-  -webkit-touch-callout: none; /* Prevent callout to copy image, etc */
-  -webkit-tap-highlight-color: transparent; /* Remove tap highlight */
+}
+
+/* Enable scrolling on body and main content */
+body {
+  overflow-x: hidden;
+  overflow-y: auto;
+  min-height: 100vh;
+}
+
+/* Make all containers scrollable */
+.main-content,
+.sidebar-content,
+.card-content-scroll {
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* Enable touch scrolling */
+.scrollable {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 /* Prevent zoom on input focus (iOS Safari) */
@@ -154,10 +173,18 @@ select {
   font-size: 16px !important; /* Minimum 16px prevents iOS zoom on focus */
 }
 
-/* Prevent pinch zoom on touch devices */
-body {
-  touch-action: pan-x pan-y; /* Only allow panning, no zoom */
-  overscroll-behavior: none; /* Prevent overscroll/bounce */
+/* Enable touch scrolling */
+.scrollable {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Allow proper touch scrolling on mobile */
+@media (max-width: 768px) {
+  body {
+    touch-action: pan-x pan-y;
+    -webkit-overflow-scrolling: touch;
+  }
 }
 
 /* Prevent zoom via Ctrl+scroll or Ctrl+plus/minus */
