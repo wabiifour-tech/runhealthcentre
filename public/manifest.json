@@ -23,7 +23,7 @@
     },
     {
       "src": "/runlogo.jpg",
-      "sizes": "maskable",
+      "sizes": "512x512",
       "type": "image/jpeg",
       "purpose": "maskable"
     }
@@ -36,21 +36,21 @@
       "short_name": "Patient",
       "description": "Register a new patient",
       "url": "/?action=new-patient",
-      "icons": [{ "src": "/runlogo.jpg", "sizes": "96x96" }]
+      "icons": [{ "src": "/runlogo.jpg", "sizes": "96x96", "type": "image/jpeg" }]
     },
     {
       "name": "Appointments",
       "short_name": "Appointments",
       "description": "View appointments",
       "url": "/?tab=appointments",
-      "icons": [{ "src": "/runlogo.jpg", "sizes": "96x96" }]
+      "icons": [{ "src": "/runlogo.jpg", "sizes": "96x96", "type": "image/jpeg" }]
     },
     {
       "name": "Pharmacy",
       "short_name": "Pharmacy",
       "description": "Access pharmacy",
       "url": "/?tab=pharmacy",
-      "icons": [{ "src": "/runlogo.jpg", "sizes": "96x96" }]
+      "icons": [{ "src": "/runlogo.jpg", "sizes": "96x96", "type": "image/jpeg" }]
     }
   ],
   "related_applications": [],
