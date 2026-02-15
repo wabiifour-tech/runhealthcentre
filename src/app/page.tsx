@@ -1575,6 +1575,19 @@ export default function HMSApp() {
   const [loginError, setLoginError] = useState('')
   const [isMobile, setIsMobile] = useState(false)
   
+  // Nurse Sign Up states
+  const [showSignUp, setShowSignUp] = useState(false)
+  const [signUpForm, setSignUpForm] = useState({ 
+    name: '', 
+    email: '', 
+    password: '', 
+    confirmPassword: '', 
+    initials: '',
+    agreeToTerms: false 
+  })
+  const [signUpError, setSignUpError] = useState('')
+  const [signUpSuccess, setSignUpSuccess] = useState(false)
+  
   // Navigation
   const [activeTab, setActiveTab] = useState('dashboard')
   const [sidebarOpen, setSidebarOpen] = useState(true)
@@ -2501,14 +2514,72 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
     }
   }
 
+  // Helper: Call Audit API
+  const callAuditAPI = async (type: string, data: Record<string, unknown>) => {
+    try {
+      await fetch('/api/audit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type, data })
+      })
+    } catch (error) {
+      console.error('Audit API error:', error)
+    }
+  }
+
   // Handlers
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoginError('')
+
+    // Check if IP is blocked before attempting login
+    try {
+      const blockedCheck = await fetch('/api/audit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'check_blocked', data: {} })
+      })
+      const blockedResult = await blockedCheck.json()
+      
+      if (blockedResult.blocked) {
+        setLoginError(`Your IP is blocked for ${blockedResult.remainingMinutes} minutes due to too many failed login attempts.`)
+        return
+      }
+    } catch (error) {
+      console.error('Failed to check IP block status:', error)
+    }
+
     // Use systemUsers (dynamic) instead of systemUsersList (static)
     const foundUser = systemUsers.find(u => u.email === loginForm.email && u.isActive)
+    
     // Check password - either the stored password or default 'password123'
     if (foundUser && (loginForm.password === foundUser.password || loginForm.password === 'password123')) {
+      // Check admin IP restriction for SUPER_ADMIN and ADMIN roles
+      if (foundUser.role === 'SUPER_ADMIN' || foundUser.role === 'ADMIN') {
+        try {
+          const adminCheck = await fetch('/api/audit', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+              type: 'check_admin_access', 
+              data: { 
+                userId: foundUser.id, 
+                userName: foundUser.name, 
+                userRole: foundUser.role 
+              } 
+            })
+          })
+          const adminResult = await adminCheck.json()
+          
+          if (!adminResult.allowed) {
+            setLoginError('Access denied. Admin login is not allowed from your IP address.')
+            return
+          }
+        } catch (error) {
+          console.error('Failed to check admin access:', error)
+        }
+      }
+
       const userForSession: User = {
         id: foundUser.id,
         email: foundUser.email,
@@ -2520,6 +2591,14 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
       }
       setUser(userForSession)
       localStorage.setItem('hms_user', JSON.stringify(userForSession))
+      
+      // Log successful login
+      callAuditAPI('successful_login', {
+        userId: foundUser.id,
+        userName: foundUser.name,
+        userRole: foundUser.role
+      })
+      
       // Update lastLogin time in systemUsers
       setSystemUsers(prev => prev.map(u => 
         u.id === foundUser.id ? { ...u, lastLogin: new Date().toISOString() } : u
@@ -2531,11 +2610,120 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
         localStorage.removeItem('hms_remember_email')
       }
     } else {
-      setLoginError('Invalid email or password')
+      // Record failed login attempt
+      callAuditAPI('failed_login', {
+        email: loginForm.email,
+        userId: 'unknown',
+        userName: 'unknown'
+      })
+      
+      setLoginError('Invalid email or password. After 5 failed attempts, your IP will be blocked for 30 minutes.')
     }
   }
 
+  // Handle Nurse Sign Up
+  const handleSignUp = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setSignUpError('')
+    setSignUpSuccess(false)
+
+    // Validation
+    if (!signUpForm.name.trim()) {
+      setSignUpError('Please enter your full name')
+      return
+    }
+    
+    if (!signUpForm.email.trim()) {
+      setSignUpError('Please enter your email address')
+      return
+    }
+    
+    // Check if email already exists
+    const emailExists = systemUsers.some(u => u.email.toLowerCase() === signUpForm.email.toLowerCase())
+    if (emailExists) {
+      setSignUpError('An account with this email already exists. Please sign in instead.')
+      return
+    }
+    
+    if (signUpForm.password.length < 4) {
+      setSignUpError('Password must be at least 4 characters')
+      return
+    }
+    
+    if (signUpForm.password !== signUpForm.confirmPassword) {
+      setSignUpError('Passwords do not match')
+      return
+    }
+    
+    if (!signUpForm.initials.trim() || signUpForm.initials.length < 2) {
+      setSignUpError('Please enter your initials (at least 2 characters)')
+      return
+    }
+    
+    if (!signUpForm.agreeToTerms) {
+      setSignUpError('You must agree to the terms to create an account')
+      return
+    }
+
+    // Generate unique ID
+    const newUserId = `nurse_${Date.now()}`
+    
+    // Create new nurse account
+    const newNurse: SystemUser = {
+      id: newUserId,
+      email: signUpForm.email.toLowerCase().trim(),
+      name: signUpForm.name.trim(),
+      role: 'NURSE',
+      password: signUpForm.password, // In production, this should be hashed
+      initials: signUpForm.initials.toUpperCase().trim(),
+      isFirstLogin: false,
+      isActive: true,
+      createdAt: new Date().toISOString(),
+    }
+    
+    // Add to system users
+    setSystemUsers(prev => {
+      const updated = [...prev, newNurse]
+      localStorage.setItem('run_hms_system_users', JSON.stringify(updated))
+      return updated
+    })
+    
+    // Log the signup
+    callAuditAPI('create', {
+      userId: newUserId,
+      userName: newNurse.name,
+      userRole: 'NURSE',
+      entityType: 'user_account',
+      entityId: newUserId,
+      description: `New nurse account created: ${newNurse.name} (${newNurse.email})`
+    })
+    
+    setSignUpSuccess(true)
+    setSignUpForm({ 
+      name: '', 
+      email: '', 
+      password: '', 
+      confirmPassword: '', 
+      initials: '',
+      agreeToTerms: false 
+    })
+    
+    // Auto-switch to login after 2 seconds
+    setTimeout(() => {
+      setShowSignUp(false)
+      setSignUpSuccess(false)
+    }, 2000)
+  }
+
   const handleLogout = () => {
+    // Log logout
+    if (user) {
+      callAuditAPI('logout', {
+        userId: user.id,
+        userName: user.name,
+        userRole: user.role
+      })
+    }
     setUser(null)
     localStorage.removeItem('hms_user')
   }
@@ -3883,62 +4071,217 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
           </CardHeader>
           
           <CardContent className="pt-6 px-8">
-            <form onSubmit={handleLogin} className="space-y-5">
-              {loginError && (
-                <div className="p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm flex items-center gap-2 animate-shake">
-                  <AlertTriangle className="w-4 h-4" />
-                  {loginError}
+            {!showSignUp ? (
+              // LOGIN FORM
+              <form onSubmit={handleLogin} className="space-y-5">
+                {loginError && (
+                  <div className="p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm flex items-center gap-2 animate-shake">
+                    <AlertTriangle className="w-4 h-4" />
+                    {loginError}
+                  </div>
+                )}
+                <div className="space-y-2">
+                  <Label htmlFor="email" className="text-gray-700 font-medium">Email Address</Label>
+                  <div className="relative">
+                    <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                    <Input
+                      id="email"
+                      type="email"
+                      placeholder="Enter your email"
+                      value={loginForm.email}
+                      onChange={e => setLoginForm({ ...loginForm, email: e.target.value })}
+                      required
+                      className="h-12 pl-10 border-gray-200 focus:border-blue-500 focus:ring-blue-500 transition-all"
+                    />
+                  </div>
                 </div>
-              )}
-              <div className="space-y-2">
-                <Label htmlFor="email" className="text-gray-700 font-medium">Email Address</Label>
-                <div className="relative">
-                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="Enter your email"
-                    value={loginForm.email}
-                    onChange={e => setLoginForm({ ...loginForm, email: e.target.value })}
-                    required
-                    className="h-12 pl-10 border-gray-200 focus:border-blue-500 focus:ring-blue-500 transition-all"
+                <div className="space-y-2">
+                  <Label htmlFor="password" className="text-gray-700 font-medium">Password</Label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                    <Input
+                      id="password"
+                      type="password"
+                      placeholder="Enter your password"
+                      value={loginForm.password}
+                      onChange={e => setLoginForm({ ...loginForm, password: e.target.value })}
+                      required
+                      className="h-12 pl-10 border-gray-200 focus:border-blue-500 focus:ring-blue-500 transition-all"
+                    />
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="rememberMe"
+                    checked={loginForm.rememberMe}
+                    onChange={e => setLoginForm({ ...loginForm, rememberMe: e.target.checked })}
+                    className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                   />
+                  <Label htmlFor="rememberMe" className="text-sm text-gray-600 cursor-pointer">
+                    Remember my email
+                  </Label>
                 </div>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="password" className="text-gray-700 font-medium">Password</Label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                  <Input
-                    id="password"
-                    type="password"
-                    placeholder="Enter your password"
-                    value={loginForm.password}
-                    onChange={e => setLoginForm({ ...loginForm, password: e.target.value })}
-                    required
-                    className="h-12 pl-10 border-gray-200 focus:border-blue-500 focus:ring-blue-500 transition-all"
-                  />
+                <Button 
+                  type="submit" 
+                  className="w-full h-12 bg-gradient-to-r from-blue-600 via-blue-500 to-teal-500 hover:from-blue-700 hover:via-blue-600 hover:to-teal-600 text-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-[1.02]"
+                >
+                  Sign In
+                </Button>
+                
+                {/* Sign Up Link */}
+                <div className="text-center pt-2">
+                  <p className="text-sm text-gray-600">
+                    Don't have an account?{' '}
+                    <button 
+                      type="button"
+                      onClick={() => { setShowSignUp(true); setLoginError(''); }}
+                      className="text-blue-600 hover:text-blue-700 font-semibold underline"
+                    >
+                      Sign Up as Nurse
+                    </button>
+                  </p>
                 </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="rememberMe"
-                  checked={loginForm.rememberMe}
-                  onChange={e => setLoginForm({ ...loginForm, rememberMe: e.target.checked })}
-                  className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                />
-                <Label htmlFor="rememberMe" className="text-sm text-gray-600 cursor-pointer">
-                  Remember my email
-                </Label>
-              </div>
-              <Button 
-                type="submit" 
-                className="w-full h-12 bg-gradient-to-r from-blue-600 via-blue-500 to-teal-500 hover:from-blue-700 hover:via-blue-600 hover:to-teal-600 text-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-[1.02]"
-              >
-                Sign In
-              </Button>
-            </form>
+              </form>
+            ) : (
+              // SIGN UP FORM
+              <form onSubmit={handleSignUp} className="space-y-4">
+                {signUpSuccess ? (
+                  <div className="p-4 bg-green-50 border border-green-200 text-green-700 rounded-lg text-center">
+                    <CheckCircle className="w-8 h-8 mx-auto mb-2 text-green-600" />
+                    <p className="font-semibold">Account Created Successfully!</p>
+                    <p className="text-sm mt-1">Redirecting to sign in...</p>
+                  </div>
+                ) : (
+                  <>
+                    {signUpError && (
+                      <div className="p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm flex items-center gap-2 animate-shake">
+                        <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+                        {signUpError}
+                      </div>
+                    )}
+                    
+                    {/* Password Warning Banner */}
+                    <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                      <div className="flex items-start gap-2">
+                        <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                        <div className="text-sm text-amber-800">
+                          <p className="font-semibold">⚠️ Important: Remember Your Password!</p>
+                          <ul className="mt-1 space-y-1 text-xs">
+                            <li>• Choose a password you can easily remember</li>
+                            <li>• <strong>Do NOT share your password</strong> with anyone</li>
+                            <li>• Your password cannot be recovered if forgotten</li>
+                            <li>• All your actions will be tracked under your account</li>
+                          </ul>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="signup-name" className="text-gray-700 font-medium">Full Name *</Label>
+                      <Input
+                        id="signup-name"
+                        type="text"
+                        placeholder="Enter your full name"
+                        value={signUpForm.name}
+                        onChange={e => setSignUpForm({ ...signUpForm, name: e.target.value })}
+                        required
+                        className="h-11 border-gray-200 focus:border-blue-500 focus:ring-blue-500"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="signup-email" className="text-gray-700 font-medium">Email Address *</Label>
+                      <Input
+                        id="signup-email"
+                        type="email"
+                        placeholder="Enter your email"
+                        value={signUpForm.email}
+                        onChange={e => setSignUpForm({ ...signUpForm, email: e.target.value })}
+                        required
+                        className="h-11 border-gray-200 focus:border-blue-500 focus:ring-blue-500"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-2">
+                        <Label htmlFor="signup-password" className="text-gray-700 font-medium">Password *</Label>
+                        <Input
+                          id="signup-password"
+                          type="password"
+                          placeholder="Create password"
+                          value={signUpForm.password}
+                          onChange={e => setSignUpForm({ ...signUpForm, password: e.target.value })}
+                          required
+                          className="h-11 border-gray-200 focus:border-blue-500 focus:ring-blue-500"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="signup-confirm" className="text-gray-700 font-medium">Confirm Password *</Label>
+                        <Input
+                          id="signup-confirm"
+                          type="password"
+                          placeholder="Confirm password"
+                          value={signUpForm.confirmPassword}
+                          onChange={e => setSignUpForm({ ...signUpForm, confirmPassword: e.target.value })}
+                          required
+                          className="h-11 border-gray-200 focus:border-blue-500 focus:ring-blue-500"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="signup-initials" className="text-gray-700 font-medium">Your Initials *</Label>
+                      <Input
+                        id="signup-initials"
+                        type="text"
+                        placeholder="e.g., AB (2-3 letters)"
+                        value={signUpForm.initials}
+                        onChange={e => setSignUpForm({ ...signUpForm, initials: e.target.value.toUpperCase() })}
+                        required
+                        maxLength={3}
+                        className="h-11 border-gray-200 focus:border-blue-500 focus:ring-blue-500 uppercase"
+                      />
+                      <p className="text-xs text-gray-500">Your initials will be used to sign your documentation</p>
+                    </div>
+
+                    <div className="flex items-start gap-2 p-3 bg-gray-50 rounded-lg">
+                      <input
+                        type="checkbox"
+                        id="agreeTerms"
+                        checked={signUpForm.agreeToTerms}
+                        onChange={e => setSignUpForm({ ...signUpForm, agreeToTerms: e.target.checked })}
+                        className="w-4 h-4 mt-0.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                      <Label htmlFor="agreeTerms" className="text-xs text-gray-600 cursor-pointer leading-relaxed">
+                        I understand that I am responsible for all actions taken with my account. I will keep my password confidential and not share it with anyone. I understand that all my documentation and actions will be logged and can be audited.
+                      </Label>
+                    </div>
+
+                    <Button 
+                      type="submit" 
+                      className="w-full h-12 bg-gradient-to-r from-green-600 via-green-500 to-teal-500 hover:from-green-700 hover:via-green-600 hover:to-teal-600 text-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-[1.02]"
+                    >
+                      <UserPlus className="w-5 h-5 mr-2" />
+                      Create My Account
+                    </Button>
+
+                    <div className="text-center pt-2">
+                      <p className="text-sm text-gray-600">
+                        Already have an account?{' '}
+                        <button 
+                          type="button"
+                          onClick={() => { setShowSignUp(false); setSignUpError(''); }}
+                          className="text-blue-600 hover:text-blue-700 font-semibold underline"
+                        >
+                          Sign In
+                        </button>
+                      </p>
+                    </div>
+                  </>
+                )}
+              </form>
+            )}
           </CardContent>
           
           <div className="px-8 pb-6 text-center">
@@ -7212,6 +7555,334 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                 </div>
               </CardContent>
             </Card>
+          )}
+
+          {/* Audit Logs & Security */}
+          {activeTab === 'audit' && (
+            <div className="space-y-6">
+              {/* Security Statistics */}
+              <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+                <Card className="shadow-md">
+                  <CardContent className="p-4">
+                    <p className="text-sm text-gray-600">Total Logs</p>
+                    <p className="text-2xl font-bold">{auditStats.totalLogs}</p>
+                  </CardContent>
+                </Card>
+                <Card className="shadow-md">
+                  <CardContent className="p-4">
+                    <p className="text-sm text-gray-600">Logins (24h)</p>
+                    <p className="text-2xl font-bold text-green-600">{auditStats.logins24h}</p>
+                  </CardContent>
+                </Card>
+                <Card className="shadow-md">
+                  <CardContent className="p-4">
+                    <p className="text-sm text-gray-600">Failed Logins (24h)</p>
+                    <p className="text-2xl font-bold text-red-600">{auditStats.failedLogins24h}</p>
+                  </CardContent>
+                </Card>
+                <Card className="shadow-md">
+                  <CardContent className="p-4">
+                    <p className="text-sm text-gray-600">Blocked IPs</p>
+                    <p className="text-2xl font-bold text-orange-600">{auditStats.currentlyBlocked}</p>
+                  </CardContent>
+                </Card>
+                <Card className="shadow-md">
+                  <CardContent className="p-4">
+                    <p className="text-sm text-gray-600">Whitelisted IPs</p>
+                    <p className="text-2xl font-bold text-blue-600">{auditStats.whitelistCount}</p>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Audit Tabs */}
+              <Tabs defaultValue="logs" className="w-full">
+                <TabsList className="grid w-full grid-cols-4">
+                  <TabsTrigger value="logs">Audit Logs</TabsTrigger>
+                  <TabsTrigger value="blocked">Blocked IPs</TabsTrigger>
+                  <TabsTrigger value="whitelist">IP Whitelist</TabsTrigger>
+                  <TabsTrigger value="settings">Settings</TabsTrigger>
+                </TabsList>
+
+                {/* Audit Logs Tab */}
+                <TabsContent value="logs" className="mt-4">
+                  <Card className="shadow-md">
+                    <CardHeader>
+                      <div className="flex justify-between items-center">
+                        <CardTitle>Security Audit Log</CardTitle>
+                        <Button variant="outline" size="sm" onClick={fetchAuditLogs}>
+                          Refresh
+                        </Button>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      {auditLogs.length === 0 ? (
+                        <div className="text-center py-8 text-gray-500">
+                          <Shield className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                          <p>No audit logs yet</p>
+                          <p className="text-sm">Logs will appear here as users interact with the system</p>
+                        </div>
+                      ) : (
+                        <ScrollArea className="h-96">
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead>Time</TableHead>
+                                <TableHead>User</TableHead>
+                                <TableHead>Action</TableHead>
+                                <TableHead>Details</TableHead>
+                                <TableHead>IP Address</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {auditLogs.map((log: AuditLogEntry) => (
+                                <TableRow key={log.id}>
+                                  <TableCell className="text-sm">
+                                    {new Date(log.timestamp).toLocaleString('en-NG', { 
+                                      month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' 
+                                    })}
+                                  </TableCell>
+                                  <TableCell>
+                                    <div>
+                                      <p className="font-medium text-sm">{log.userName}</p>
+                                      <p className="text-xs text-gray-500">{log.userRole}</p>
+                                    </div>
+                                  </TableCell>
+                                  <TableCell>
+                                    <Badge className={
+                                      log.action === 'login' ? 'bg-green-100 text-green-800' :
+                                      log.action === 'login_failed' ? 'bg-red-100 text-red-800' :
+                                      log.action === 'logout' ? 'bg-gray-100 text-gray-800' :
+                                      log.action === 'access_denied' ? 'bg-red-100 text-red-800' :
+                                      'bg-blue-100 text-blue-800'
+                                    }>
+                                      {log.action.replace('_', ' ')}
+                                    </Badge>
+                                  </TableCell>
+                                  <TableCell className="text-sm max-w-xs truncate">
+                                    {log.details || log.entityType}
+                                  </TableCell>
+                                  <TableCell className="text-sm font-mono">
+                                    {log.ipAddress}
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </ScrollArea>
+                      )}
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+
+                {/* Blocked IPs Tab */}
+                <TabsContent value="blocked" className="mt-4">
+                  <Card className="shadow-md">
+                    <CardHeader>
+                      <div className="flex justify-between items-center">
+                        <CardTitle>Currently Blocked IPs</CardTitle>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          onClick={async () => {
+                            await fetch('/api/audit', {
+                              method: 'PUT',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ action: 'clear_failed_attempts', data: {} })
+                            })
+                            fetchAuditLogs()
+                            showToast('All failed attempts cleared', 'success')
+                          }}
+                        >
+                          Clear All Blocks
+                        </Button>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      {blockedIPs.length === 0 ? (
+                        <div className="text-center py-8 text-gray-500">
+                          <CheckCircle className="h-12 w-12 mx-auto mb-4 text-green-300" />
+                          <p>No blocked IPs</p>
+                        </div>
+                      ) : (
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>IP Address</TableHead>
+                              <TableHead>Failed Attempts</TableHead>
+                              <TableHead>Blocked Until</TableHead>
+                              <TableHead>Action</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {blockedIPs.map((ip: { ip: string; attempts: number; blockedUntil: string }) => (
+                              <TableRow key={ip.ip}>
+                                <TableCell className="font-mono">{ip.ip}</TableCell>
+                                <TableCell>{ip.attempts}</TableCell>
+                                <TableCell>
+                                  {new Date(ip.blockedUntil).toLocaleString('en-NG')}
+                                </TableCell>
+                                <TableCell>
+                                  <Button 
+                                    variant="outline" 
+                                    size="sm"
+                                    onClick={async () => {
+                                      await fetch('/api/audit', {
+                                        method: 'PUT',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({ action: 'unblock_ip', data: { ip: ip.ip } })
+                                      })
+                                      fetchAuditLogs()
+                                      showToast(`IP ${ip.ip} unblocked`, 'success')
+                                    }}
+                                  >
+                                    Unblock
+                                  </Button>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      )}
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+
+                {/* IP Whitelist Tab */}
+                <TabsContent value="whitelist" className="mt-4">
+                  <Card className="shadow-md">
+                    <CardHeader>
+                      <div className="flex justify-between items-center">
+                        <CardTitle>Admin IP Whitelist</CardTitle>
+                        <div className="flex gap-2">
+                          <Input
+                            placeholder="Enter IP address"
+                            value={newWhitelistIP}
+                            onChange={(e) => setNewWhitelistIP(e.target.value)}
+                            className="w-48"
+                          />
+                          <Button 
+                            onClick={async () => {
+                              if (!newWhitelistIP) return
+                              await fetch('/api/audit', {
+                                method: 'PUT',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ 
+                                  action: 'add_whitelist', 
+                                  data: { ip: newWhitelistIP, addedBy: user?.name } 
+                                })
+                              })
+                              setNewWhitelistIP('')
+                              fetchAuditLogs()
+                              showToast(`IP ${newWhitelistIP} added to whitelist`, 'success')
+                            }}
+                          >
+                            Add IP
+                          </Button>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-sm text-gray-500 mb-4">
+                        Only whitelisted IPs can access admin accounts. If empty, all IPs are allowed.
+                      </p>
+                      {ipWhitelist.length === 0 ? (
+                        <div className="text-center py-8 text-gray-500">
+                          <Shield className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                          <p>No IPs whitelisted</p>
+                          <p className="text-sm">All IPs are currently allowed for admin access</p>
+                        </div>
+                      ) : (
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>IP Address</TableHead>
+                              <TableHead>Description</TableHead>
+                              <TableHead>Added By</TableHead>
+                              <TableHead>Added At</TableHead>
+                              <TableHead>Action</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {ipWhitelist.map((entry: IPWhitelistEntry) => (
+                              <TableRow key={entry.ip}>
+                                <TableCell className="font-mono">{entry.ip}</TableCell>
+                                <TableCell>{entry.description}</TableCell>
+                                <TableCell>{entry.addedBy}</TableCell>
+                                <TableCell>{new Date(entry.addedAt).toLocaleString('en-NG')}</TableCell>
+                                <TableCell>
+                                  <Button 
+                                    variant="outline" 
+                                    size="sm"
+                                    onClick={async () => {
+                                      await fetch('/api/audit', {
+                                        method: 'PUT',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({ action: 'remove_whitelist', data: { ip: entry.ip } })
+                                      })
+                                      fetchAuditLogs()
+                                      showToast(`IP ${entry.ip} removed from whitelist`, 'success')
+                                    }}
+                                  >
+                                    Remove
+                                  </Button>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      )}
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+
+                {/* Settings Tab */}
+                <TabsContent value="settings" className="mt-4">
+                  <Card className="shadow-md">
+                    <CardHeader>
+                      <CardTitle>Security Settings</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                      <div className="p-4 bg-blue-50 rounded-lg">
+                        <h4 className="font-medium text-blue-800 mb-2">Current Security Configuration</h4>
+                        <ul className="text-sm text-blue-700 space-y-1">
+                          <li>• Maximum failed login attempts: <strong>5</strong></li>
+                          <li>• Block duration: <strong>30 minutes</strong></li>
+                          <li>• Admin IP restriction: <strong>Enabled</strong></li>
+                          <li>• Audit log retention: <strong>10,000 entries</strong></li>
+                        </ul>
+                      </div>
+                      
+                      <div className="flex gap-4">
+                        <Button 
+                          variant="outline"
+                          onClick={async () => {
+                            await fetch('/api/audit?action=clear_all_logs', { method: 'DELETE' })
+                            fetchAuditLogs()
+                            showToast('All audit logs cleared', 'success')
+                          }}
+                        >
+                          Clear All Logs
+                        </Button>
+                        <Button 
+                          variant="outline"
+                          onClick={async () => {
+                            await fetch('/api/audit', {
+                              method: 'PUT',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ action: 'clear_failed_attempts', data: {} })
+                            })
+                            fetchAuditLogs()
+                            showToast('All failed attempts cleared', 'success')
+                          }}
+                        >
+                          Clear Failed Attempts
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+              </Tabs>
+            </div>
           )}
 
           {/* Ward Management */}
