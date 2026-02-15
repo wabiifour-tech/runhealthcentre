@@ -2869,13 +2869,6 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
       return
     }
     
-    // Check if email already exists
-    const emailExists = patients.some(p => p.email?.toLowerCase() === patientSignUpForm.email.toLowerCase())
-    if (emailExists) {
-      setPatientAuthError('An account with this email already exists. Please sign in instead.')
-      return
-    }
-    
     if (patientSignUpForm.password.length < 4) {
       setPatientAuthError('Password must be at least 4 characters')
       return
@@ -2896,6 +2889,64 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
       return
     }
 
+    // ====== INTEGRATION FIX ======
+    // Check if patient already exists (registered by staff in staff portal)
+    const existingPatient = patients.find(p => 
+      (p.email?.toLowerCase() === patientSignUpForm.email.toLowerCase() || 
+       p.phone === patientSignUpForm.phone)
+    )
+
+    if (existingPatient) {
+      // Patient exists - check if they already have a portal account
+      if (existingPatient.hasPortalAccount && existingPatient.password) {
+        setPatientAuthError('An account with this email/phone already exists. Please sign in instead.')
+        return
+      }
+      
+      // Patient exists but no portal account - LINK THEM!
+      // This connects the staff portal patient to the patient portal
+      setPatients(prev => {
+        const updated = prev.map(p => 
+          p.id === existingPatient.id 
+            ? { 
+                ...p, 
+                password: patientSignUpForm.password,
+                hasPortalAccount: true,
+                userType: patientSignUpForm.userType,
+                studentStaffId: patientSignUpForm.studentStaffId.trim() || p.studentStaffId,
+                department: patientSignUpForm.department.trim() || p.department,
+              }
+            : p
+        )
+        localStorage.setItem('run_hms_patients', JSON.stringify(updated))
+        return updated
+      })
+      
+      setPatientAuthSuccess(true)
+      setPatientSignUpForm({
+        firstName: '',
+        lastName: '',
+        email: '',
+        phone: '',
+        password: '',
+        confirmPassword: '',
+        dateOfBirth: '',
+        gender: '',
+        userType: 'student',
+        studentStaffId: '',
+        department: ''
+      })
+      
+      // Auto-switch to login after 2 seconds
+      setTimeout(() => {
+        setShowPatientSignUp(false)
+        setPatientAuthSuccess(false)
+      }, 2000)
+      
+      return
+    }
+
+    // ====== NEW PATIENT ======
     // Generate hospital number and RUHC code
     const timestamp = Date.now().toString().slice(-6)
     const hospitalNumber = `RUH${timestamp}`
