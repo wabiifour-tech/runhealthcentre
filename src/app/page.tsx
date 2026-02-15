@@ -85,6 +85,12 @@ interface Patient {
   isActive: boolean
   registeredAt: string
   registeredBy?: string
+  // Patient Portal fields
+  password?: string
+  userType?: 'student' | 'staff' | 'visitor'
+  studentStaffId?: string
+  department?: string
+  hasPortalAccount?: boolean
 }
 
 interface VitalSign {
@@ -1575,6 +1581,29 @@ export default function HMSApp() {
   const [loginError, setLoginError] = useState('')
   const [isMobile, setIsMobile] = useState(false)
   
+  // Portal Selection - Staff vs Patient
+  const [selectedPortal, setSelectedPortal] = useState<'selection' | 'staff' | 'patient'>('selection')
+  
+  // Patient Portal States
+  const [patientUser, setPatientUser] = useState<Patient | null>(null)
+  const [showPatientSignUp, setShowPatientSignUp] = useState(false)
+  const [patientLoginForm, setPatientLoginForm] = useState({ email: '', phone: '', password: '' })
+  const [patientSignUpForm, setPatientSignUpForm] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    phone: '',
+    password: '',
+    confirmPassword: '',
+    dateOfBirth: '',
+    gender: '',
+    userType: 'student' as 'student' | 'staff' | 'visitor',
+    studentStaffId: '',
+    department: ''
+  })
+  const [patientAuthError, setPatientAuthError] = useState('')
+  const [patientAuthSuccess, setPatientAuthSuccess] = useState(false)
+  
   // Nurse Sign Up states
   const [showSignUp, setShowSignUp] = useState(false)
   const [signUpForm, setSignUpForm] = useState({ 
@@ -2389,6 +2418,11 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
     if (savedUser) {
       setUser(JSON.parse(savedUser))
     }
+    // Load patient user
+    const savedPatientUser = localStorage.getItem('hms_patient_user')
+    if (savedPatientUser) {
+      setPatientUser(JSON.parse(savedPatientUser))
+    }
     // Load remembered email
     const rememberedEmail = localStorage.getItem('hms_remember_email')
     if (rememberedEmail) {
@@ -2809,6 +2843,171 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
       setFoundUserForReset(null)
       setForgotPasswordForm({ email: '', name: '', newPassword: '', confirmPassword: '' })
     }, 2000)
+  }
+
+  // ============ PATIENT PORTAL HANDLERS ============
+  
+  // Handle Patient Sign Up
+  const handlePatientSignUp = (e: React.FormEvent) => {
+    e.preventDefault()
+    setPatientAuthError('')
+    setPatientAuthSuccess(false)
+
+    // Validation
+    if (!patientSignUpForm.firstName.trim() || !patientSignUpForm.lastName.trim()) {
+      setPatientAuthError('Please enter your full name')
+      return
+    }
+    
+    if (!patientSignUpForm.email.trim()) {
+      setPatientAuthError('Please enter your email address')
+      return
+    }
+    
+    if (!patientSignUpForm.phone.trim()) {
+      setPatientAuthError('Please enter your phone number')
+      return
+    }
+    
+    // Check if email already exists
+    const emailExists = patients.some(p => p.email?.toLowerCase() === patientSignUpForm.email.toLowerCase())
+    if (emailExists) {
+      setPatientAuthError('An account with this email already exists. Please sign in instead.')
+      return
+    }
+    
+    if (patientSignUpForm.password.length < 4) {
+      setPatientAuthError('Password must be at least 4 characters')
+      return
+    }
+    
+    if (patientSignUpForm.password !== patientSignUpForm.confirmPassword) {
+      setPatientAuthError('Passwords do not match')
+      return
+    }
+    
+    if (!patientSignUpForm.dateOfBirth) {
+      setPatientAuthError('Please enter your date of birth')
+      return
+    }
+    
+    if (!patientSignUpForm.gender) {
+      setPatientAuthError('Please select your gender')
+      return
+    }
+
+    // Generate hospital number and RUHC code
+    const timestamp = Date.now().toString().slice(-6)
+    const hospitalNumber = `RUH${timestamp}`
+    const ruhcCode = `RUHC-${new Date().getFullYear()}-${timestamp.slice(-4)}`
+
+    // Create new patient with portal account
+    const newPatient: Patient = {
+      id: `patient_${Date.now()}`,
+      hospitalNumber,
+      ruhcCode,
+      firstName: patientSignUpForm.firstName.trim(),
+      lastName: patientSignUpForm.lastName.trim(),
+      email: patientSignUpForm.email.toLowerCase().trim(),
+      phone: patientSignUpForm.phone.trim(),
+      password: patientSignUpForm.password,
+      dateOfBirth: patientSignUpForm.dateOfBirth,
+      gender: patientSignUpForm.gender,
+      userType: patientSignUpForm.userType,
+      studentStaffId: patientSignUpForm.studentStaffId.trim() || undefined,
+      department: patientSignUpForm.department.trim() || undefined,
+      nationality: 'Nigerian',
+      hasPortalAccount: true,
+      isActive: true,
+      registeredAt: new Date().toISOString(),
+    }
+    
+    // Add to patients
+    setPatients(prev => {
+      const updated = [...prev, newPatient]
+      localStorage.setItem('run_hms_patients', JSON.stringify(updated))
+      return updated
+    })
+    
+    setPatientAuthSuccess(true)
+    setPatientSignUpForm({
+      firstName: '',
+      lastName: '',
+      email: '',
+      phone: '',
+      password: '',
+      confirmPassword: '',
+      dateOfBirth: '',
+      gender: '',
+      userType: 'student',
+      studentStaffId: '',
+      department: ''
+    })
+    
+    // Auto-switch to login after 2 seconds
+    setTimeout(() => {
+      setShowPatientSignUp(false)
+      setPatientAuthSuccess(false)
+    }, 2000)
+  }
+
+  // Handle Patient Login
+  const handlePatientLogin = (e: React.FormEvent) => {
+    e.preventDefault()
+    setPatientAuthError('')
+
+    // Find patient by email or phone
+    const foundPatient = patients.find(p => 
+      (p.email?.toLowerCase() === patientLoginForm.email.toLowerCase() || 
+       p.phone === patientLoginForm.phone) &&
+      p.hasPortalAccount &&
+      p.isActive
+    )
+
+    if (!foundPatient) {
+      setPatientAuthError('Account not found. Please check your email/phone or sign up first.')
+      return
+    }
+
+    if (foundPatient.password !== patientLoginForm.password) {
+      setPatientAuthError('Incorrect password. Please try again.')
+      return
+    }
+
+    // Login successful
+    setPatientUser(foundPatient)
+    localStorage.setItem('hms_patient_user', JSON.stringify(foundPatient))
+  }
+
+  // Handle Patient Logout
+  const handlePatientLogout = () => {
+    setPatientUser(null)
+    localStorage.removeItem('hms_patient_user')
+    setSelectedPortal('selection')
+  }
+
+  // Get patient's appointments
+  const getPatientAppointments = () => {
+    if (!patientUser) return []
+    return appointments.filter(a => a.patientId === patientUser.id)
+  }
+
+  // Get patient's vitals
+  const getPatientVitals = () => {
+    if (!patientUser) return []
+    return vitals.filter(v => v.patientId === patientUser.id)
+  }
+
+  // Get patient's lab requests
+  const getPatientLabRequests = () => {
+    if (!patientUser) return []
+    return labRequests.filter(l => l.patientId === patientUser.id)
+  }
+
+  // Get patient's bills
+  const getPatientBills = () => {
+    if (!patientUser) return []
+    return bills.filter(b => b.patientId === patientUser.id)
   }
 
   const handleLogout = () => {
@@ -4031,7 +4230,663 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
     )
   }
 
+  // PATIENT PORTAL VIEW
+  if (patientUser && !user) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-green-900 via-teal-800 to-blue-700">
+        {/* Patient Portal Header */}
+        <header className="bg-white/10 backdrop-blur-md border-b border-white/20 px-4 py-3 sticky top-0 z-50">
+          <div className="max-w-7xl mx-auto flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <img src="/runlogo.jpg" alt="RUN Logo" className="h-10 w-10 rounded-lg bg-white p-1" />
+              <div>
+                <h1 className="text-white font-bold text-lg">RUHC Patient Portal</h1>
+                <p className="text-white/60 text-xs">Redeemer's University Health Centre</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-4">
+              <div className="text-right text-white">
+                <p className="font-medium text-sm">{patientUser.firstName} {patientUser.lastName}</p>
+                <p className="text-xs text-white/60">{patientUser.userType?.toUpperCase()}</p>
+              </div>
+              <Button variant="outline" size="sm" onClick={handlePatientLogout} className="text-white border-white/30 hover:bg-white/10">
+                <LogOut className="w-4 h-4 mr-1" /> Logout
+              </Button>
+            </div>
+          </div>
+        </header>
+
+        {/* Patient Dashboard Content */}
+        <main className="max-w-7xl mx-auto p-4 space-y-6">
+          {/* Welcome Card */}
+          <Card className="bg-white/10 backdrop-blur-md border-white/20">
+            <CardContent className="p-6">
+              <div className="flex items-center gap-4">
+                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-green-400 to-teal-500 flex items-center justify-center text-white text-2xl font-bold">
+                  {patientUser.firstName[0]}{patientUser.lastName[0]}
+                </div>
+                <div>
+                  <h2 className="text-2xl font-bold text-white">Welcome, {patientUser.firstName}!</h2>
+                  <p className="text-white/60">Your health is our priority</p>
+                  <div className="flex gap-4 mt-2 text-sm text-white/80">
+                    <span>Hospital No: <strong>{patientUser.hospitalNumber}</strong></span>
+                    <span>RUHC Code: <strong>{patientUser.ruhcCode}</strong></span>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Quick Stats */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <Card className="bg-white/10 backdrop-blur-md border-white/20">
+              <CardContent className="p-4 text-center">
+                <Calendar className="w-8 h-8 mx-auto text-blue-400 mb-2" />
+                <p className="text-2xl font-bold text-white">{getPatientAppointments().length}</p>
+                <p className="text-white/60 text-sm">Appointments</p>
+              </CardContent>
+            </Card>
+            <Card className="bg-white/10 backdrop-blur-md border-white/20">
+              <CardContent className="p-4 text-center">
+                <Activity className="w-8 h-8 mx-auto text-green-400 mb-2" />
+                <p className="text-2xl font-bold text-white">{getPatientVitals().length}</p>
+                <p className="text-white/60 text-sm">Vital Records</p>
+              </CardContent>
+            </Card>
+            <Card className="bg-white/10 backdrop-blur-md border-white/20">
+              <CardContent className="p-4 text-center">
+                <Microscope className="w-8 h-8 mx-auto text-purple-400 mb-2" />
+                <p className="text-2xl font-bold text-white">{getPatientLabRequests().length}</p>
+                <p className="text-white/60 text-sm">Lab Tests</p>
+              </CardContent>
+            </Card>
+            <Card className="bg-white/10 backdrop-blur-md border-white/20">
+              <CardContent className="p-4 text-center">
+                <Receipt className="w-8 h-8 mx-auto text-orange-400 mb-2" />
+                <p className="text-2xl font-bold text-white">{getPatientBills().length}</p>
+                <p className="text-white/60 text-sm">Bills</p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Main Content Grid */}
+          <div className="grid md:grid-cols-2 gap-6">
+            {/* Upcoming Appointments */}
+            <Card className="bg-white/10 backdrop-blur-md border-white/20">
+              <CardHeader>
+                <CardTitle className="text-white flex items-center gap-2">
+                  <Calendar className="w-5 h-5" /> Upcoming Appointments
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {getPatientAppointments().filter(a => a.status !== 'completed').length === 0 ? (
+                  <div className="text-center py-8">
+                    <Calendar className="w-12 h-12 mx-auto text-white/30 mb-2" />
+                    <p className="text-white/60">No upcoming appointments</p>
+                    <p className="text-white/40 text-sm">Visit the health centre to book an appointment</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {getPatientAppointments()
+                      .filter(a => a.status !== 'completed')
+                      .slice(0, 5)
+                      .map(apt => (
+                        <div key={apt.id} className="p-3 bg-white/5 rounded-lg border border-white/10">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <p className="text-white font-medium">{apt.department}</p>
+                              <p className="text-white/60 text-sm">{apt.type}</p>
+                            </div>
+                            <Badge className={getStatusBadgeColor(apt.status)}>{apt.status}</Badge>
+                          </div>
+                          <p className="text-white/80 text-sm mt-2">
+                            📅 {formatDate(apt.appointmentDate)} {apt.startTime && `at ${apt.startTime}`}
+                          </p>
+                          {apt.reason && <p className="text-white/60 text-xs mt-1">{apt.reason}</p>}
+                        </div>
+                      ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Recent Vitals */}
+            <Card className="bg-white/10 backdrop-blur-md border-white/20">
+              <CardHeader>
+                <CardTitle className="text-white flex items-center gap-2">
+                  <Activity className="w-5 h-5" /> Recent Vitals
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {getPatientVitals().length === 0 ? (
+                  <div className="text-center py-8">
+                    <Activity className="w-12 h-12 mx-auto text-white/30 mb-2" />
+                    <p className="text-white/60">No vital records yet</p>
+                    <p className="text-white/40 text-sm">Your vitals will appear here after check-up</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {getPatientVitals().slice(0, 5).map(vital => (
+                      <div key={vital.id} className="p-3 bg-white/5 rounded-lg border border-white/10">
+                        <div className="flex justify-between items-center mb-2">
+                          <span className="text-white/60 text-sm">{formatDateTime(vital.recordedAt)}</span>
+                          <span className="text-white/60 text-xs">By: {vital.nurseInitials}</span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 text-sm">
+                          {vital.bloodPressureSystolic && (
+                            <div className="text-white">
+                              <span className="text-white/60">BP:</span> {vital.bloodPressureSystolic}/{vital.bloodPressureDiastolic} mmHg
+                            </div>
+                          )}
+                          {vital.temperature && (
+                            <div className="text-white">
+                              <span className="text-white/60">Temp:</span> {vital.temperature}°C
+                            </div>
+                          )}
+                          {vital.pulse && (
+                            <div className="text-white">
+                              <span className="text-white/60">Pulse:</span> {vital.pulse} bpm
+                            </div>
+                          )}
+                          {vital.weight && (
+                            <div className="text-white">
+                              <span className="text-white/60">Weight:</span> {vital.weight} kg
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Lab Results */}
+            <Card className="bg-white/10 backdrop-blur-md border-white/20">
+              <CardHeader>
+                <CardTitle className="text-white flex items-center gap-2">
+                  <Microscope className="w-5 h-5" /> Lab Results
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {getPatientLabRequests().length === 0 ? (
+                  <div className="text-center py-8">
+                    <Microscope className="w-12 h-12 mx-auto text-white/30 mb-2" />
+                    <p className="text-white/60">No lab tests yet</p>
+                    <p className="text-white/40 text-sm">Your results will appear here</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {getPatientLabRequests().slice(0, 5).map(lab => (
+                      <div key={lab.id} className="p-3 bg-white/5 rounded-lg border border-white/10">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <p className="text-white font-medium">{lab.test?.name || 'Lab Test'}</p>
+                            <p className="text-white/60 text-sm">{formatDateTime(lab.requestedAt)}</p>
+                          </div>
+                          <Badge className={getStatusBadgeColor(lab.status)}>{lab.status}</Badge>
+                        </div>
+                        {lab.results && (
+                          <div className="mt-2 p-2 bg-green-500/20 rounded text-green-300 text-sm">
+                            <p className="font-medium">Result:</p>
+                            <p>{lab.results}</p>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Medical Info */}
+            <Card className="bg-white/10 backdrop-blur-md border-white/20">
+              <CardHeader>
+                <CardTitle className="text-white flex items-center gap-2">
+                  <Heart className="w-5 h-5" /> My Health Info
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {patientUser.bloodGroup && (
+                    <div className="flex justify-between items-center py-2 border-b border-white/10">
+                      <span className="text-white/60">Blood Group</span>
+                      <span className="text-white font-bold">{patientUser.bloodGroup}</span>
+                    </div>
+                  )}
+                  {patientUser.genotype && (
+                    <div className="flex justify-between items-center py-2 border-b border-white/10">
+                      <span className="text-white/60">Genotype</span>
+                      <span className="text-white font-bold">{patientUser.genotype}</span>
+                    </div>
+                  )}
+                  {patientUser.allergies && (
+                    <div className="py-2 border-b border-white/10">
+                      <span className="text-white/60">Allergies</span>
+                      <p className="text-white mt-1">{patientUser.allergies}</p>
+                    </div>
+                  )}
+                  {patientUser.chronicConditions && (
+                    <div className="py-2 border-b border-white/10">
+                      <span className="text-white/60">Chronic Conditions</span>
+                      <p className="text-white mt-1">{patientUser.chronicConditions}</p>
+                    </div>
+                  )}
+                  <div className="flex justify-between items-center py-2 border-b border-white/10">
+                    <span className="text-white/60">Date of Birth</span>
+                    <span className="text-white">{formatDate(patientUser.dateOfBirth)}</span>
+                  </div>
+                  <div className="flex justify-between items-center py-2">
+                    <span className="text-white/60">Gender</span>
+                    <span className="text-white">{patientUser.gender}</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Health Tips */}
+          <Card className="bg-white/10 backdrop-blur-md border-white/20">
+            <CardHeader>
+              <CardTitle className="text-white flex items-center gap-2">
+                <BookOpen className="w-5 h-5" /> Health Tips
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid md:grid-cols-3 gap-4">
+                <div className="p-4 bg-blue-500/20 rounded-lg border border-blue-400/30">
+                  <p className="text-blue-300 font-medium mb-1">💧 Stay Hydrated</p>
+                  <p className="text-white/70 text-sm">Drink at least 8 glasses of water daily for better health</p>
+                </div>
+                <div className="p-4 bg-green-500/20 rounded-lg border border-green-400/30">
+                  <p className="text-green-300 font-medium mb-1">🏃 Exercise Regularly</p>
+                  <p className="text-white/70 text-sm">30 minutes of exercise daily keeps you fit and healthy</p>
+                </div>
+                <div className="p-4 bg-purple-500/20 rounded-lg border border-purple-400/30">
+                  <p className="text-purple-300 font-medium mb-1">😴 Sleep Well</p>
+                  <p className="text-white/70 text-sm">Get 7-8 hours of sleep for optimal health and focus</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Emergency Contacts */}
+          <Card className="bg-red-500/10 backdrop-blur-md border-red-500/30">
+            <CardHeader>
+              <CardTitle className="text-red-400 flex items-center gap-2">
+                <AlertTriangle className="w-5 h-5" /> Emergency Contacts
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid md:grid-cols-3 gap-4">
+                <div className="p-4 bg-white/5 rounded-lg">
+                  <p className="text-white font-medium">Health Centre</p>
+                  <p className="text-2xl text-red-400 font-bold">080-XXX-XXXX</p>
+                  <p className="text-white/60 text-sm">Available 24/7</p>
+                </div>
+                <div className="p-4 bg-white/5 rounded-lg">
+                  <p className="text-white font-medium">Campus Security</p>
+                  <p className="text-2xl text-red-400 font-bold">080-XXX-XXXX</p>
+                  <p className="text-white/60 text-sm">Emergency Response</p>
+                </div>
+                <div className="p-4 bg-white/5 rounded-lg">
+                  <p className="text-white font-medium">National Emergency</p>
+                  <p className="text-2xl text-red-400 font-bold">199 / 112</p>
+                  <p className="text-white/60 text-sm">Nigeria Emergency</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </main>
+      </div>
+    )
+  }
+
   if (!user) {
+    // PORTAL SELECTION SCREEN
+    if (selectedPortal === 'selection') {
+      return (
+        <div className="min-h-screen bg-gradient-to-br from-blue-900 via-blue-800 to-teal-700 relative overflow-hidden flex items-center justify-center p-4">
+          {/* Animated background */}
+          <div className="absolute inset-0 overflow-hidden">
+            <div className="absolute top-20 left-10 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl animate-pulse" />
+            <div className="absolute bottom-20 right-10 w-96 h-96 bg-teal-400/10 rounded-full blur-3xl animate-pulse" />
+          </div>
+
+          <div className="relative z-10 w-full max-w-4xl">
+            {/* Header */}
+            <div className="text-center mb-8">
+              <div className="flex justify-center mb-4">
+                <img src="/runlogo.jpg" alt="RUN Logo" className="h-24 w-24 object-contain rounded-2xl bg-white p-2 shadow-2xl" />
+              </div>
+              <h1 className="text-3xl md:text-4xl font-bold text-white mb-2">RUN Health Centre</h1>
+              <p className="text-white/70 text-lg">Redeemer's University, Ede, Osun State</p>
+              <p className="text-white/50 mt-2">Choose your portal to continue</p>
+            </div>
+
+            {/* Portal Selection Cards */}
+            <div className="grid md:grid-cols-2 gap-6">
+              {/* Staff Portal */}
+              <Card 
+                className="bg-white/10 backdrop-blur-md border-white/20 cursor-pointer hover:bg-white/20 transition-all duration-300 hover:scale-105"
+                onClick={() => setSelectedPortal('staff')}
+              >
+                <CardContent className="p-8 text-center">
+                  <div className="w-20 h-20 mx-auto rounded-full bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center mb-4">
+                    <Stethoscope className="w-10 h-10 text-white" />
+                  </div>
+                  <h2 className="text-2xl font-bold text-white mb-2">Staff Portal</h2>
+                  <p className="text-white/70 mb-4">For doctors, nurses, pharmacists, lab technicians, and administrators</p>
+                  <div className="flex flex-wrap justify-center gap-2">
+                    <Badge className="bg-blue-500/30 text-blue-200">Doctors</Badge>
+                    <Badge className="bg-teal-500/30 text-teal-200">Nurses</Badge>
+                    <Badge className="bg-purple-500/30 text-purple-200">Pharmacists</Badge>
+                    <Badge className="bg-orange-500/30 text-orange-200">Lab Techs</Badge>
+                    <Badge className="bg-red-500/30 text-red-200">Admin</Badge>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Patient Portal */}
+              <Card 
+                className="bg-white/10 backdrop-blur-md border-white/20 cursor-pointer hover:bg-white/20 transition-all duration-300 hover:scale-105"
+                onClick={() => setSelectedPortal('patient')}
+              >
+                <CardContent className="p-8 text-center">
+                  <div className="w-20 h-20 mx-auto rounded-full bg-gradient-to-br from-green-500 to-teal-600 flex items-center justify-center mb-4">
+                    <Users className="w-10 h-10 text-white" />
+                  </div>
+                  <h2 className="text-2xl font-bold text-white mb-2">Patient Portal</h2>
+                  <p className="text-white/70 mb-4">For students, staff, and visitors of Redeemer's University</p>
+                  <div className="flex flex-wrap justify-center gap-2">
+                    <Badge className="bg-green-500/30 text-green-200">Students</Badge>
+                    <Badge className="bg-yellow-500/30 text-yellow-200">Staff</Badge>
+                    <Badge className="bg-pink-500/30 text-pink-200">Visitors</Badge>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Footer */}
+            <div className="text-center mt-8 text-white/40 text-sm">
+              <p>© {new Date().getFullYear()} Redeemer's University Health Centre. All rights reserved.</p>
+            </div>
+          </div>
+        </div>
+      )
+    }
+
+    // PATIENT PORTAL LOGIN/SIGNUP
+    if (selectedPortal === 'patient') {
+      return (
+        <div className="min-h-screen bg-gradient-to-br from-green-900 via-teal-800 to-blue-700 relative overflow-hidden flex items-center justify-center p-4">
+          {/* Animated background */}
+          <div className="absolute inset-0 overflow-hidden">
+            <div className="absolute top-20 left-10 w-64 h-64 bg-green-500/10 rounded-full blur-3xl animate-pulse" />
+            <div className="absolute bottom-20 right-10 w-96 h-96 bg-teal-400/10 rounded-full blur-3xl animate-pulse" />
+          </div>
+
+          <Card className="w-full max-w-md bg-white/10 backdrop-blur-md border-white/20 relative z-10">
+            <CardHeader className="text-center pb-2">
+              <div className="flex justify-center mb-3">
+                <img src="/runlogo.jpg" alt="RUN Logo" className="h-16 w-16 rounded-xl bg-white p-1" />
+              </div>
+              <CardTitle className="text-2xl font-bold text-white">Patient Portal</CardTitle>
+              <CardDescription className="text-white/60">Access your health records</CardDescription>
+            </CardHeader>
+            
+            <CardContent className="pt-4">
+              {/* Back Button */}
+              <button 
+                onClick={() => { setSelectedPortal('selection'); setPatientAuthError(''); setShowPatientSignUp(false); }}
+                className="text-white/60 hover:text-white text-sm mb-4 flex items-center gap-1"
+              >
+                ← Back to Portal Selection
+              </button>
+
+              {!showPatientSignUp ? (
+                // PATIENT LOGIN
+                <form onSubmit={handlePatientLogin} className="space-y-4">
+                  {patientAuthError && (
+                    <div className="p-3 bg-red-500/20 border border-red-500/30 text-red-300 rounded-lg text-sm flex items-center gap-2">
+                      <AlertTriangle className="w-4 h-4" />
+                      {patientAuthError}
+                    </div>
+                  )}
+
+                  <div className="space-y-2">
+                    <Label htmlFor="patient-email" className="text-white/80">Email or Phone</Label>
+                    <Input
+                      id="patient-email"
+                      type="text"
+                      placeholder="Enter your email or phone"
+                      value={patientLoginForm.email}
+                      onChange={e => setPatientLoginForm({ ...patientLoginForm, email: e.target.value, phone: e.target.value })}
+                      required
+                      className="h-11 bg-white/10 border-white/20 text-white placeholder:text-white/40"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="patient-password" className="text-white/80">Password</Label>
+                    <Input
+                      id="patient-password"
+                      type="password"
+                      placeholder="Enter your password"
+                      value={patientLoginForm.password}
+                      onChange={e => setPatientLoginForm({ ...patientLoginForm, password: e.target.value })}
+                      required
+                      className="h-11 bg-white/10 border-white/20 text-white placeholder:text-white/40"
+                    />
+                  </div>
+
+                  <Button 
+                    type="submit" 
+                    className="w-full h-11 bg-gradient-to-r from-green-600 to-teal-600 hover:from-green-700 hover:to-teal-700 text-white font-semibold"
+                  >
+                    Sign In
+                  </Button>
+
+                  <div className="text-center pt-2 border-t border-white/10">
+                    <p className="text-white/60 text-sm">
+                      Don't have an account?{' '}
+                      <button 
+                        type="button"
+                        onClick={() => { setShowPatientSignUp(true); setPatientAuthError(''); }}
+                        className="text-green-400 hover:text-green-300 font-medium underline"
+                      >
+                        Sign Up
+                      </button>
+                    </p>
+                  </div>
+                </form>
+              ) : patientAuthSuccess ? (
+                // SUCCESS MESSAGE
+                <div className="p-4 bg-green-500/20 border border-green-500/30 rounded-lg text-center">
+                  <CheckCircle className="w-10 h-10 mx-auto text-green-400 mb-2" />
+                  <p className="text-green-300 font-semibold">Account Created Successfully!</p>
+                  <p className="text-green-300/70 text-sm mt-1">Redirecting to sign in...</p>
+                </div>
+              ) : (
+                // PATIENT SIGN UP
+                <form onSubmit={handlePatientSignUp} className="space-y-4">
+                  {patientAuthError && (
+                    <div className="p-3 bg-red-500/20 border border-red-500/30 text-red-300 rounded-lg text-sm flex items-center gap-2">
+                      <AlertTriangle className="w-4 h-4" />
+                      {patientAuthError}
+                    </div>
+                  )}
+
+                  {/* User Type Selection */}
+                  <div className="space-y-2">
+                    <Label className="text-white/80">I am a:</Label>
+                    <div className="grid grid-cols-3 gap-2">
+                      {['student', 'staff', 'visitor'].map(type => (
+                        <button
+                          key={type}
+                          type="button"
+                          onClick={() => setPatientSignUpForm({ ...patientSignUpForm, userType: type as 'student' | 'staff' | 'visitor' })}
+                          className={`p-2 rounded-lg border text-sm font-medium transition-all ${
+                            patientSignUpForm.userType === type 
+                              ? 'bg-green-600 border-green-500 text-white' 
+                              : 'bg-white/5 border-white/20 text-white/70 hover:bg-white/10'
+                          }`}
+                        >
+                          {type.charAt(0).toUpperCase() + type.slice(1)}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-2">
+                      <Label className="text-white/80">First Name *</Label>
+                      <Input
+                        placeholder="First name"
+                        value={patientSignUpForm.firstName}
+                        onChange={e => setPatientSignUpForm({ ...patientSignUpForm, firstName: e.target.value })}
+                        required
+                        className="h-10 bg-white/10 border-white/20 text-white placeholder:text-white/40"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-white/80">Last Name *</Label>
+                      <Input
+                        placeholder="Last name"
+                        value={patientSignUpForm.lastName}
+                        onChange={e => setPatientSignUpForm({ ...patientSignUpForm, lastName: e.target.value })}
+                        required
+                        className="h-10 bg-white/10 border-white/20 text-white placeholder:text-white/40"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-white/80">Email *</Label>
+                    <Input
+                      type="email"
+                      placeholder="your.email@run.edu.ng"
+                      value={patientSignUpForm.email}
+                      onChange={e => setPatientSignUpForm({ ...patientSignUpForm, email: e.target.value })}
+                      required
+                      className="h-10 bg-white/10 border-white/20 text-white placeholder:text-white/40"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-white/80">Phone *</Label>
+                    <Input
+                      type="tel"
+                      placeholder="080XXXXXXXX"
+                      value={patientSignUpForm.phone}
+                      onChange={e => setPatientSignUpForm({ ...patientSignUpForm, phone: e.target.value })}
+                      required
+                      className="h-10 bg-white/10 border-white/20 text-white placeholder:text-white/40"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-2">
+                      <Label className="text-white/80">Password *</Label>
+                      <Input
+                        type="password"
+                        placeholder="Min 4 characters"
+                        value={patientSignUpForm.password}
+                        onChange={e => setPatientSignUpForm({ ...patientSignUpForm, password: e.target.value })}
+                        required
+                        className="h-10 bg-white/10 border-white/20 text-white placeholder:text-white/40"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-white/80">Confirm *</Label>
+                      <Input
+                        type="password"
+                        placeholder="Confirm password"
+                        value={patientSignUpForm.confirmPassword}
+                        onChange={e => setPatientSignUpForm({ ...patientSignUpForm, confirmPassword: e.target.value })}
+                        required
+                        className="h-10 bg-white/10 border-white/20 text-white placeholder:text-white/40"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-2">
+                      <Label className="text-white/80">Date of Birth *</Label>
+                      <Input
+                        type="date"
+                        value={patientSignUpForm.dateOfBirth}
+                        onChange={e => setPatientSignUpForm({ ...patientSignUpForm, dateOfBirth: e.target.value })}
+                        required
+                        className="h-10 bg-white/10 border-white/20 text-white"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-white/80">Gender *</Label>
+                      <Select value={patientSignUpForm.gender} onValueChange={v => setPatientSignUpForm({ ...patientSignUpForm, gender: v })}>
+                        <SelectTrigger className="h-10 bg-white/10 border-white/20 text-white">
+                          <SelectValue placeholder="Select" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Male">Male</SelectItem>
+                          <SelectItem value="Female">Female</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  {patientSignUpForm.userType !== 'visitor' && (
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-2">
+                        <Label className="text-white/80">{patientSignUpForm.userType === 'student' ? 'Matric Number' : 'Staff ID'}</Label>
+                        <Input
+                          placeholder={patientSignUpForm.userType === 'student' ? 'e.g., RUN/2024/001' : 'e.g., STF/001'}
+                          value={patientSignUpForm.studentStaffId}
+                          onChange={e => setPatientSignUpForm({ ...patientSignUpForm, studentStaffId: e.target.value })}
+                          className="h-10 bg-white/10 border-white/20 text-white placeholder:text-white/40"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-white/80">Department</Label>
+                        <Input
+                          placeholder="e.g., Computer Science"
+                          value={patientSignUpForm.department}
+                          onChange={e => setPatientSignUpForm({ ...patientSignUpForm, department: e.target.value })}
+                          className="h-10 bg-white/10 border-white/20 text-white placeholder:text-white/40"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  <Button 
+                    type="submit" 
+                    className="w-full h-11 bg-gradient-to-r from-green-600 to-teal-600 hover:from-green-700 hover:to-teal-700 text-white font-semibold"
+                  >
+                    <UserPlus className="w-4 h-4 mr-2" />
+                    Create Account
+                  </Button>
+
+                  <div className="text-center">
+                    <p className="text-white/60 text-sm">
+                      Already have an account?{' '}
+                      <button 
+                        type="button"
+                        onClick={() => { setShowPatientSignUp(false); setPatientAuthError(''); }}
+                        className="text-green-400 hover:text-green-300 font-medium underline"
+                      >
+                        Sign In
+                      </button>
+                    </p>
+                  </div>
+                </form>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )
+    }
+
+    // STAFF PORTAL LOGIN (Original Login)
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-900 via-blue-800 to-teal-700 relative overflow-hidden flex items-center justify-center p-4">
         {/* Live Clock - Top Right Corner */}
@@ -4167,6 +5022,17 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
           </CardHeader>
           
           <CardContent className="pt-6 px-8">
+            {/* Back to Portal Selection */}
+            {!showSignUp && !showForgotPassword && (
+              <button 
+                type="button"
+                onClick={() => setSelectedPortal('selection')}
+                className="text-sm text-gray-500 hover:text-gray-700 mb-4 flex items-center gap-1"
+              >
+                ← Back to Portal Selection
+              </button>
+            )}
+            
             {!showSignUp ? (
               // LOGIN FORM
               <form onSubmit={handleLogin} className="space-y-5">
