@@ -48,11 +48,11 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate role
-    const allowedRoles = ['DOCTOR', 'NURSE', 'PHARMACIST', 'LAB_TECHNICIAN', 'MATRON']
+    const allowedRoles = ['DOCTOR', 'NURSE', 'PHARMACIST', 'LAB_TECHNICIAN', 'MATRON', 'RECORDS_OFFICER']
     if (!allowedRoles.includes(role)) {
       return NextResponse.json({ 
         success: false, 
-        error: 'Invalid role. You can only register as Doctor, Nurse, Pharmacist, Lab Technician, or Matron.' 
+        error: 'Invalid role. You can only register as Doctor, Nurse, Pharmacist, Lab Technician, Matron, or Records Officer.' 
       }, { status: 400 })
     }
 
