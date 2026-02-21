@@ -2901,6 +2901,61 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
     initApp()
   }, [])
 
+  // Load data from localStorage for instant display (fallback/backup)
+  const loadDataFromLocalStorage = () => {
+    try {
+      const cachedData = localStorage.getItem('hms_data_cache')
+      if (cachedData) {
+        const parsed = JSON.parse(cachedData)
+        const cacheTime = localStorage.getItem('hms_data_cache_time')
+        const cacheAge = cacheTime ? Date.now() - parseInt(cacheTime) : Infinity
+        
+        // Use cache if less than 5 minutes old, or as fallback
+        if (parsed) {
+          if (parsed.patients?.length) setPatients(parsed.patients)
+          if (parsed.vitals?.length) setVitals(parsed.vitals)
+          if (parsed.consultations?.length) setConsultations(parsed.consultations)
+          if (parsed.labRequests?.length) setLabRequests(parsed.labRequests)
+          if (parsed.labResults?.length) setLabResults(parsed.labResults)
+          if (parsed.queueEntries?.length) setQueueEntries(parsed.queueEntries)
+          if (parsed.admissions?.length) setAdmissions(parsed.admissions)
+          if (parsed.prescriptions?.length) setPrescriptions(parsed.prescriptions)
+          if (parsed.dispensedDrugs?.length) setDispensedDrugs(parsed.dispensedDrugs)
+          if (parsed.bills?.length) setBills(parsed.bills)
+          if (parsed.payments?.length) setPayments(parsed.payments)
+          console.log('Loaded data from localStorage cache')
+          return true
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load from localStorage:', error)
+    }
+    return false
+  }
+
+  // Save all data to localStorage for persistence
+  const saveDataToLocalStorage = useCallback(() => {
+    try {
+      const dataToCache = {
+        patients,
+        vitals,
+        consultations,
+        labRequests,
+        labResults,
+        queueEntries,
+        admissions,
+        prescriptions,
+        dispensedDrugs,
+        bills,
+        payments,
+      }
+      localStorage.setItem('hms_data_cache', JSON.stringify(dataToCache))
+      localStorage.setItem('hms_data_cache_time', Date.now().toString())
+    } catch (error) {
+      console.error('Failed to save to localStorage:', error)
+    }
+  }, [patients, vitals, consultations, labRequests, labResults, queueEntries, admissions, prescriptions, dispensedDrugs, bills, payments])
+
   // Load all data from database via API
   const loadDataFromDB = async () => {
     try {
@@ -2940,17 +2995,44 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
           })))
         }
         
+        // Save to localStorage for persistence
+        const dataToCache = {
+          patients: dbPatients || [],
+          vitals: dbVitals || [],
+          consultations: dbConsultations || [],
+          labRequests: dbLabRequests || [],
+          labResults: dbLabResults || [],
+          queueEntries: dbQueue || [],
+          admissions: dbAdmissions || [],
+          prescriptions: dbPrescriptions || [],
+          dispensedDrugs: [],
+          bills: [],
+          payments: [],
+        }
+        localStorage.setItem('hms_data_cache', JSON.stringify(dataToCache))
+        localStorage.setItem('hms_data_cache_time', Date.now().toString())
+        
         console.log('Data loaded from database')
       }
     } catch (error) {
       console.error('Failed to load data from database:', error)
+      // Fallback to localStorage if database fails
+      loadDataFromLocalStorage()
     }
   }
 
-  // Load data on mount
+  // Load data on mount - try localStorage first for instant display
   useEffect(() => {
-    loadDataFromDB()
+    loadDataFromLocalStorage() // Load cached data first for instant display
+    loadDataFromDB() // Then fetch fresh data from database
   }, [])
+
+  // Save to localStorage whenever data changes
+  useEffect(() => {
+    if (patients.length > 0 || vitals.length > 0 || consultations.length > 0) {
+      saveDataToLocalStorage()
+    }
+  }, [patients, vitals, consultations, labRequests, labResults, queueEntries, admissions, prescriptions, dispensedDrugs, bills, payments, saveDataToLocalStorage])
 
   // Real-time polling - refresh data every 15 seconds for live updates
   useEffect(() => {
@@ -2961,6 +3043,43 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
     }, 15000) // Refresh every 15 seconds
     
     return () => clearInterval(pollInterval)
+  }, [user])
+
+  // Real-time event listeners for cross-component communication
+  useEffect(() => {
+    if (!user) return
+
+    const handlePatientFileSent = () => {
+      // Immediately refresh data when nurse sends file to doctor
+      loadDataFromDB()
+    }
+
+    const handleConsultationCompleted = () => {
+      // Immediately refresh data when doctor completes consultation
+      loadDataFromDB()
+    }
+
+    const handleMedicationDispensed = () => {
+      // Immediately refresh data when pharmacist dispenses medication
+      loadDataFromDB()
+    }
+
+    const handleLabResultsReady = () => {
+      // Immediately refresh data when lab results are ready
+      loadDataFromDB()
+    }
+
+    window.addEventListener('patientFileSent', handlePatientFileSent)
+    window.addEventListener('consultationCompleted', handleConsultationCompleted)
+    window.addEventListener('medicationDispensed', handleMedicationDispensed)
+    window.addEventListener('labResultsReady', handleLabResultsReady)
+
+    return () => {
+      window.removeEventListener('patientFileSent', handlePatientFileSent)
+      window.removeEventListener('consultationCompleted', handleConsultationCompleted)
+      window.removeEventListener('medicationDispensed', handleMedicationDispensed)
+      window.removeEventListener('labResultsReady', handleLabResultsReady)
+    }
   }, [user])
 
   // Save patient to database
@@ -3875,10 +3994,23 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
       sentAt: new Date().toISOString()
     }
     setConsultations([newConsultation, ...consultations])
+    
+    // Update queue status to 'in_progress' when nurse sends to doctor
+    setQueueEntries(prev => prev.map(q => 
+      q.patientId === sendToDoctorForm.patientId && q.status === 'waiting'
+        ? { ...q, status: 'in_progress' as const, calledAt: new Date().toISOString() }
+        : q
+    ))
+    
     setShowSendToDoctorDialog(false)
     setSendToDoctorForm({ patientId: '', doctorId: '3', chiefComplaint: '', signsAndSymptoms: '', notes: '', initials: '', patientType: 'outpatient', wardUnit: '' })
     // Show success toast
     showToast(`Patient file sent to doctor successfully!`, 'success')
+    
+    // Dispatch custom event for real-time updates
+    window.dispatchEvent(new CustomEvent('patientFileSent', { 
+      detail: { patientId: sendToDoctorForm.patientId, consultationId: newConsultation.id } 
+    }))
   }
 
   // Doctor starts consultation
@@ -4022,6 +4154,26 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
       return c
     }))
     
+    // Update queue status based on where the patient is sent
+    // Workflow:
+    // - Sent to nurse for admission → Status: 'completed' (patient will be admitted)
+    // - Sent to lab → Status stays 'in_progress' (until lab sends back)
+    // - Sent to pharmacy → Status stays 'in_progress' (until pharmacist dispenses)
+    // - Sent to records only → Status: 'completed'
+    const isOnlyRecords = consultationForm.sendBackTo.length === 1 && consultationForm.sendBackTo[0] === 'records'
+    const hasAdmission = consultationForm.sendBackTo.includes('nurse')
+    const hasPharmacyOnly = consultationForm.sendBackTo.length === 1 && consultationForm.sendBackTo[0] === 'pharmacy'
+    
+    if (isOnlyRecords || hasAdmission) {
+      // Complete the queue entry
+      setQueueEntries(prev => prev.map(q => 
+        q.patientId === consultationForm.patientId && q.status === 'in_progress'
+          ? { ...q, status: 'completed' as const, completedAt: new Date().toISOString() }
+          : q
+      ))
+    }
+    // For lab and pharmacy, queue stays 'in_progress' until those services are completed
+    
     // Add file transfer notification
     const patient = patients.find(p => p.id === consultationForm.patientId)
     const patientName = patient ? getFullName(patient.firstName, patient.lastName, patient.middleName) : 'Unknown Patient'
@@ -4047,6 +4199,11 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
     
     setShowConsultationDialog(false)
     showToast('Consultation completed and file sent!', 'success')
+    
+    // Dispatch custom event for real-time updates
+    window.dispatchEvent(new CustomEvent('consultationCompleted', { 
+      detail: { patientId: consultationForm.patientId, consultationId: consultationForm.consultationId, sentTo: consultationForm.sendBackTo } 
+    }))
   }
 
   const createPatient = () => {
@@ -13592,7 +13749,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
 
       {/* Emergency Dialog */}
       <Dialog open={showEmergencyDialog} onOpenChange={setShowEmergencyDialog}>
-        <DialogContent onInteractOutside={(e) => e.preventDefault()}>
+        <DialogContent onInteractOutside={(e) => e.preventDefault()} onEscapeKeyDown={(e) => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-red-600">
               <AlertTriangle className="h-5 w-5" />
@@ -13704,7 +13861,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
 
       {/* Initials Confirmation Dialog for Nurses */}
       <Dialog open={showInitialsDialog} onOpenChange={setShowInitialsDialog}>
-        <DialogContent onInteractOutside={(e) => e.preventDefault()}>
+        <DialogContent onInteractOutside={(e) => e.preventDefault()} onEscapeKeyDown={(e) => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <AlertTriangle className="h-5 w-5 text-yellow-500" />
@@ -13751,7 +13908,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
           setEditingPatientId(null);
         }
       }}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto" onInteractOutside={(e) => e.preventDefault()}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto" onInteractOutside={(e) => e.preventDefault()} onEscapeKeyDown={(e) => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle>{editingPatientId ? 'Edit Patient Record' : 'Register New Patient'}</DialogTitle>
             <DialogDescription>
@@ -13937,7 +14094,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
 
       {/* Vitals Dialog */}
       <Dialog open={showVitalsDialog} onOpenChange={setShowVitalsDialog}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto" onInteractOutside={(e) => e.preventDefault()}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto" onInteractOutside={(e) => e.preventDefault()} onEscapeKeyDown={(e) => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle>Record Vital Signs</DialogTitle>
           </DialogHeader>
@@ -14152,7 +14309,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
 
       {/* Medication Administration Dialog */}
       <Dialog open={showMedicationDialog} onOpenChange={setShowMedicationDialog}>
-        <DialogContent onInteractOutside={(e) => e.preventDefault()}>
+        <DialogContent onInteractOutside={(e) => e.preventDefault()} onEscapeKeyDown={(e) => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle>Administer Medication</DialogTitle>
           </DialogHeader>
@@ -14230,7 +14387,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
 
       {/* Appointment Dialog */}
       <Dialog open={showAppointmentDialog} onOpenChange={setShowAppointmentDialog}>
-        <DialogContent className="max-w-lg" onInteractOutside={(e) => e.preventDefault()}>
+        <DialogContent className="max-w-lg" onInteractOutside={(e) => e.preventDefault()} onEscapeKeyDown={(e) => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle>Book Appointment</DialogTitle>
           </DialogHeader>
@@ -14306,7 +14463,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
 
       {/* Other Dialogs (Roster, Announcement, Voice Note, Calculator, Export) - keeping same as before for brevity */}
       <Dialog open={showRosterDialog} onOpenChange={setShowRosterDialog}>
-        <DialogContent onInteractOutside={(e) => e.preventDefault()}>
+        <DialogContent onInteractOutside={(e) => e.preventDefault()} onEscapeKeyDown={(e) => e.preventDefault()}>
           <DialogHeader><DialogTitle>Add Duty Roster Entry</DialogTitle></DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
@@ -14359,7 +14516,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
       </Dialog>
 
       <Dialog open={showAnnouncementDialog} onOpenChange={setShowAnnouncementDialog}>
-        <DialogContent onInteractOutside={(e) => e.preventDefault()}>
+        <DialogContent onInteractOutside={(e) => e.preventDefault()} onEscapeKeyDown={(e) => e.preventDefault()}>
           <DialogHeader><DialogTitle>New Announcement</DialogTitle></DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2"><Label>Title</Label><Input value={announcementForm.title} onChange={e => setAnnouncementForm({ ...announcementForm, title: e.target.value })} /></div>
@@ -14385,7 +14542,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
       </Dialog>
 
       <Dialog open={showVoiceNoteDialog} onOpenChange={setShowVoiceNoteDialog}>
-        <DialogContent onInteractOutside={(e) => e.preventDefault()}>
+        <DialogContent onInteractOutside={(e) => e.preventDefault()} onEscapeKeyDown={(e) => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle>Record Voice Note</DialogTitle>
             <DialogDescription>Send a voice message to another department</DialogDescription>
@@ -14531,7 +14688,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
       </Dialog>
 
       <Dialog open={showCalculatorDialog} onOpenChange={setShowCalculatorDialog}>
-        <DialogContent className="max-w-md" onInteractOutside={(e) => e.preventDefault()}>
+        <DialogContent className="max-w-md" onInteractOutside={(e) => e.preventDefault()} onEscapeKeyDown={(e) => e.preventDefault()}>
           <DialogHeader><DialogTitle className="flex items-center gap-2"><Calculator className="h-5 w-5" /> Medical Calculator</DialogTitle></DialogHeader>
           <div className="space-y-4 py-4">
             <div className="grid grid-cols-2 gap-2">
@@ -14582,7 +14739,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
       </Dialog>
 
       <Dialog open={showExportDialog} onOpenChange={setShowExportDialog}>
-        <DialogContent onInteractOutside={(e) => e.preventDefault()}>
+        <DialogContent onInteractOutside={(e) => e.preventDefault()} onEscapeKeyDown={(e) => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle>Export Patient Record</DialogTitle>
             <DialogDescription>Download patient record as a file</DialogDescription>
@@ -14609,7 +14766,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
 
       {/* Patient QR Code Dialog */}
       <Dialog open={showQRCodeDialog} onOpenChange={setShowQRCodeDialog}>
-        <DialogContent className="max-w-md" onInteractOutside={(e) => e.preventDefault()}>
+        <DialogContent className="max-w-md" onInteractOutside={(e) => e.preventDefault()} onEscapeKeyDown={(e) => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Smartphone className="h-5 w-5 text-purple-600" />
@@ -14673,7 +14830,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
 
       {/* Password Change Dialog */}
       <Dialog open={showPasswordDialog} onOpenChange={setShowPasswordDialog}>
-        <DialogContent onInteractOutside={(e) => e.preventDefault()}>
+        <DialogContent onInteractOutside={(e) => e.preventDefault()} onEscapeKeyDown={(e) => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Lock className="h-5 w-5 text-blue-600" />
@@ -14744,7 +14901,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
 
       {/* Send to Doctor Dialog - Nurse */}
       <Dialog open={showSendToDoctorDialog} onOpenChange={setShowSendToDoctorDialog}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto" onInteractOutside={(e) => e.preventDefault()}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto" onInteractOutside={(e) => e.preventDefault()} onEscapeKeyDown={(e) => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Stethoscope className="h-5 w-5 text-green-600" />
@@ -14973,7 +15130,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
 
       {/* Consultation Dialog - Doctor */}
       <Dialog open={showConsultationDialog} onOpenChange={setShowConsultationDialog}>
-        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto" onInteractOutside={(e) => e.preventDefault()}>
+        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto" onInteractOutside={(e) => e.preventDefault()} onEscapeKeyDown={(e) => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-xl">
               <Stethoscope className="h-6 w-6 text-green-600" />
@@ -15613,7 +15770,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
 
       {/* Lab Results Entry Dialog */}
       <Dialog open={showLabResultDialog} onOpenChange={setShowLabResultDialog}>
-        <DialogContent className="max-w-lg" onInteractOutside={(e) => e.preventDefault()}>
+        <DialogContent className="max-w-lg" onInteractOutside={(e) => e.preventDefault()} onEscapeKeyDown={(e) => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Microscope className="h-5 w-5 text-pink-600" />
@@ -15702,12 +15859,44 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                   createdAt: new Date().toISOString()
                 }
                 setLabResults([newResult, ...labResults])
-                setLabRequests(labRequests.map(l => 
-                  l.id === labResultForm.labRequestId 
+                setLabRequests(labRequests.map(l =>
+                  l.id === labResultForm.labRequestId
                     ? { ...l, status: 'completed', results: labResultForm.result, resultsEnteredBy: labResultForm.initials }
                     : l
                 ))
+                // Update consultation to send back to doctor with lab results
+                setConsultations(prev => prev.map(c => {
+                  if (c.patientId === labResultForm.patientId && c.status === 'sent_back' && c.sendBackTo?.includes('laboratory')) {
+                    // Remove laboratory from sendBackTo since results are ready
+                    const newSendBackTo = c.sendBackTo.filter(s => s !== 'laboratory')
+                    return {
+                      ...c,
+                      sendBackTo: newSendBackTo.length > 0 ? newSendBackTo : ['records'],
+                      notes: (c.notes || '') + `\nLab results available: ${labResultForm.result}`
+                    }
+                  }
+                  return c
+                }))
+                // Complete queue entry if patient was only sent to lab
+                setQueueEntries(prev => prev.map(q => {
+                  if (q.patientId === labResultForm.patientId && q.status === 'in_progress') {
+                    // Check if there's a consultation that's only waiting for lab
+                    const patientConsultations = consultations.filter(c => c.patientId === labResultForm.patientId && c.status === 'sent_back')
+                    const onlyWaitingForLab = patientConsultations.some(c =>
+                      c.sendBackTo?.length === 1 && c.sendBackTo[0] === 'laboratory'
+                    )
+                    if (onlyWaitingForLab) {
+                      return { ...q, status: 'completed' as const, completedAt: new Date().toISOString() }
+                    }
+                  }
+                  return q
+                }))
                 setShowLabResultDialog(false)
+                showToast('Lab results saved and file sent back to doctor!', 'success')
+                // Dispatch custom event for real-time updates
+                window.dispatchEvent(new CustomEvent('labResultsReady', {
+                  detail: { patientId: labResultForm.patientId, labRequestId: labResultForm.labRequestId }
+                }))
               }}
               className="bg-green-600 hover:bg-green-700"
             >
@@ -15719,7 +15908,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
 
       {/* New Admission Dialog */}
       <Dialog open={showAdmissionDialog} onOpenChange={setShowAdmissionDialog}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto" onInteractOutside={(e) => e.preventDefault()}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto" onInteractOutside={(e) => e.preventDefault()} onEscapeKeyDown={(e) => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-xl">
               <Building2 className="h-6 w-6 text-blue-600" />
@@ -16226,7 +16415,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
 
       {/* Admission Details Dialog */}
       <Dialog open={!!showAdmissionDetails} onOpenChange={() => setShowAdmissionDetails(null)}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto" onInteractOutside={(e) => e.preventDefault()}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto" onInteractOutside={(e) => e.preventDefault()} onEscapeKeyDown={(e) => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle>Admission Details</DialogTitle>
           </DialogHeader>
@@ -16333,7 +16522,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
 
       {/* Dispense Drug Dialog */}
       <Dialog open={showDispenseDialog} onOpenChange={setShowDispenseDialog}>
-        <DialogContent onInteractOutside={(e) => e.preventDefault()}>
+        <DialogContent onInteractOutside={(e) => e.preventDefault()} onEscapeKeyDown={(e) => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Pill className="h-5 w-5 text-purple-600" />
@@ -16427,7 +16616,18 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                     ? { ...d, quantityInStock: d.quantityInStock - dispenseForm.quantity }
                     : d
                 ))
+                // Complete queue entry when pharmacist dispenses medication
+                setQueueEntries(prev => prev.map(q => 
+                  q.patientId === dispenseForm.patientId && q.status === 'in_progress'
+                    ? { ...q, status: 'completed' as const, completedAt: new Date().toISOString() }
+                    : q
+                ))
                 setShowDispenseDialog(false)
+                showToast('Medication dispensed successfully!', 'success')
+                // Dispatch custom event for real-time updates
+                window.dispatchEvent(new CustomEvent('medicationDispensed', { 
+                  detail: { patientId: dispenseForm.patientId } 
+                }))
               }}
               className="bg-purple-600 hover:bg-purple-700"
             >
@@ -16439,7 +16639,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
 
       {/* Add to Queue Dialog */}
       <Dialog open={showQueueDialog} onOpenChange={setShowQueueDialog}>
-        <DialogContent onInteractOutside={(e) => e.preventDefault()}>
+        <DialogContent onInteractOutside={(e) => e.preventDefault()} onEscapeKeyDown={(e) => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Users className="h-5 w-5 text-blue-600" />
@@ -16526,7 +16726,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
 
       {/* Medical Certificate Dialog */}
       <Dialog open={showCertificateDialog} onOpenChange={setShowCertificateDialog}>
-        <DialogContent className="max-w-2xl" onInteractOutside={(e) => e.preventDefault()}>
+        <DialogContent className="max-w-2xl" onInteractOutside={(e) => e.preventDefault()} onEscapeKeyDown={(e) => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <FileText className="h-5 w-5 text-blue-600" />
@@ -16670,7 +16870,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
 
       {/* Referral Letter Dialog */}
       <Dialog open={showReferralDialog} onOpenChange={setShowReferralDialog}>
-        <DialogContent onInteractOutside={(e) => e.preventDefault()}>
+        <DialogContent onInteractOutside={(e) => e.preventDefault()} onEscapeKeyDown={(e) => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Send className="h-5 w-5 text-orange-600" />
@@ -16787,7 +16987,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
 
       {/* Payment Dialog */}
       <Dialog open={showPaymentDialog} onOpenChange={setShowPaymentDialog}>
-        <DialogContent onInteractOutside={(e) => e.preventDefault()}>
+        <DialogContent onInteractOutside={(e) => e.preventDefault()} onEscapeKeyDown={(e) => e.preventDefault()}>
           <DialogHeader><DialogTitle>Record Payment</DialogTitle></DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
@@ -16909,7 +17109,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
 
       {/* Expense Dialog */}
       <Dialog open={showExpenseDialog} onOpenChange={setShowExpenseDialog}>
-        <DialogContent onInteractOutside={(e) => e.preventDefault()}>
+        <DialogContent onInteractOutside={(e) => e.preventDefault()} onEscapeKeyDown={(e) => e.preventDefault()}>
           <DialogHeader><DialogTitle>Record Expense</DialogTitle></DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
@@ -16964,7 +17164,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
 
       {/* Ambulance Dialog */}
       <Dialog open={showAmbulanceDialog} onOpenChange={setShowAmbulanceDialog}>
-        <DialogContent onInteractOutside={(e) => e.preventDefault()}>
+        <DialogContent onInteractOutside={(e) => e.preventDefault()} onEscapeKeyDown={(e) => e.preventDefault()}>
           <DialogHeader><DialogTitle>New Ambulance Dispatch</DialogTitle></DialogHeader>
           <div className="space-y-4 py-4">
             <div className="grid grid-cols-2 gap-4">
@@ -17014,7 +17214,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
 
       {/* Message Dialog */}
       <Dialog open={showMessageDialog} onOpenChange={setShowMessageDialog}>
-        <DialogContent onInteractOutside={(e) => e.preventDefault()}>
+        <DialogContent onInteractOutside={(e) => e.preventDefault()} onEscapeKeyDown={(e) => e.preventDefault()}>
           <DialogHeader><DialogTitle>Send Message</DialogTitle></DialogHeader>
           <div className="space-y-4 py-4">
             <div className="flex items-center gap-2">
@@ -17065,7 +17265,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
 
       {/* Insurance Dialog */}
       <Dialog open={showInsuranceDialog} onOpenChange={setShowInsuranceDialog}>
-        <DialogContent onInteractOutside={(e) => e.preventDefault()}>
+        <DialogContent onInteractOutside={(e) => e.preventDefault()} onEscapeKeyDown={(e) => e.preventDefault()}>
           <DialogHeader><DialogTitle>New Insurance Claim</DialogTitle></DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
@@ -17134,7 +17334,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
           setStaffError('')
         }
       }}>
-        <DialogContent className="max-w-md" onInteractOutside={(e) => e.preventDefault()}>
+        <DialogContent className="max-w-md" onInteractOutside={(e) => e.preventDefault()} onEscapeKeyDown={(e) => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <UserPlus className="h-5 w-5 text-blue-600" />
@@ -17303,7 +17503,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
       
       {/* Credentials Dialog - Show after account creation */}
       <Dialog open={showCredentialsDialog} onOpenChange={setShowCredentialsDialog}>
-        <DialogContent className="max-w-md" onInteractOutside={(e) => e.preventDefault()}>
+        <DialogContent className="max-w-md" onInteractOutside={(e) => e.preventDefault()} onEscapeKeyDown={(e) => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-green-600">
               <CheckCircle className="h-5 w-5" />
@@ -17357,7 +17557,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
           setSelectedUserForAction(null)
         }
       }}>
-        <DialogContent className="max-w-md" onInteractOutside={(e) => e.preventDefault()}>
+        <DialogContent className="max-w-md" onInteractOutside={(e) => e.preventDefault()} onEscapeKeyDown={(e) => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Key className="h-5 w-5 text-blue-600" />
@@ -17449,7 +17649,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
 
       {/* Task Dialog */}
       <Dialog open={showTaskDialog} onOpenChange={setShowTaskDialog}>
-        <DialogContent className="max-w-lg" onInteractOutside={(e) => e.preventDefault()}>
+        <DialogContent className="max-w-lg" onInteractOutside={(e) => e.preventDefault()} onEscapeKeyDown={(e) => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Bell className="h-5 w-5 text-orange-600" />
@@ -17590,7 +17790,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
 
       {/* Equipment Dialog */}
       <Dialog open={showEquipmentDialog} onOpenChange={setShowEquipmentDialog}>
-        <DialogContent onInteractOutside={(e) => e.preventDefault()}>
+        <DialogContent onInteractOutside={(e) => e.preventDefault()} onEscapeKeyDown={(e) => e.preventDefault()}>
           <DialogHeader><DialogTitle>Add Equipment</DialogTitle></DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
@@ -17639,7 +17839,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
 
       {/* Session Timeout Warning Modal */}
       <Dialog open={showSessionWarning} onOpenChange={setShowSessionWarning}>
-        <DialogContent className="sm:max-w-md" onInteractOutside={(e) => e.preventDefault()}>
+        <DialogContent className="sm:max-w-md" onInteractOutside={(e) => e.preventDefault()} onEscapeKeyDown={(e) => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-orange-600">
               <Timer className="h-5 w-5" />
@@ -17685,7 +17885,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
       <Dialog open={showPasswordChangeModal} onOpenChange={(open) => {
         if (!passwordChangeRequired) setShowPasswordChangeModal(open)
       }}>
-        <DialogContent className="sm:max-w-md" onInteractOutside={(e) => e.preventDefault()}>
+        <DialogContent className="sm:max-w-md" onInteractOutside={(e) => e.preventDefault()} onEscapeKeyDown={(e) => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Key className="h-5 w-5 text-blue-600" />
@@ -17760,7 +17960,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
 
       {/* Surgery Booking Dialog */}
       <Dialog open={showSurgeryDialog} onOpenChange={setShowSurgeryDialog}>
-        <DialogContent className="max-w-2xl" onInteractOutside={(e) => e.preventDefault()}>
+        <DialogContent className="max-w-2xl" onInteractOutside={(e) => e.preventDefault()} onEscapeKeyDown={(e) => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle>Book Surgery</DialogTitle>
             <DialogDescription>Schedule a surgical procedure</DialogDescription>
@@ -17849,7 +18049,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
 
       {/* Immunization Record Dialog */}
       <Dialog open={showImmunizationDialog} onOpenChange={setShowImmunizationDialog}>
-        <DialogContent onInteractOutside={(e) => e.preventDefault()}>
+        <DialogContent onInteractOutside={(e) => e.preventDefault()} onEscapeKeyDown={(e) => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle>Record Vaccination</DialogTitle>
             <DialogDescription>Record a new immunization</DialogDescription>
@@ -17909,7 +18109,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
 
       {/* Blood Donor Dialog */}
       <Dialog open={showBloodDonorDialog} onOpenChange={setShowBloodDonorDialog}>
-        <DialogContent onInteractOutside={(e) => e.preventDefault()}>
+        <DialogContent onInteractOutside={(e) => e.preventDefault()} onEscapeKeyDown={(e) => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle>Register Blood Donor</DialogTitle>
             <DialogDescription>Add a new blood donor to the registry</DialogDescription>
@@ -17971,7 +18171,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
 
       {/* Wallet Transactions Dialog */}
       <Dialog open={showWalletDialog} onOpenChange={setShowWalletDialog}>
-        <DialogContent className="max-w-2xl" onInteractOutside={(e) => e.preventDefault()}>
+        <DialogContent className="max-w-2xl" onInteractOutside={(e) => e.preventDefault()} onEscapeKeyDown={(e) => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle>Wallet Transactions</DialogTitle>
             <DialogDescription>
