@@ -5256,7 +5256,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
     }
     
     const permissions: Record<string, UserRole[]> = {
-      patients: ['SUPER_ADMIN', 'ADMIN', 'DOCTOR', 'NURSE', 'RECORDS_OFFICER'],
+      patients: ['SUPER_ADMIN', 'ADMIN', 'RECORDS_OFFICER'], // Nurses and Doctors cannot view patients - only Records/Admin
       consultations: ['SUPER_ADMIN', 'ADMIN', 'DOCTOR'], // Nurses cannot view consultations - only send patients to doctors
       appointments: ['SUPER_ADMIN', 'ADMIN', 'DOCTOR', 'NURSE'],
       pharmacy: ['SUPER_ADMIN', 'ADMIN', 'PHARMACIST', 'DOCTOR'],
