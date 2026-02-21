@@ -1635,8 +1635,20 @@ const systemUsersList: User[] = []
 
 // ============== MAIN COMPONENT ==============
 export default function HMSApp() {
-  // Auth state
-  const [user, setUser] = useState<User | null>(null)
+  // Auth state - Initialize from localStorage to persist session on refresh
+  const [user, setUser] = useState<User | null>(() => {
+    if (typeof window !== 'undefined') {
+      const savedUser = localStorage.getItem('hms_user')
+      if (savedUser) {
+        try {
+          return JSON.parse(savedUser)
+        } catch {
+          return null
+        }
+      }
+    }
+    return null
+  })
   const [loading, setLoading] = useState(true)
   const [loginForm, setLoginForm] = useState({ email: '', password: '', rememberMe: false })
   const [loginError, setLoginError] = useState('')
@@ -3094,6 +3106,9 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
   useEffect(() => {
     if (!user) return
     
+    // Immediately load fresh data when user session is restored (e.g., on page refresh)
+    loadDataFromDB(true) // Force refresh with cache clear
+    
     const pollInterval = setInterval(() => {
       loadDataFromDB(true) // Force refresh with cache clear
     }, 30000) // Refresh every 30 seconds
@@ -3719,6 +3734,9 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
       }
       setUser(userForSession)
       
+      // Save user session to localStorage so it persists on refresh
+      localStorage.setItem('hms_user', JSON.stringify(userForSession))
+      
       // Log successful login
       callAuditAPI('successful_login', {
         userId: result.user.id,
@@ -4006,7 +4024,11 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
         userRole: user.role
       })
     }
+    // Clear user session from state and localStorage
     setUser(null)
+    localStorage.removeItem('hms_user')
+    localStorage.removeItem('hms_facility_verified')
+    localStorage.removeItem('hms_facility_code')
   }
 
   const handleChangePassword = () => {
