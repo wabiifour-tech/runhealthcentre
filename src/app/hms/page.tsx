@@ -1635,37 +1635,40 @@ const systemUsersList: User[] = []
 
 // ============== MAIN COMPONENT ==============
 export default function HMSApp() {
-  // Auth state - Initialize from localStorage to persist session on refresh
-  const [user, setUser] = useState<User | null>(() => {
-    if (typeof window !== 'undefined') {
-      const savedUser = localStorage.getItem('hms_user')
-      if (savedUser) {
-        try {
-          return JSON.parse(savedUser)
-        } catch {
-          return null
-        }
-      }
-    }
-    return null
-  })
+  // Auth state
+  const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
   const [loginForm, setLoginForm] = useState({ email: '', password: '', rememberMe: false })
   const [loginError, setLoginError] = useState('')
   const [isMobile, setIsMobile] = useState(false)
   
-  // Facility Code Verification
-  const [facilityCodeVerified, setFacilityCodeVerified] = useState(() => {
-    // Check localStorage for persisted facility code verification
-    if (typeof window !== 'undefined') {
-      const verified = localStorage.getItem('hms_facility_verified')
-      const savedCode = localStorage.getItem('hms_facility_code')
-      if (verified === 'true' && savedCode === FACILITY_CODE) {
-        return true
+  // Restore user session from localStorage on mount (client-side only)
+  useEffect(() => {
+    const savedUser = localStorage.getItem('hms_user')
+    if (savedUser) {
+      try {
+        const parsedUser = JSON.parse(savedUser)
+        console.log('[Session] Restored user session:', parsedUser.email, parsedUser.role)
+        setUser(parsedUser)
+      } catch (e) {
+        console.log('[Session] Failed to parse saved user')
+        localStorage.removeItem('hms_user')
       }
     }
-    return false
-  })
+    setLoading(false)
+  }, [])
+  
+  // Facility Code Verification
+  const [facilityCodeVerified, setFacilityCodeVerified] = useState(false)
+  
+  // Restore facility code verification on mount
+  useEffect(() => {
+    const verified = localStorage.getItem('hms_facility_verified')
+    const savedCode = localStorage.getItem('hms_facility_code')
+    if (verified === 'true' && savedCode === FACILITY_CODE) {
+      setFacilityCodeVerified(true)
+    }
+  }, [])
   const [facilityCodeInput, setFacilityCodeInput] = useState('')
   const [facilityCodeError, setFacilityCodeError] = useState('')
   
