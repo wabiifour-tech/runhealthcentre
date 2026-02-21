@@ -3532,6 +3532,11 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
       // Load data from database after successful login
       loadDataFromDB()
       
+      // Load staff users (for admin to see pending approvals)
+      if (result.user.role === 'SUPER_ADMIN' || result.user.role === 'ADMIN') {
+        loadStaffUsers()
+      }
+      
       // Load app settings
       fetchAppSettings()
 
