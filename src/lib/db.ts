@@ -21,9 +21,16 @@ function createPrismaClient(): PrismaClient | null {
   }
 
   try {
-    // Prisma 5 works great with just the URL
+    // Prisma 5 with Supabase connection pooling
+    // Use minimal log level and configure for serverless
     const client = new PrismaClient({
       log: ['error'],
+      // Important: configure for Supabase connection pooling
+      datasources: {
+        db: {
+          url: dbUrl,
+        },
+      },
     })
     
     initError = null
@@ -35,6 +42,7 @@ function createPrismaClient(): PrismaClient | null {
   }
 }
 
+// Singleton pattern for Prisma client in serverless environments
 export function getPrisma(): PrismaClient | null {
   if (!globalForPrisma.prisma) {
     globalForPrisma.prisma = createPrismaClient() ?? undefined

@@ -1643,7 +1643,17 @@ export default function HMSApp() {
   const [isMobile, setIsMobile] = useState(false)
   
   // Facility Code Verification
-  const [facilityCodeVerified, setFacilityCodeVerified] = useState(false)
+  const [facilityCodeVerified, setFacilityCodeVerified] = useState(() => {
+    // Check localStorage for persisted facility code verification
+    if (typeof window !== 'undefined') {
+      const verified = localStorage.getItem('hms_facility_verified')
+      const savedCode = localStorage.getItem('hms_facility_code')
+      if (verified === 'true' && savedCode === FACILITY_CODE) {
+        return true
+      }
+    }
+    return false
+  })
   const [facilityCodeInput, setFacilityCodeInput] = useState('')
   const [facilityCodeError, setFacilityCodeError] = useState('')
   
@@ -1653,6 +1663,9 @@ export default function HMSApp() {
     if (facilityCodeInput.toUpperCase() === FACILITY_CODE) {
       setFacilityCodeVerified(true)
       setFacilityCodeError('')
+      // Save facility code verification to localStorage so it persists on refresh
+      localStorage.setItem('hms_facility_verified', 'true')
+      localStorage.setItem('hms_facility_code', FACILITY_CODE)
     } else {
       setFacilityCodeError('Invalid facility code. Please try again.')
     }
