@@ -54,9 +54,7 @@ export async function GET() {
         approvalStatus: true,
         lastLogin: true,
         createdAt: true,
-        phone: true,
-        dateOfBirth: true,
-        passwordLastChanged: true
+        phone: true
       },
       orderBy: { createdAt: 'desc' }
     })
