@@ -43,7 +43,7 @@ import {
 const FACILITY_CODE = 'RUHC-2026'
 
 // ============== TYPES ==============
-type UserRole = 'SUPER_ADMIN' | 'ADMIN' | 'DOCTOR' | 'NURSE' | 'PHARMACIST' | 'LAB_TECHNICIAN' | 'MATRON'
+type UserRole = 'SUPER_ADMIN' | 'ADMIN' | 'DOCTOR' | 'NURSE' | 'PHARMACIST' | 'LAB_TECHNICIAN' | 'MATRON' | 'RECORDS_OFFICER'
 
 interface User {
   id: string
@@ -1237,7 +1237,7 @@ const getFullName = (f: string, l: string, m?: string, t?: string) => { const na
 const getInitials = (f: string, l: string) => `${f[0]}${l[0]}`.toUpperCase()
 const getAvatarColor = (name: string) => { const colors = ['bg-blue-500', 'bg-green-500', 'bg-purple-500', 'bg-orange-500', 'bg-pink-500', 'bg-teal-500']; return colors[name.length % colors.length] }
 const getRoleDisplayName = (role: UserRole) => role.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())
-const getRoleBadgeColor = (role: UserRole) => { const colors: Record<UserRole, string> = { SUPER_ADMIN: 'bg-purple-100 text-purple-800', ADMIN: 'bg-blue-100 text-blue-800', DOCTOR: 'bg-green-100 text-green-800', NURSE: 'bg-teal-100 text-teal-800', PHARMACIST: 'bg-orange-100 text-orange-800', LAB_TECHNICIAN: 'bg-pink-100 text-pink-800', MATRON: 'bg-indigo-100 text-indigo-800' }; return colors[role] }
+const getRoleBadgeColor = (role: UserRole) => { const colors: Record<UserRole, string> = { SUPER_ADMIN: 'bg-purple-100 text-purple-800', ADMIN: 'bg-blue-100 text-blue-800', DOCTOR: 'bg-green-100 text-green-800', NURSE: 'bg-teal-100 text-teal-800', PHARMACIST: 'bg-orange-100 text-orange-800', LAB_TECHNICIAN: 'bg-pink-100 text-pink-800', MATRON: 'bg-indigo-100 text-indigo-800', RECORDS_OFFICER: 'bg-cyan-100 text-cyan-800' }; return colors[role] }
 const getStatusBadgeColor = (status: string) => { const s = status.toLowerCase(); if (s.includes('pending')) return 'bg-yellow-100 text-yellow-800'; if (s.includes('progress')) return 'bg-blue-100 text-blue-800'; if (s.includes('complete') || s.includes('dispensed') || s === 'paid') return 'bg-green-100 text-green-800'; if (s.includes('cancel')) return 'bg-red-100 text-red-800'; return 'bg-gray-100 text-gray-800' }
 
 // Get user's designation prefix based on role
@@ -1248,6 +1248,7 @@ const getDesignationPrefix = (role: UserRole): string => {
     case 'PHARMACIST': return 'Pharm.'
     case 'LAB_TECHNICIAN': return 'Lab Tech.'
     case 'MATRON': return 'Matron'
+    case 'RECORDS_OFFICER': return 'Records Officer'
     case 'ADMIN': return 'Admin'
     case 'SUPER_ADMIN': return 'Admin'
     default: return ''
@@ -4982,7 +4983,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
     }
     
     const permissions: Record<string, UserRole[]> = {
-      patients: ['SUPER_ADMIN', 'ADMIN', 'DOCTOR', 'NURSE'],
+      patients: ['SUPER_ADMIN', 'ADMIN', 'DOCTOR', 'NURSE', 'RECORDS_OFFICER'],
       consultations: ['SUPER_ADMIN', 'ADMIN', 'DOCTOR', 'NURSE'],
       appointments: ['SUPER_ADMIN', 'ADMIN', 'DOCTOR', 'NURSE'],
       pharmacy: ['SUPER_ADMIN', 'ADMIN', 'PHARMACIST', 'DOCTOR'],
@@ -5011,7 +5012,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
     }
     
     const permissions: Record<string, UserRole[]> = {
-      patients: ['SUPER_ADMIN', 'ADMIN', 'NURSE'],
+      patients: ['SUPER_ADMIN', 'ADMIN', 'RECORDS_OFFICER'], // Only Records can register patients
       appointments: ['SUPER_ADMIN', 'ADMIN', 'NURSE'],
       pharmacy: ['SUPER_ADMIN', 'ADMIN', 'PHARMACIST'],
       laboratory: ['SUPER_ADMIN', 'ADMIN', 'LAB_TECHNICIAN'],
@@ -5640,6 +5641,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                             <SelectItem value="PHARMACIST">Pharmacist</SelectItem>
                             <SelectItem value="LAB_TECHNICIAN">Lab Tech</SelectItem>
                             <SelectItem value="MATRON">Matron</SelectItem>
+                            <SelectItem value="RECORDS_OFFICER">Records Officer</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
@@ -17151,6 +17153,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                     <SelectItem value="PHARMACIST">Pharmacist</SelectItem>
                     <SelectItem value="LAB_TECHNICIAN">Lab Technician</SelectItem>
                     <SelectItem value="MATRON">Matron</SelectItem>
+                    <SelectItem value="RECORDS_OFFICER">Records Officer</SelectItem>
                     {user?.role === 'SUPER_ADMIN' && (
                       <SelectItem value="ADMIN">Admin</SelectItem>
                     )}
