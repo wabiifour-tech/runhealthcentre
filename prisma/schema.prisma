@@ -392,6 +392,10 @@ model QueueEntry {
   department    String
   status        String    @default("WAITING")
   priority      String    @default("NORMAL")
+  notes         String?
+  checkedInAt   DateTime  @default(now()) @map("checked_in_at")
+  calledAt      DateTime? @map("called_at")
+  completedAt   DateTime? @map("completed_at")
   createdAt     DateTime  @default(now()) @map("created_at")
 
   @@map("QueueEntry")
@@ -513,4 +517,90 @@ model AppSetting {
   updatedAt             DateTime  @updatedAt @map("updated_at")
 
   @@map("app_settings")
+}
+
+// ==================== DISPENSED DRUGS ====================
+
+model DispensedDrug {
+  id                  String    @id @default(cuid())
+  patientId           String    @map("patient_id")
+  drugId              String    @map("drug_id")
+  quantity            Int
+  dispensingInitials  String    @map("dispensing_initials")
+  notes               String?
+  dispensedAt         DateTime  @default(now()) @map("dispensed_at")
+  createdAt           DateTime  @default(now()) @map("created_at")
+
+  @@map("DispensedDrug")
+}
+
+// ==================== MEDICAL CERTIFICATES ====================
+
+model MedicalCertificate {
+  id              String    @id @default(cuid())
+  patientId       String    @map("patient_id")
+  type            String
+  days            Int?
+  startDate       DateTime? @map("start_date")
+  endDate         DateTime? @map("end_date")
+  diagnosis       String?
+  recommendations String?
+  doctorInitials  String    @map("doctor_initials")
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  @@map("MedicalCertificate")
+}
+
+// ==================== REFERRAL LETTERS ====================
+
+model ReferralLetter {
+  id              String    @id @default(cuid())
+  patientId       String    @map("patient_id")
+  referredTo      String    @map("referred_to")
+  reason          String
+  diagnosis       String?
+  treatmentGiven  String?   @map("treatment_given")
+  doctorInitials  String    @map("doctor_initials")
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  @@map("ReferralLetter")
+}
+
+// ==================== DISCHARGE SUMMARIES ====================
+
+model DischargeSummary {
+  id                    String    @id @default(cuid())
+  patientId             String    @map("patient_id")
+  admissionDate         DateTime  @map("admission_date")
+  dischargeDate         DateTime  @map("discharge_date")
+  admissionDiagnosis    String    @map("admission_diagnosis")
+  dischargeDiagnosis    String    @map("discharge_diagnosis")
+  treatmentSummary      String    @map("treatment_summary")
+  medicationsOnDischarge String? @map("medications_on_discharge")
+  followUpInstructions  String?   @map("follow_up_instructions")
+  doctorInitials        String    @map("doctor_initials")
+  nurseInitials         String?   @map("nurse_initials")
+  createdAt             DateTime  @default(now()) @map("created_at")
+
+  @@map("DischargeSummary")
+}
+
+// ==================== VOICE NOTES ====================
+
+model VoiceNote {
+  id              String    @id @default(cuid())
+  senderId        String    @map("sender_id")
+  senderName      String    @map("sender_name")
+  senderRole      String    @map("sender_role")
+  recipientRole   String?   @map("recipient_role")
+  recipientId     String?   @map("recipient_id")
+  audioBase64     String?   @map("audio_base64")
+  duration        Int
+  transcription   String?
+  patientId       String?   @map("patient_id")
+  patientName     String?   @map("patient_name")
+  isRead          Boolean   @default(false) @map("is_read")
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  @@map("VoiceNote")
 }

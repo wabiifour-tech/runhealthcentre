@@ -1,29 +1,7 @@
 // Comprehensive Data API for RUN Health Centre HMS
-// Handles all data operations with SQLite database
-// Falls back to demo mode when database is not available
+// Handles all data operations with PostgreSQL database
+// Data is PERMANENTLY stored - never lost
 import { NextRequest, NextResponse } from 'next/server'
-
-// In-memory data store for demo mode
-const demoData: Record<string, any[]> = {
-  patients: [],
-  vitals: [],
-  consultations: [],
-  drugs: [],
-  labTests: [],
-  labRequests: [],
-  labResults: [],
-  queueEntries: [],
-  appointments: [],
-  admissions: [],
-  prescriptions: [],
-  medicalCertificates: [],
-  referralLetters: [],
-  dischargeSummaries: [],
-  announcements: [],
-  voiceNotes: [],
-  auditLogs: [],
-  users: []
-}
 
 // Try to get prisma client
 async function getPrisma() {
@@ -31,6 +9,7 @@ async function getPrisma() {
     const dbModule = await import('@/lib/db')
     return dbModule.default
   } catch (e) {
+    console.error('Database connection failed:', e)
     return null
   }
 }
@@ -42,9 +21,12 @@ export async function GET(request: NextRequest) {
     const type = searchParams.get('type') || 'all'
     const prisma = await getPrisma()
 
-    // If no database or demo mode, return empty/demo data
     if (!prisma) {
-      return handleDemoGet(type)
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Database connection required. Please check DATABASE_URL environment variable.',
+        hint: 'Data cannot be stored without a database connection.'
+      }, { status: 503 })
     }
 
     // Access models via table names (Prisma 7.x with db pull schema)
@@ -147,6 +129,12 @@ export async function GET(request: NextRequest) {
             success: true, 
             data: await p.voice_notes.findMany({ orderBy: { createdAt: 'desc' } }) 
           })
+        
+        case 'dispensedDrugs':
+          return NextResponse.json({ 
+            success: true, 
+            data: await p.dispensed_drugs.findMany({ orderBy: { dispensedAt: 'desc' } }) 
+          })
 
         case 'auditLogs':
           return NextResponse.json({ 
@@ -157,7 +145,7 @@ export async function GET(request: NextRequest) {
         case 'all': {
           const [patients, vitals, consultations, drugs, labTests, labRequests, labResults, 
                   queueEntries, appointments, admissions, prescriptions, medicalCertificates,
-                  referralLetters, dischargeSummaries, announcements, voiceNotes, users] = 
+                  referralLetters, dischargeSummaries, announcements, voiceNotes, users, dispensedDrugs] = 
             await Promise.all([
               p.patients.findMany({ orderBy: { registeredAt: 'desc' } }),
               p.vital_signs.findMany({ orderBy: { recordedAt: 'desc' } }),
@@ -178,7 +166,8 @@ export async function GET(request: NextRequest) {
               p.users.findMany({ 
                 select: { id: true, email: true, name: true, role: true, department: true, initials: true, isActive: true, isFirstLogin: true },
                 orderBy: { createdAt: 'desc' }
-              })
+              }),
+              p.dispensed_drugs.findMany({ orderBy: { dispensedAt: 'desc' } })
             ])
 
           return NextResponse.json({ 
@@ -186,7 +175,7 @@ export async function GET(request: NextRequest) {
             data: {
               patients, vitals, consultations, drugs, labTests, labRequests, labResults,
               queueEntries, appointments, admissions, prescriptions, medicalCertificates,
-              referralLetters, dischargeSummaries, announcements, voiceNotes, users
+              referralLetters, dischargeSummaries, announcements, voiceNotes, users, dispensedDrugs
             }
           })
         }
@@ -195,8 +184,11 @@ export async function GET(request: NextRequest) {
           return NextResponse.json({ success: false, error: 'Invalid data type' }, { status: 400 })
       }
     } catch (dbError: any) {
-      console.log('Database error, using demo mode:', dbError.message)
-      return handleDemoGet(type)
+      console.error('Database error:', dbError.message)
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Database operation failed: ' + dbError.message 
+      }, { status: 500 })
     }
   } catch (error: any) {
     console.error('GET error:', error)
@@ -204,33 +196,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-function handleDemoGet(type: string) {
-  if (type === 'all') {
-    return NextResponse.json({ 
-      success: true, 
-      data: demoData,
-      mode: 'demo'
-    })
-  }
-  
-  const key = type === 'labTests' ? 'labTests' : 
-              type === 'labRequests' ? 'labRequests' :
-              type === 'labResults' ? 'labResults' :
-              type === 'queueEntries' ? 'queueEntries' :
-              type === 'medicalCertificates' ? 'medicalCertificates' :
-              type === 'referralLetters' ? 'referralLetters' :
-              type === 'dischargeSummaries' ? 'dischargeSummaries' :
-              type === 'voiceNotes' ? 'voiceNotes' :
-              type === 'auditLogs' ? 'auditLogs' : type
-  
-  return NextResponse.json({ 
-    success: true, 
-    data: demoData[key] || [],
-    mode: 'demo'
-  })
-}
-
-// POST - Create new record
+// POST - Create new record - PERMANENT STORAGE
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
@@ -238,15 +204,15 @@ export async function POST(request: NextRequest) {
     const now = new Date().toISOString()
     const prisma = await getPrisma()
 
-    // Generate ID for demo mode
-    const generateId = () => `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
-
-    // If no database, use demo mode
     if (!prisma) {
-      return handleDemoPost(type, data, now, generateId)
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Database connection required. Data cannot be stored without a database.' 
+      }, { status: 503 })
     }
 
     const p = prisma as any
+    const generateId = () => `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
 
     try {
       switch (type) {
@@ -372,6 +338,13 @@ export async function POST(request: NextRequest) {
           return NextResponse.json({ success: true, data: voiceNote })
         }
 
+        case 'dispensedDrug': {
+          const dispensedDrug = await p.dispensed_drugs.create({
+            data: { ...data, dispensedAt: now, id: generateId() }
+          })
+          return NextResponse.json({ success: true, data: dispensedDrug })
+        }
+
         case 'auditLog': {
           const auditLog = await p.audit_logs.create({
             data: { ...data, timestamp: now, id: generateId() }
@@ -383,8 +356,11 @@ export async function POST(request: NextRequest) {
           return NextResponse.json({ success: false, error: 'Invalid data type' }, { status: 400 })
       }
     } catch (dbError: any) {
-      console.log('Database error, using demo mode:', dbError.message)
-      return handleDemoPost(type, data, now, generateId)
+      console.error('Database error:', dbError.message)
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Failed to save data: ' + dbError.message 
+      }, { status: 500 })
     }
   } catch (error: any) {
     console.error('POST error:', error)
@@ -392,46 +368,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-function handleDemoPost(type: string, data: any, now: string, generateId: () => string) {
-  const key = type === 'labTest' ? 'labTests' : 
-              type === 'labRequest' ? 'labRequests' :
-              type === 'labResult' ? 'labResults' :
-              type === 'queueEntry' ? 'queueEntries' :
-              type === 'medicalCertificate' ? 'medicalCertificates' :
-              type === 'referralLetter' ? 'referralLetters' :
-              type === 'dischargeSummary' ? 'dischargeSummaries' :
-              type === 'voiceNote' ? 'voiceNotes' :
-              type === 'auditLog' ? 'auditLogs' :
-              type === 'seedDrugs' ? 'drugs' :
-              type === 'seedLabTests' ? 'labTests' : type
-
-  if (type === 'seedDrugs' || type === 'seedLabTests') {
-    const items = data.drugs || data.tests || []
-    items.forEach((item: any) => {
-      demoData[key].push({ ...item, id: generateId(), createdAt: now })
-    })
-    return NextResponse.json({ success: true, message: `Created ${items.length} items`, mode: 'demo' })
-  }
-
-  const newRecord = {
-    ...data,
-    id: generateId(),
-    createdAt: now,
-    registeredAt: now,
-    recordedAt: now,
-    requestedAt: now,
-    checkedInAt: now,
-    timestamp: now
-  }
-
-  if (demoData[key]) {
-    demoData[key].push(newRecord)
-  }
-
-  return NextResponse.json({ success: true, data: newRecord, mode: 'demo' })
-}
-
-// PUT - Update record
+// PUT - Update record - PERMANENT STORAGE
 export async function PUT(request: NextRequest) {
   try {
     const body = await request.json()
@@ -439,21 +376,10 @@ export async function PUT(request: NextRequest) {
     const prisma = await getPrisma()
 
     if (!prisma) {
-      // Demo mode - find and update in memory
-      const key = type === 'labRequest' ? 'labRequests' :
-                  type === 'labResult' ? 'labResults' :
-                  type === 'queueEntry' ? 'queueEntries' :
-                  type === 'medicalCertificate' ? 'medicalCertificates' :
-                  type === 'referralLetter' ? 'referralLetters' :
-                  type === 'dischargeSummary' ? 'dischargeSummaries' :
-                  type === 'voiceNote' ? 'voiceNotes' : type
-      
-      const index = demoData[key]?.findIndex((item: any) => item.id === id)
-      if (index !== undefined && index >= 0) {
-        demoData[key][index] = { ...demoData[key][index], ...data }
-        return NextResponse.json({ success: true, data: demoData[key][index], mode: 'demo' })
-      }
-      return NextResponse.json({ success: false, error: 'Record not found' }, { status: 404 })
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Database connection required. Data cannot be updated without a database.' 
+      }, { status: 503 })
     }
 
     const p = prisma as any
@@ -560,7 +486,7 @@ export async function PUT(request: NextRequest) {
           return NextResponse.json({ success: false, error: 'Invalid data type' }, { status: 400 })
       }
     } catch (dbError: any) {
-      console.log('Database error in PUT:', dbError.message)
+      console.error('Database error in PUT:', dbError.message)
       return NextResponse.json({ success: false, error: dbError.message }, { status: 500 })
     }
   } catch (error: any) {
@@ -569,7 +495,7 @@ export async function PUT(request: NextRequest) {
   }
 }
 
-// DELETE - Delete record
+// DELETE - Delete record (soft delete for some types)
 export async function DELETE(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
@@ -583,17 +509,10 @@ export async function DELETE(request: NextRequest) {
     const prisma = await getPrisma()
 
     if (!prisma) {
-      // Demo mode - remove from memory
-      const key = type === 'labRequest' ? 'labRequests' :
-                  type === 'labResult' ? 'labResults' :
-                  type === 'queueEntry' ? 'queueEntries' :
-                  type === 'voiceNote' ? 'voiceNotes' : type
-      
-      const index = demoData[key]?.findIndex((item: any) => item.id === id)
-      if (index !== undefined && index >= 0) {
-        demoData[key].splice(index, 1)
-      }
-      return NextResponse.json({ success: true, message: 'Deleted successfully', mode: 'demo' })
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Database connection required. Data cannot be deleted without a database.' 
+      }, { status: 503 })
     }
 
     const p = prisma as any
@@ -610,9 +529,11 @@ export async function DELETE(request: NextRequest) {
           await p.consultations.delete({ where: { id } })
           break
         case 'drug':
+          // Soft delete for drugs
           await p.drugs.update({ where: { id }, data: { isActive: false } })
           break
         case 'labTest':
+          // Soft delete for lab tests
           await p.lab_tests.update({ where: { id }, data: { isActive: false } })
           break
         case 'labRequest':
@@ -645,7 +566,7 @@ export async function DELETE(request: NextRequest) {
 
       return NextResponse.json({ success: true, message: 'Deleted successfully' })
     } catch (dbError: any) {
-      console.log('Database error in DELETE:', dbError.message)
+      console.error('Database error in DELETE:', dbError.message)
       return NextResponse.json({ success: false, error: dbError.message }, { status: 500 })
     }
   } catch (error: any) {
