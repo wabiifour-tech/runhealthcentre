@@ -2933,6 +2933,17 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
     return false
   }
 
+  // Clear all cached data - call this before loading fresh data
+  const clearCache = useCallback(() => {
+    try {
+      localStorage.removeItem('hms_data_cache')
+      localStorage.removeItem('hms_data_cache_time')
+      console.log('Cache cleared')
+    } catch (error) {
+      console.error('Failed to clear cache:', error)
+    }
+  }, [])
+
   // Save all data to localStorage for persistence
   const saveDataToLocalStorage = useCallback(() => {
     try {
@@ -2956,9 +2967,41 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
     }
   }, [patients, vitals, consultations, labRequests, labResults, queueEntries, admissions, prescriptions, dispensedDrugs, bills, payments])
 
-  // Load all data from database via API
-  const loadDataFromDB = async () => {
+  // Immediately save current state to cache (for instant persistence)
+  const saveImmediateCache = useCallback((data: Partial<{
+    patients: Patient[]
+    vitals: VitalSign[]
+    consultations: Consultation[]
+    labRequests: LabRequest[]
+    labResults: LabResult[]
+    queueEntries: QueueEntry[]
+    admissions: Admission[]
+    prescriptions: Prescription[]
+    dispensedDrugs: DispensedDrug[]
+    bills: Bill[]
+    payments: Payment[]
+  }>) => {
     try {
+      const existingCache = localStorage.getItem('hms_data_cache')
+      const existing = existingCache ? JSON.parse(existingCache) : {}
+      const mergedData = { ...existing, ...data }
+      localStorage.setItem('hms_data_cache', JSON.stringify(mergedData))
+      localStorage.setItem('hms_data_cache_time', Date.now().toString())
+      // Broadcast to other tabs/windows
+      localStorage.setItem('hms_data_updated', Date.now().toString())
+    } catch (error) {
+      console.error('Failed to save immediate cache:', error)
+    }
+  }, [])
+
+  // Load all data from database via API
+  const loadDataFromDB = async (forceRefresh: boolean = false) => {
+    try {
+      // Clear cache if force refresh
+      if (forceRefresh) {
+        clearCache()
+      }
+      
       const response = await fetch('/api/data?type=all')
       const result = await response.json()
       
@@ -3034,13 +3077,13 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
     }
   }, [patients, vitals, consultations, labRequests, labResults, queueEntries, admissions, prescriptions, dispensedDrugs, bills, payments, saveDataToLocalStorage])
 
-  // Real-time polling - refresh data every 15 seconds for live updates
+  // Real-time polling - refresh data every 30 seconds for live updates
   useEffect(() => {
     if (!user) return
     
     const pollInterval = setInterval(() => {
-      loadDataFromDB()
-    }, 15000) // Refresh every 15 seconds
+      loadDataFromDB(true) // Force refresh with cache clear
+    }, 30000) // Refresh every 30 seconds
     
     return () => clearInterval(pollInterval)
   }, [user])
@@ -3051,34 +3094,48 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
 
     const handlePatientFileSent = () => {
       // Immediately refresh data when nurse sends file to doctor
-      loadDataFromDB()
+      clearCache()
+      loadDataFromDB(true)
     }
 
     const handleConsultationCompleted = () => {
       // Immediately refresh data when doctor completes consultation
-      loadDataFromDB()
+      clearCache()
+      loadDataFromDB(true)
     }
 
     const handleMedicationDispensed = () => {
       // Immediately refresh data when pharmacist dispenses medication
-      loadDataFromDB()
+      clearCache()
+      loadDataFromDB(true)
     }
 
     const handleLabResultsReady = () => {
       // Immediately refresh data when lab results are ready
-      loadDataFromDB()
+      clearCache()
+      loadDataFromDB(true)
+    }
+
+    // Cross-tab synchronization - detect when another tab updates data
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'hms_data_updated') {
+        console.log('Data updated in another tab, refreshing...')
+        loadDataFromDB(true)
+      }
     }
 
     window.addEventListener('patientFileSent', handlePatientFileSent)
     window.addEventListener('consultationCompleted', handleConsultationCompleted)
     window.addEventListener('medicationDispensed', handleMedicationDispensed)
     window.addEventListener('labResultsReady', handleLabResultsReady)
+    window.addEventListener('storage', handleStorageChange)
 
     return () => {
       window.removeEventListener('patientFileSent', handlePatientFileSent)
       window.removeEventListener('consultationCompleted', handleConsultationCompleted)
       window.removeEventListener('medicationDispensed', handleMedicationDispensed)
       window.removeEventListener('labResultsReady', handleLabResultsReady)
+      window.removeEventListener('storage', handleStorageChange)
     }
   }, [user])
 
@@ -3993,14 +4050,19 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
       createdAt: new Date().toISOString(),
       sentAt: new Date().toISOString()
     }
-    setConsultations([newConsultation, ...consultations])
+    const updatedConsultations = [newConsultation, ...consultations]
+    setConsultations(updatedConsultations)
     
     // Update queue status to 'in_progress' when nurse sends to doctor
-    setQueueEntries(prev => prev.map(q => 
+    const updatedQueueEntries = queueEntries.map(q => 
       q.patientId === sendToDoctorForm.patientId && q.status === 'waiting'
         ? { ...q, status: 'in_progress' as const, calledAt: new Date().toISOString() }
         : q
-    ))
+    )
+    setQueueEntries(updatedQueueEntries)
+    
+    // Immediately save to cache and broadcast
+    saveImmediateCache({ consultations: updatedConsultations, queueEntries: updatedQueueEntries })
     
     setShowSendToDoctorDialog(false)
     setSendToDoctorForm({ patientId: '', doctorId: '3', chiefComplaint: '', signsAndSymptoms: '', notes: '', initials: '', patientType: 'outpatient', wardUnit: '' })
@@ -4101,24 +4163,24 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
     }
 
     // Handle patient admission if selected
+    let updatedPatients = patients
     if (consultationForm.admitPatient) {
-      const patientToUpdate = patients.find(p => p.id === consultationForm.patientId)
-      if (patientToUpdate) {
-        setPatients(patients.map(p => {
-          if (p.id === consultationForm.patientId) {
-            return {
-              ...p,
-              currentUnit: consultationForm.admissionWard,
-              admissionDate: new Date().toISOString(),
-              bedNumber: consultationForm.bedNumber ? parseInt(consultationForm.bedNumber) : undefined
-            }
+      updatedPatients = patients.map(p => {
+        if (p.id === consultationForm.patientId) {
+          return {
+            ...p,
+            currentUnit: consultationForm.admissionWard,
+            admissionDate: new Date().toISOString(),
+            bedNumber: consultationForm.bedNumber ? parseInt(consultationForm.bedNumber) : undefined
           }
-          return p
-        }))
-      }
+        }
+        return p
+      })
+      setPatients(updatedPatients)
     }
 
-    setConsultations(consultations.map(c => {
+    // Update consultation
+    const updatedConsultations = consultations.map(c => {
       if (c.id === consultationForm.consultationId) {
         return {
           ...c,
@@ -4152,27 +4214,29 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
         }
       }
       return c
-    }))
+    })
+    setConsultations(updatedConsultations)
     
     // Update queue status based on where the patient is sent
-    // Workflow:
-    // - Sent to nurse for admission → Status: 'completed' (patient will be admitted)
-    // - Sent to lab → Status stays 'in_progress' (until lab sends back)
-    // - Sent to pharmacy → Status stays 'in_progress' (until pharmacist dispenses)
-    // - Sent to records only → Status: 'completed'
     const isOnlyRecords = consultationForm.sendBackTo.length === 1 && consultationForm.sendBackTo[0] === 'records'
     const hasAdmission = consultationForm.sendBackTo.includes('nurse')
-    const hasPharmacyOnly = consultationForm.sendBackTo.length === 1 && consultationForm.sendBackTo[0] === 'pharmacy'
     
+    let updatedQueueEntries = queueEntries
     if (isOnlyRecords || hasAdmission) {
-      // Complete the queue entry
-      setQueueEntries(prev => prev.map(q => 
+      updatedQueueEntries = queueEntries.map(q => 
         q.patientId === consultationForm.patientId && q.status === 'in_progress'
           ? { ...q, status: 'completed' as const, completedAt: new Date().toISOString() }
           : q
-      ))
+      )
+      setQueueEntries(updatedQueueEntries)
     }
-    // For lab and pharmacy, queue stays 'in_progress' until those services are completed
+    
+    // Immediately save to cache and broadcast
+    saveImmediateCache({ 
+      patients: updatedPatients, 
+      consultations: updatedConsultations, 
+      queueEntries: updatedQueueEntries 
+    })
     
     // Add file transfer notification
     const patient = patients.find(p => p.id === consultationForm.patientId)
@@ -15858,14 +15922,18 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                   technicianInitials: labResultForm.initials,
                   createdAt: new Date().toISOString()
                 }
-                setLabResults([newResult, ...labResults])
-                setLabRequests(labRequests.map(l =>
+                const updatedLabResults = [newResult, ...labResults]
+                setLabResults(updatedLabResults)
+                
+                const updatedLabRequests = labRequests.map(l =>
                   l.id === labResultForm.labRequestId
                     ? { ...l, status: 'completed', results: labResultForm.result, resultsEnteredBy: labResultForm.initials }
                     : l
-                ))
+                )
+                setLabRequests(updatedLabRequests)
+                
                 // Update consultation to send back to doctor with lab results
-                setConsultations(prev => prev.map(c => {
+                const updatedConsultations = consultations.map(c => {
                   if (c.patientId === labResultForm.patientId && c.status === 'sent_back' && c.sendBackTo?.includes('laboratory')) {
                     // Remove laboratory from sendBackTo since results are ready
                     const newSendBackTo = c.sendBackTo.filter(s => s !== 'laboratory')
@@ -15876,9 +15944,11 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                     }
                   }
                   return c
-                }))
+                })
+                setConsultations(updatedConsultations)
+                
                 // Complete queue entry if patient was only sent to lab
-                setQueueEntries(prev => prev.map(q => {
+                const updatedQueueEntries = queueEntries.map(q => {
                   if (q.patientId === labResultForm.patientId && q.status === 'in_progress') {
                     // Check if there's a consultation that's only waiting for lab
                     const patientConsultations = consultations.filter(c => c.patientId === labResultForm.patientId && c.status === 'sent_back')
@@ -15890,7 +15960,17 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                     }
                   }
                   return q
-                }))
+                })
+                setQueueEntries(updatedQueueEntries)
+                
+                // Immediately save to cache and broadcast
+                saveImmediateCache({ 
+                  labResults: updatedLabResults, 
+                  labRequests: updatedLabRequests,
+                  consultations: updatedConsultations,
+                  queueEntries: updatedQueueEntries 
+                })
+                
                 setShowLabResultDialog(false)
                 showToast('Lab results saved and file sent back to doctor!', 'success')
                 // Dispatch custom event for real-time updates
@@ -16610,18 +16690,30 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                   dispensedAt: new Date().toISOString(),
                   notes: dispenseForm.notes
                 }
-                setDispensedDrugs([newDispensed, ...dispensedDrugs])
-                setDrugs(drugs.map(d => 
+                const updatedDispensedDrugs = [newDispensed, ...dispensedDrugs]
+                setDispensedDrugs(updatedDispensedDrugs)
+                
+                const updatedDrugs = drugs.map(d => 
                   d.id === dispenseForm.drugId 
                     ? { ...d, quantityInStock: d.quantityInStock - dispenseForm.quantity }
                     : d
-                ))
+                )
+                setDrugs(updatedDrugs)
+                
                 // Complete queue entry when pharmacist dispenses medication
-                setQueueEntries(prev => prev.map(q => 
+                const updatedQueueEntries = queueEntries.map(q => 
                   q.patientId === dispenseForm.patientId && q.status === 'in_progress'
                     ? { ...q, status: 'completed' as const, completedAt: new Date().toISOString() }
                     : q
-                ))
+                )
+                setQueueEntries(updatedQueueEntries)
+                
+                // Immediately save to cache and broadcast
+                saveImmediateCache({ 
+                  dispensedDrugs: updatedDispensedDrugs, 
+                  queueEntries: updatedQueueEntries 
+                })
+                
                 setShowDispenseDialog(false)
                 showToast('Medication dispensed successfully!', 'success')
                 // Dispatch custom event for real-time updates
