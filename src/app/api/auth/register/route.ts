@@ -68,30 +68,23 @@ export async function POST(request: NextRequest) {
       }, { status: 503 })
     }
 
-    // Test connection first
-    try {
-      await (prisma as any).$queryRaw`SELECT 1`
-      console.log('[Register] Database connection OK')
-    } catch (connError: any) {
-      console.error('[Register] Database connection failed:', connError.message)
-      return NextResponse.json({ 
-        success: false, 
-        error: 'Database connection failed. Please try again later.' 
-      }, { status: 503 })
-    }
-
     const p = prisma as any
 
     // Check if email already exists
-    const existingUser = await p.user.findUnique({
-      where: { email: email.toLowerCase() }
-    })
+    try {
+      const existingUser = await p.user.findUnique({
+        where: { email: email.toLowerCase() }
+      })
 
-    if (existingUser) {
-      return NextResponse.json({ 
-        success: false, 
-        error: 'An account with this email already exists. Please sign in instead.' 
-      }, { status: 400 })
+      if (existingUser) {
+        return NextResponse.json({ 
+          success: false, 
+          error: 'An account with this email already exists. Please sign in instead.' 
+        }, { status: 400 })
+      }
+    } catch (findError: any) {
+      console.error('[Register] Find user error:', findError.message)
+      // Continue - table might not exist yet
     }
 
     // Hash password
@@ -101,42 +94,67 @@ export async function POST(request: NextRequest) {
     const userInitials = initials || name.trim().split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)
 
     // Create user
-    const newUser = await p.user.create({
-      data: {
-        email: email.toLowerCase(),
-        name,
-        password: hashedPassword,
-        role,
-        department: department || null,
-        initials: userInitials,
-        phone: phone || null,
-        dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null,
-        isActive: true,
-        isFirstLogin: false,
-        approvalStatus: 'PENDING',
-        createdAt: new Date()
-      }
-    })
+    try {
+      const newUser = await p.user.create({
+        data: {
+          email: email.toLowerCase(),
+          name,
+          password: hashedPassword,
+          role,
+          department: department || null,
+          initials: userInitials,
+          phone: phone || null,
+          dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null,
+          isActive: true,
+          isFirstLogin: false,
+          approvalStatus: 'PENDING',
+          createdAt: new Date()
+        }
+      })
 
-    console.log('[Register] User created:', newUser.id)
+      console.log('[Register] User created:', newUser.id)
 
-    return NextResponse.json({ 
-      success: true, 
-      message: 'Registration successful! Your account is pending approval.',
-      user: {
-        id: newUser.id,
-        email: newUser.email,
-        name: newUser.name,
-        role: newUser.role,
-        approvalStatus: newUser.approvalStatus
+      return NextResponse.json({ 
+        success: true, 
+        message: 'Registration successful! Your account is pending approval.',
+        user: {
+          id: newUser.id,
+          email: newUser.email,
+          name: newUser.name,
+          role: newUser.role,
+          approvalStatus: newUser.approvalStatus
+        }
+      })
+    } catch (createError: any) {
+      console.error('[Register] Create user error:', createError.message)
+      console.error('[Register] Error code:', createError.code)
+      
+      // Check for specific Prisma errors
+      if (createError.code === 'P2021') {
+        return NextResponse.json({ 
+          success: false, 
+          error: 'User table does not exist. Please run database migrations first.' 
+        }, { status: 500 })
       }
-    })
+      
+      if (createError.code === 'P2002') {
+        return NextResponse.json({ 
+          success: false, 
+          error: 'An account with this email already exists.' 
+        }, { status: 400 })
+      }
+      
+      return NextResponse.json({ 
+        success: false, 
+        error: `Database error: ${createError.message}` 
+      }, { status: 500 })
+    }
 
   } catch (error: any) {
-    console.error('[Register] Error:', error)
+    console.error('[Register] Unexpected error:', error)
     return NextResponse.json({ 
       success: false, 
-      error: 'Registration failed. Please try again.' 
+      error: `Registration failed: ${error.message}` 
     }, { status: 500 })
   }
 }
