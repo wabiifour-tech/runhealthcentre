@@ -2952,6 +2952,17 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
     loadDataFromDB()
   }, [])
 
+  // Real-time polling - refresh data every 15 seconds for live updates
+  useEffect(() => {
+    if (!user) return
+    
+    const pollInterval = setInterval(() => {
+      loadDataFromDB()
+    }, 15000) // Refresh every 15 seconds
+    
+    return () => clearInterval(pollInterval)
+  }, [user])
+
   // Save patient to database
   const savePatientToDB = async (patient: Patient) => {
     try {
@@ -2993,6 +3004,21 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
       return await response.json()
     } catch (error) {
       console.error('Failed to save consultation:', error)
+      return { success: false }
+    }
+  }
+
+  // Save admission to database
+  const saveAdmissionToDB = async (admission: Admission) => {
+    try {
+      const response = await fetch('/api/data', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'admission', data: admission })
+      })
+      return await response.json()
+    } catch (error) {
+      console.error('Failed to save admission:', error)
       return { success: false }
     }
   }
@@ -4667,15 +4693,21 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
     
     setAdmissions([newAdmission, ...admissions])
     
+    // Save to database
+    saveAdmissionToDB(newAdmission)
+    
     // Update patient record
     setPatients(patients.map(p => {
       if (p.id === admissionForm.patientId) {
-        return {
+        const updatedPatient = {
           ...p,
           currentUnit: admissionForm.wardId,
           admissionDate: new Date().toISOString(),
-          bedNumber: parseInt(admissionForm.bedNumber) || undefined
+          bedNumber: parseInt(admissionForm.bedNumber) || undefined,
+          isActive: true
         }
+        savePatientToDB(updatedPatient)
+        return updatedPatient
       }
       return p
     }))
@@ -4737,29 +4769,36 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
   
   // Discharge patient from admission
   const dischargeAdmission = (admissionId: string, dischargeSummary: string) => {
-    setAdmissions(admissions.map(a => {
+    const updatedAdmissions = admissions.map(a => {
       if (a.id === admissionId) {
-        return {
+        const updated = {
           ...a,
           status: 'discharged' as const,
           dischargedAt: new Date().toISOString(),
           dischargeSummary
         }
+        // Save to database
+        updateInDB('admission', admissionId, { status: 'discharged', dischargedAt: new Date().toISOString(), dischargeSummary })
+        return updated
       }
       return a
-    }))
+    })
+    setAdmissions(updatedAdmissions)
     
     // Update patient record
     const admission = admissions.find(a => a.id === admissionId)
     if (admission) {
       setPatients(patients.map(p => {
         if (p.id === admission.patientId) {
-          return {
+          const updatedPatient = {
             ...p,
             currentUnit: undefined,
             admissionDate: undefined,
-            bedNumber: undefined
+            bedNumber: undefined,
+            isActive: true
           }
+          savePatientToDB(updatedPatient)
+          return updatedPatient
         }
         return p
       }))
@@ -4984,7 +5023,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
     
     const permissions: Record<string, UserRole[]> = {
       patients: ['SUPER_ADMIN', 'ADMIN', 'DOCTOR', 'NURSE', 'RECORDS_OFFICER'],
-      consultations: ['SUPER_ADMIN', 'ADMIN', 'DOCTOR', 'NURSE'],
+      consultations: ['SUPER_ADMIN', 'ADMIN', 'DOCTOR'], // Nurses cannot view consultations - only send patients to doctors
       appointments: ['SUPER_ADMIN', 'ADMIN', 'DOCTOR', 'NURSE'],
       pharmacy: ['SUPER_ADMIN', 'ADMIN', 'PHARMACIST', 'DOCTOR'],
       laboratory: ['SUPER_ADMIN', 'ADMIN', 'LAB_TECHNICIAN', 'DOCTOR'],
@@ -4996,7 +5035,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
       vitals: ['SUPER_ADMIN', 'ADMIN', 'DOCTOR', 'NURSE'],
       medications: ['SUPER_ADMIN', 'ADMIN', 'DOCTOR', 'NURSE'],
       wards: ['SUPER_ADMIN', 'ADMIN'],
-      admissions: ['SUPER_ADMIN', 'ADMIN', 'DOCTOR', 'NURSE'],
+      admissions: ['SUPER_ADMIN', 'ADMIN', 'DOCTOR', 'NURSE', 'PHARMACIST', 'LAB_TECHNICIAN', 'RECORDS_OFFICER'], // Everyone can view admissions
       queue: ['SUPER_ADMIN', 'ADMIN', 'DOCTOR', 'NURSE'],
       inventory: ['SUPER_ADMIN', 'ADMIN', 'PHARMACIST'],
       reports: ['SUPER_ADMIN', 'ADMIN', 'DOCTOR'],
@@ -5012,7 +5051,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
     }
     
     const permissions: Record<string, UserRole[]> = {
-      patients: ['SUPER_ADMIN', 'ADMIN', 'RECORDS_OFFICER'], // Only Records can register patients
+      patients: ['SUPER_ADMIN', 'ADMIN', 'RECORDS_OFFICER'], // Only Admin/SuperAdmin/Records can edit patients - Nurses/Doctors can only VIEW
       appointments: ['SUPER_ADMIN', 'ADMIN', 'NURSE'],
       pharmacy: ['SUPER_ADMIN', 'ADMIN', 'PHARMACIST'],
       laboratory: ['SUPER_ADMIN', 'ADMIN', 'LAB_TECHNICIAN'],
@@ -5021,7 +5060,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
       vitals: ['SUPER_ADMIN', 'ADMIN', 'NURSE'],
       medications: ['SUPER_ADMIN', 'ADMIN', 'NURSE'],
       wards: ['SUPER_ADMIN', 'ADMIN'],
-      admissions: ['SUPER_ADMIN', 'ADMIN', 'DOCTOR', 'NURSE'],
+      admissions: ['SUPER_ADMIN', 'ADMIN', 'DOCTOR'], // Only Doctors and Admins can admit/discharge patients. Nurses can add notes only.
       queue: ['SUPER_ADMIN', 'ADMIN', 'NURSE'],
       inventory: ['SUPER_ADMIN', 'ADMIN', 'PHARMACIST'],
       certificates: ['SUPER_ADMIN', 'ADMIN', 'DOCTOR'],
@@ -6612,9 +6651,11 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                   <h3 className="text-lg font-semibold">Patient Admissions</h3>
                   <p className="text-sm text-gray-500">Manage patient admissions to wards</p>
                 </div>
-                <Button onClick={() => setShowAdmissionDialog(true)} className="bg-blue-600 hover:bg-blue-700">
-                  <UserPlus className="h-4 w-4 mr-2" /> New Admission
-                </Button>
+                {canEdit('admissions') && (
+                  <Button onClick={() => setShowAdmissionDialog(true)} className="bg-blue-600 hover:bg-blue-700">
+                    <UserPlus className="h-4 w-4 mr-2" /> New Admission
+                  </Button>
+                )}
               </div>
 
               {/* Stats Cards */}
@@ -6732,13 +6773,15 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                                     <Button variant="outline" size="sm" onClick={() => setShowAdmissionDetails(admission)}>
                                       <Eye className="h-3 w-3 mr-1" /> View
                                     </Button>
-                                    <Button variant="outline" size="sm" className="text-green-600" onClick={() => {
-                                      if (confirm('Discharge this patient?')) {
-                                        dischargeAdmission(admission.id, 'Discharged by ' + getUserDisplayName(user))
-                                      }
-                                    }}>
-                                      <CheckCircle className="h-3 w-3 mr-1" /> Discharge
-                                    </Button>
+                                    {canEdit('admissions') && (
+                                      <Button variant="outline" size="sm" className="text-green-600" onClick={() => {
+                                        if (confirm('Discharge this patient?')) {
+                                          dischargeAdmission(admission.id, 'Discharged by ' + getUserDisplayName(user))
+                                        }
+                                      }}>
+                                        <CheckCircle className="h-3 w-3 mr-1" /> Discharge
+                                      </Button>
+                                    )}
                                   </div>
                                 </div>
                               </div>
@@ -13549,7 +13592,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
 
       {/* Emergency Dialog */}
       <Dialog open={showEmergencyDialog} onOpenChange={setShowEmergencyDialog}>
-        <DialogContent>
+        <DialogContent onInteractOutside={(e) => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-red-600">
               <AlertTriangle className="h-5 w-5" />
@@ -13661,7 +13704,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
 
       {/* Initials Confirmation Dialog for Nurses */}
       <Dialog open={showInitialsDialog} onOpenChange={setShowInitialsDialog}>
-        <DialogContent>
+        <DialogContent onInteractOutside={(e) => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <AlertTriangle className="h-5 w-5 text-yellow-500" />
@@ -13708,7 +13751,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
           setEditingPatientId(null);
         }
       }}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto" onInteractOutside={(e) => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle>{editingPatientId ? 'Edit Patient Record' : 'Register New Patient'}</DialogTitle>
             <DialogDescription>
@@ -13894,7 +13937,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
 
       {/* Vitals Dialog */}
       <Dialog open={showVitalsDialog} onOpenChange={setShowVitalsDialog}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto" onInteractOutside={(e) => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle>Record Vital Signs</DialogTitle>
           </DialogHeader>
@@ -14109,7 +14152,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
 
       {/* Medication Administration Dialog */}
       <Dialog open={showMedicationDialog} onOpenChange={setShowMedicationDialog}>
-        <DialogContent>
+        <DialogContent onInteractOutside={(e) => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle>Administer Medication</DialogTitle>
           </DialogHeader>
@@ -14187,7 +14230,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
 
       {/* Appointment Dialog */}
       <Dialog open={showAppointmentDialog} onOpenChange={setShowAppointmentDialog}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg" onInteractOutside={(e) => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle>Book Appointment</DialogTitle>
           </DialogHeader>
@@ -14263,7 +14306,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
 
       {/* Other Dialogs (Roster, Announcement, Voice Note, Calculator, Export) - keeping same as before for brevity */}
       <Dialog open={showRosterDialog} onOpenChange={setShowRosterDialog}>
-        <DialogContent>
+        <DialogContent onInteractOutside={(e) => e.preventDefault()}>
           <DialogHeader><DialogTitle>Add Duty Roster Entry</DialogTitle></DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
@@ -14316,7 +14359,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
       </Dialog>
 
       <Dialog open={showAnnouncementDialog} onOpenChange={setShowAnnouncementDialog}>
-        <DialogContent>
+        <DialogContent onInteractOutside={(e) => e.preventDefault()}>
           <DialogHeader><DialogTitle>New Announcement</DialogTitle></DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2"><Label>Title</Label><Input value={announcementForm.title} onChange={e => setAnnouncementForm({ ...announcementForm, title: e.target.value })} /></div>
@@ -14342,7 +14385,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
       </Dialog>
 
       <Dialog open={showVoiceNoteDialog} onOpenChange={setShowVoiceNoteDialog}>
-        <DialogContent>
+        <DialogContent onInteractOutside={(e) => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle>Record Voice Note</DialogTitle>
             <DialogDescription>Send a voice message to another department</DialogDescription>
@@ -14488,7 +14531,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
       </Dialog>
 
       <Dialog open={showCalculatorDialog} onOpenChange={setShowCalculatorDialog}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md" onInteractOutside={(e) => e.preventDefault()}>
           <DialogHeader><DialogTitle className="flex items-center gap-2"><Calculator className="h-5 w-5" /> Medical Calculator</DialogTitle></DialogHeader>
           <div className="space-y-4 py-4">
             <div className="grid grid-cols-2 gap-2">
@@ -14539,7 +14582,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
       </Dialog>
 
       <Dialog open={showExportDialog} onOpenChange={setShowExportDialog}>
-        <DialogContent>
+        <DialogContent onInteractOutside={(e) => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle>Export Patient Record</DialogTitle>
             <DialogDescription>Download patient record as a file</DialogDescription>
@@ -14566,7 +14609,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
 
       {/* Patient QR Code Dialog */}
       <Dialog open={showQRCodeDialog} onOpenChange={setShowQRCodeDialog}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md" onInteractOutside={(e) => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Smartphone className="h-5 w-5 text-purple-600" />
@@ -14630,7 +14673,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
 
       {/* Password Change Dialog */}
       <Dialog open={showPasswordDialog} onOpenChange={setShowPasswordDialog}>
-        <DialogContent>
+        <DialogContent onInteractOutside={(e) => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Lock className="h-5 w-5 text-blue-600" />
@@ -14701,7 +14744,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
 
       {/* Send to Doctor Dialog - Nurse */}
       <Dialog open={showSendToDoctorDialog} onOpenChange={setShowSendToDoctorDialog}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto" onInteractOutside={(e) => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Stethoscope className="h-5 w-5 text-green-600" />
@@ -14930,7 +14973,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
 
       {/* Consultation Dialog - Doctor */}
       <Dialog open={showConsultationDialog} onOpenChange={setShowConsultationDialog}>
-        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto" onInteractOutside={(e) => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-xl">
               <Stethoscope className="h-6 w-6 text-green-600" />
@@ -15570,7 +15613,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
 
       {/* Lab Results Entry Dialog */}
       <Dialog open={showLabResultDialog} onOpenChange={setShowLabResultDialog}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg" onInteractOutside={(e) => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Microscope className="h-5 w-5 text-pink-600" />
@@ -15676,7 +15719,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
 
       {/* New Admission Dialog */}
       <Dialog open={showAdmissionDialog} onOpenChange={setShowAdmissionDialog}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto" onInteractOutside={(e) => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-xl">
               <Building2 className="h-6 w-6 text-blue-600" />
@@ -16183,7 +16226,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
 
       {/* Admission Details Dialog */}
       <Dialog open={!!showAdmissionDetails} onOpenChange={() => setShowAdmissionDetails(null)}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto" onInteractOutside={(e) => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle>Admission Details</DialogTitle>
           </DialogHeader>
@@ -16290,7 +16333,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
 
       {/* Dispense Drug Dialog */}
       <Dialog open={showDispenseDialog} onOpenChange={setShowDispenseDialog}>
-        <DialogContent>
+        <DialogContent onInteractOutside={(e) => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Pill className="h-5 w-5 text-purple-600" />
@@ -16396,7 +16439,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
 
       {/* Add to Queue Dialog */}
       <Dialog open={showQueueDialog} onOpenChange={setShowQueueDialog}>
-        <DialogContent>
+        <DialogContent onInteractOutside={(e) => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Users className="h-5 w-5 text-blue-600" />
@@ -16483,7 +16526,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
 
       {/* Medical Certificate Dialog */}
       <Dialog open={showCertificateDialog} onOpenChange={setShowCertificateDialog}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl" onInteractOutside={(e) => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <FileText className="h-5 w-5 text-blue-600" />
@@ -16627,7 +16670,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
 
       {/* Referral Letter Dialog */}
       <Dialog open={showReferralDialog} onOpenChange={setShowReferralDialog}>
-        <DialogContent>
+        <DialogContent onInteractOutside={(e) => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Send className="h-5 w-5 text-orange-600" />
@@ -16744,7 +16787,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
 
       {/* Payment Dialog */}
       <Dialog open={showPaymentDialog} onOpenChange={setShowPaymentDialog}>
-        <DialogContent>
+        <DialogContent onInteractOutside={(e) => e.preventDefault()}>
           <DialogHeader><DialogTitle>Record Payment</DialogTitle></DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
@@ -16866,7 +16909,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
 
       {/* Expense Dialog */}
       <Dialog open={showExpenseDialog} onOpenChange={setShowExpenseDialog}>
-        <DialogContent>
+        <DialogContent onInteractOutside={(e) => e.preventDefault()}>
           <DialogHeader><DialogTitle>Record Expense</DialogTitle></DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
@@ -16921,7 +16964,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
 
       {/* Ambulance Dialog */}
       <Dialog open={showAmbulanceDialog} onOpenChange={setShowAmbulanceDialog}>
-        <DialogContent>
+        <DialogContent onInteractOutside={(e) => e.preventDefault()}>
           <DialogHeader><DialogTitle>New Ambulance Dispatch</DialogTitle></DialogHeader>
           <div className="space-y-4 py-4">
             <div className="grid grid-cols-2 gap-4">
@@ -16971,7 +17014,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
 
       {/* Message Dialog */}
       <Dialog open={showMessageDialog} onOpenChange={setShowMessageDialog}>
-        <DialogContent>
+        <DialogContent onInteractOutside={(e) => e.preventDefault()}>
           <DialogHeader><DialogTitle>Send Message</DialogTitle></DialogHeader>
           <div className="space-y-4 py-4">
             <div className="flex items-center gap-2">
@@ -17022,7 +17065,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
 
       {/* Insurance Dialog */}
       <Dialog open={showInsuranceDialog} onOpenChange={setShowInsuranceDialog}>
-        <DialogContent>
+        <DialogContent onInteractOutside={(e) => e.preventDefault()}>
           <DialogHeader><DialogTitle>New Insurance Claim</DialogTitle></DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
@@ -17091,7 +17134,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
           setStaffError('')
         }
       }}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md" onInteractOutside={(e) => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <UserPlus className="h-5 w-5 text-blue-600" />
@@ -17260,7 +17303,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
       
       {/* Credentials Dialog - Show after account creation */}
       <Dialog open={showCredentialsDialog} onOpenChange={setShowCredentialsDialog}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md" onInteractOutside={(e) => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-green-600">
               <CheckCircle className="h-5 w-5" />
@@ -17314,7 +17357,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
           setSelectedUserForAction(null)
         }
       }}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md" onInteractOutside={(e) => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Key className="h-5 w-5 text-blue-600" />
@@ -17406,7 +17449,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
 
       {/* Task Dialog */}
       <Dialog open={showTaskDialog} onOpenChange={setShowTaskDialog}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg" onInteractOutside={(e) => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Bell className="h-5 w-5 text-orange-600" />
@@ -17547,7 +17590,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
 
       {/* Equipment Dialog */}
       <Dialog open={showEquipmentDialog} onOpenChange={setShowEquipmentDialog}>
-        <DialogContent>
+        <DialogContent onInteractOutside={(e) => e.preventDefault()}>
           <DialogHeader><DialogTitle>Add Equipment</DialogTitle></DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
@@ -17596,7 +17639,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
 
       {/* Session Timeout Warning Modal */}
       <Dialog open={showSessionWarning} onOpenChange={setShowSessionWarning}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md" onInteractOutside={(e) => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-orange-600">
               <Timer className="h-5 w-5" />
@@ -17642,7 +17685,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
       <Dialog open={showPasswordChangeModal} onOpenChange={(open) => {
         if (!passwordChangeRequired) setShowPasswordChangeModal(open)
       }}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md" onInteractOutside={(e) => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Key className="h-5 w-5 text-blue-600" />
@@ -17717,7 +17760,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
 
       {/* Surgery Booking Dialog */}
       <Dialog open={showSurgeryDialog} onOpenChange={setShowSurgeryDialog}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl" onInteractOutside={(e) => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle>Book Surgery</DialogTitle>
             <DialogDescription>Schedule a surgical procedure</DialogDescription>
@@ -17806,7 +17849,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
 
       {/* Immunization Record Dialog */}
       <Dialog open={showImmunizationDialog} onOpenChange={setShowImmunizationDialog}>
-        <DialogContent>
+        <DialogContent onInteractOutside={(e) => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle>Record Vaccination</DialogTitle>
             <DialogDescription>Record a new immunization</DialogDescription>
@@ -17866,7 +17909,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
 
       {/* Blood Donor Dialog */}
       <Dialog open={showBloodDonorDialog} onOpenChange={setShowBloodDonorDialog}>
-        <DialogContent>
+        <DialogContent onInteractOutside={(e) => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle>Register Blood Donor</DialogTitle>
             <DialogDescription>Add a new blood donor to the registry</DialogDescription>
@@ -17928,7 +17971,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
 
       {/* Wallet Transactions Dialog */}
       <Dialog open={showWalletDialog} onOpenChange={setShowWalletDialog}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl" onInteractOutside={(e) => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle>Wallet Transactions</DialogTitle>
             <DialogDescription>
