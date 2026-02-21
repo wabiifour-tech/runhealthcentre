@@ -10251,47 +10251,59 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
           {/* Ward Management */}
           {activeTab === 'wards' && (
             <div className="space-y-6">
-              {/* Ward Overview Cards */}
+              {/* Header with Ward Stats */}
+              <div className="flex justify-between items-center">
+                <div>
+                  <h3 className="text-lg font-semibold">Ward & Bed Management</h3>
+                  <p className="text-sm text-gray-500">Monitor bed availability and manage patient admissions</p>
+                </div>
+                {canEdit('admissions') && (
+                  <Button onClick={() => setShowAdmissionDialog(true)} className="bg-blue-600 hover:bg-blue-700">
+                    <UserPlus className="h-4 w-4 mr-2" /> New Admission
+                  </Button>
+                )}
+              </div>
+
+              {/* Ward Summary Cards */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                {healthCentreUnits.filter(u => ['opd', 'mmw', 'fmw', 'wdu'].includes(u.id)).map(unit => {
-                  const unitPatients = patients.filter(p => p.currentUnit === unit.id)
-                  const admittedPatients = unitPatients.filter(p => p.admissionDate)
+                {[
+                  { id: 'mmw', name: 'Male Medical Ward', shortName: 'MMW', color: 'bg-green-600', bgColor: 'bg-green-50', borderColor: 'border-green-300', totalBeds: 20 },
+                  { id: 'fmw', name: 'Female Medical Ward', shortName: 'FMW', color: 'bg-pink-500', bgColor: 'bg-pink-50', borderColor: 'border-pink-300', totalBeds: 20 },
+                  { id: 'wdu', name: 'Wound Dressing Unit', shortName: 'WDU', color: 'bg-orange-500', bgColor: 'bg-orange-50', borderColor: 'border-orange-300', totalBeds: 5 },
+                  { id: 'opd', name: 'Outpatient Department', shortName: 'OPD', color: 'bg-blue-500', bgColor: 'bg-blue-50', borderColor: 'border-blue-300', totalBeds: 10 }
+                ].map(ward => {
+                  const occupiedBeds = patients.filter(p => p.currentUnit === ward.id && p.bedNumber).length
+                  const availableBeds = ward.totalBeds - occupiedBeds
+                  const occupancyRate = Math.round((occupiedBeds / ward.totalBeds) * 100)
                   return (
-                    <Card key={unit.id} className="shadow-md hover:shadow-lg transition-shadow cursor-pointer border-l-4" style={{ borderLeftColor: unit.id === 'opd' ? '#3B82F6' : unit.id === 'mmw' ? '#16A34A' : unit.id === 'fmw' ? '#EC4899' : '#F97316' }}>
-                      <CardContent className="p-6">
-                        <div className="flex items-center justify-between mb-4">
-                          <div className={cn("w-12 h-12 rounded-xl flex items-center justify-center", unit.color)}>
-                            <Building2 className="h-6 w-6 text-white" />
+                    <Card key={ward.id} className="shadow-md hover:shadow-lg transition-shadow border-l-4" style={{ borderLeftColor: ward.id === 'opd' ? '#3B82F6' : ward.id === 'mmw' ? '#16A34A' : ward.id === 'fmw' ? '#EC4899' : '#F97316' }}>
+                      <CardContent className="p-4">
+                        <div className="flex items-center justify-between mb-3">
+                          <div className={cn("w-10 h-10 rounded-lg flex items-center justify-center", ward.color)}>
+                            <Building2 className="h-5 w-5 text-white" />
                           </div>
-                          <Badge variant="outline" className="text-lg font-bold">
-                            {unitPatients.length}
+                          <Badge className={cn("text-white", occupiedBeds >= ward.totalBeds ? 'bg-red-500' : 'bg-green-500')}>
+                            {availableBeds} Available
                           </Badge>
                         </div>
-                        <h3 className="font-semibold text-gray-800">{unit.name}</h3>
-                        <p className="text-sm text-gray-500 mt-1">
-                          {unit.id === 'opd' && 'Outpatient consultations'}
-                          {unit.id === 'mmw' && 'Male inpatient admissions'}
-                          {unit.id === 'fmw' && 'Female inpatient admissions'}
-                          {unit.id === 'wdu' && 'Wound care & dressing'}
-                        </p>
-                        {['mmw', 'fmw'].includes(unit.id) && (
-                          <div className="mt-3 flex items-center gap-2">
-                            <Badge className="bg-green-100 text-green-800">{admittedPatients.length} Admitted</Badge>
+                        <h3 className="font-semibold text-gray-800">{ward.name}</h3>
+                        <div className="mt-3 space-y-2">
+                          <div className="flex justify-between text-sm">
+                            <span className="text-gray-500">Occupied:</span>
+                            <span className="font-medium">{occupiedBeds}/{ward.totalBeds}</span>
                           </div>
-                        )}
+                          <Progress value={occupancyRate} className={cn("h-2", occupancyRate >= 90 ? '[&>div]:bg-red-500' : occupancyRate >= 70 ? '[&>div]:bg-yellow-500' : '[&>div]:bg-green-500')} />
+                          <p className="text-xs text-gray-400">{occupancyRate}% Occupancy</p>
+                        </div>
                       </CardContent>
                     </Card>
                   )
                 })}
               </div>
 
-              {/* Unit Tabs for Detailed View */}
-              <Tabs defaultValue="opd" className="w-full">
+              {/* Detailed Bed Layout */}
+              <Tabs defaultValue="mmw" className="w-full">
                 <TabsList className="grid w-full grid-cols-4">
-                  <TabsTrigger value="opd" className="flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-blue-500" />
-                    OPD
-                  </TabsTrigger>
                   <TabsTrigger value="mmw" className="flex items-center gap-2">
                     <div className="w-2 h-2 rounded-full bg-green-600" />
                     Male Ward
@@ -10304,247 +10316,151 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                     <div className="w-2 h-2 rounded-full bg-orange-500" />
                     Wound Unit
                   </TabsTrigger>
+                  <TabsTrigger value="opd" className="flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full bg-blue-500" />
+                    OPD
+                  </TabsTrigger>
                 </TabsList>
 
-                {['opd', 'mmw', 'fmw', 'wdu'].map(unitId => {
-                  const unit = healthCentreUnits.find(u => u.id === unitId)!
-                  const unitPatients = patients.filter(p => p.currentUnit === unitId)
-                  return (
-                    <TabsContent key={unitId} value={unitId} className="mt-4">
-                      <Card className="shadow-md">
-                        <CardHeader>
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <CardTitle className="flex items-center gap-2">
-                                <div className={cn("w-3 h-3 rounded-full", unit.color)} />
-                                {unit.name}
-                              </CardTitle>
-                              <CardDescription>
-                                {unitPatients.length} patient(s) currently in this unit
-                              </CardDescription>
+                {[
+                  { id: 'mmw', name: 'Male Medical Ward', totalBeds: 20, color: 'green', colorClass: 'bg-green-500', bgClass: 'bg-green-50', borderClass: 'border-green-300' },
+                  { id: 'fmw', name: 'Female Medical Ward', totalBeds: 20, color: 'pink', colorClass: 'bg-pink-500', bgClass: 'bg-pink-50', borderClass: 'border-pink-300' },
+                  { id: 'wdu', name: 'Wound Dressing Unit', totalBeds: 5, color: 'orange', colorClass: 'bg-orange-500', bgClass: 'bg-orange-50', borderClass: 'border-orange-300' },
+                  { id: 'opd', name: 'Outpatient Department', totalBeds: 10, color: 'blue', colorClass: 'bg-blue-500', bgClass: 'bg-blue-50', borderClass: 'border-blue-300' }
+                ].map(ward => (
+                  <TabsContent key={ward.id} value={ward.id} className="mt-4">
+                    <Card className="shadow-md">
+                      <CardHeader className="pb-2">
+                        <div className="flex items-center justify-between">
+                          <CardTitle className="flex items-center gap-2">
+                            <Building2 className="h-5 w-5 text-blue-600" />
+                            {ward.name} - Bed Layout
+                          </CardTitle>
+                          <div className="flex items-center gap-4 text-sm">
+                            <div className="flex items-center gap-2">
+                              <div className="w-4 h-4 rounded bg-green-500" />
+                              <span>Available</span>
                             </div>
-                            {canEdit('patients') && (
-                              <Button onClick={() => setShowPatientDialog(true)} className="bg-blue-600 hover:bg-blue-700">
-                                <Plus className="h-4 w-4 mr-2" /> Admit Patient
-                              </Button>
-                            )}
+                            <div className="flex items-center gap-2">
+                              <div className="w-4 h-4 rounded bg-red-500" />
+                              <span>Occupied</span>
+                            </div>
                           </div>
-                        </CardHeader>
-                        <CardContent>
-                          {unitPatients.length === 0 ? (
-                            <div className="text-center py-12 text-gray-500">
-                              <Building2 className="h-16 w-16 mx-auto mb-4 text-gray-300" />
-                              <p className="text-lg font-medium">No patients in {unit.shortName}</p>
-                              <p className="text-sm">Patients will appear here when admitted to this unit</p>
-                            </div>
-                          ) : (
-                            <div className="space-y-3">
-                              {unitPatients.map(patient => (
-                                <div key={patient.id} className="p-4 rounded-lg border bg-gray-50 hover:bg-white transition-colors">
-                                  <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-4">
-                                      <Avatar className="h-12 w-12">
-                                        <AvatarFallback className={getAvatarColor(patient.firstName + ' ' + patient.lastName)}>
-                                          {getInitials(patient.firstName, patient.lastName)}
-                                        </AvatarFallback>
-                                      </Avatar>
-                                      <div>
-                                        <p className="font-semibold text-gray-800">
-                                          {getFullName(patient.firstName, patient.lastName, patient.middleName, patient.title)}
-                                        </p>
-                                        <div className="flex items-center gap-2 flex-wrap mt-1">
-                                          <Badge className="bg-gradient-to-r from-blue-600 to-teal-500 text-white text-xs">
-                                            {patient.ruhcCode}
-                                          </Badge>
-                                          <Badge variant="outline" className="text-xs">
-                                            {patient.gender} • {formatAge(patient.dateOfBirth)}
-                                          </Badge>
-                                          {patient.admissionDate && (
-                                            <Badge className="bg-green-100 text-green-800 text-xs">
-                                              Admitted: {formatDate(patient.admissionDate)}
-                                            </Badge>
-                                          )}
-                                        </div>
-                                      </div>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                      <Button 
-                                        variant="outline" 
-                                        size="sm"
-                                        onClick={() => { setSelectedPatient(patient); setActiveTab('patient-detail') }}
-                                      >
-                                        <Eye className="h-4 w-4 mr-1" /> View
-                                      </Button>
-                                      {canEdit('patients') && (
-                                        <Select
-                                          value={patient.currentUnit}
-                                          onValueChange={(newUnit) => {
-                                            if (newUnit !== patient.currentUnit) {
-                                              const confirmTransfer = confirm(`Transfer ${patient.firstName} ${patient.lastName} to ${healthCentreUnits.find(u => u.id === newUnit)?.name}?`)
-                                              if (confirmTransfer) {
-                                                setPatients(patients.map(p => 
-                                                  p.id === patient.id 
-                                                    ? { ...p, currentUnit: newUnit, admissionDate: ['mmw', 'fmw'].includes(newUnit) ? new Date().toISOString() : undefined }
-                                                    : p
-                                                ))
-                                              }
-                                            }
-                                          }}
-                                        >
-                                          <SelectTrigger className="w-[140px] h-8">
-                                            <SelectValue placeholder="Transfer to..." />
-                                          </SelectTrigger>
-                                          <SelectContent>
-                                            {healthCentreUnits.map(u => (
-                                              <SelectItem key={u.id} value={u.id}>
-                                                <div className="flex items-center gap-2">
-                                                  <div className={cn("w-2 h-2 rounded-full", u.color)} />
-                                                  {u.shortName}
-                                                </div>
-                                              </SelectItem>
-                                            ))}
-                                          </SelectContent>
-                                        </Select>
-                                      )}
-                                      {canEdit('patients') && (
-                                        <Button 
-                                          variant="outline" 
-                                          size="sm" 
-                                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                                          onClick={() => {
-                                            const confirmDischarge = confirm(`Discharge ${patient.firstName} ${patient.lastName}?`)
-                                            if (confirmDischarge) {
-                                              setPatients(patients.map(p => 
-                                                p.id === patient.id 
-                                                  ? { ...p, currentUnit: undefined, admissionDate: undefined, isActive: false }
-                                                  : p
-                                              ))
-                                            }
-                                          }}
-                                        >
-                                          Discharge
-                                        </Button>
+                        </div>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="grid grid-cols-5 md:grid-cols-10 gap-3">
+                          {Array.from({ length: ward.totalBeds }).map((_, i) => {
+                            const bedNum = i + 1
+                            const occupant = patients.find(p => p.currentUnit === ward.id && p.bedNumber === bedNum)
+                            const isOccupied = !!occupant
+                            
+                            return (
+                              <div
+                                key={bedNum}
+                                className={cn(
+                                  "relative p-3 rounded-lg border-2 text-center transition-all cursor-pointer group",
+                                  isOccupied 
+                                    ? "bg-red-50 border-red-300 hover:border-red-500 hover:shadow-md" 
+                                    : "bg-green-50 border-green-300 hover:border-green-500 hover:shadow-md"
+                                )}
+                                onClick={() => {
+                                  if (isOccupied && occupant) {
+                                    setSelectedPatient(occupant)
+                                    setActiveTab('patient-detail')
+                                  } else if (canEdit('admissions')) {
+                                    // Open admission dialog with pre-selected ward and bed
+                                    setAdmissionForm(prev => ({ ...prev, wardId: ward.id, bedNumber: String(bedNum) }))
+                                    setShowAdmissionDialog(true)
+                                  }
+                                }}
+                              >
+                                {/* Bed Number Badge */}
+                                <div className={cn(
+                                  "w-8 h-8 rounded-full mx-auto mb-2 flex items-center justify-center text-xs font-bold",
+                                  isOccupied ? "bg-red-500 text-white" : "bg-green-500 text-white"
+                                )}>
+                                  {bedNum}
+                                </div>
+                                
+                                {/* Status Text */}
+                                <p className="text-xs font-medium">
+                                  {isOccupied ? 'Occupied' : 'Free'}
+                                </p>
+
+                                {/* Patient Name (if occupied) */}
+                                {isOccupied && occupant && (
+                                  <p className="text-xs text-gray-500 mt-1 truncate max-w-[60px]">
+                                    {occupant.firstName} {occupant.lastName?.charAt(0)}.
+                                  </p>
+                                )}
+
+                                {/* Tooltip on Hover */}
+                                {isOccupied && occupant && (
+                                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-10">
+                                    <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 shadow-lg whitespace-nowrap">
+                                      <p className="font-semibold">{getFullName(occupant.firstName, occupant.lastName, occupant.middleName)}</p>
+                                      <p className="text-gray-300">{occupant.ruhcCode}</p>
+                                      <p className="text-gray-400">{formatAge(occupant.dateOfBirth)} • {occupant.gender}</p>
+                                      {occupant.admissionDate && (
+                                        <p className="text-gray-400 mt-1">Since: {formatDate(occupant.admissionDate)}</p>
                                       )}
                                     </div>
                                   </div>
-                                </div>
-                              ))}
+                                )}
+
+                                {/* Click to Admit Prompt (if available) */}
+                                {!isOccupied && canEdit('admissions') && (
+                                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-10">
+                                    <div className="bg-green-600 text-white text-xs rounded-lg px-3 py-2 shadow-lg whitespace-nowrap">
+                                      Click to admit patient to Bed {bedNum}
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            )
+                          })}
+                        </div>
+
+                        {/* Ward Summary */}
+                        <div className="mt-4 pt-4 border-t flex items-center justify-between">
+                          <div className="flex gap-6">
+                            <div>
+                              <p className="text-sm text-gray-500">Total Beds</p>
+                              <p className="text-xl font-bold">{ward.totalBeds}</p>
                             </div>
+                            <div>
+                              <p className="text-sm text-gray-500">Occupied</p>
+                              <p className="text-xl font-bold text-red-600">{patients.filter(p => p.currentUnit === ward.id && p.bedNumber).length}</p>
+                            </div>
+                            <div>
+                              <p className="text-sm text-gray-500">Available</p>
+                              <p className="text-xl font-bold text-green-600">{ward.totalBeds - patients.filter(p => p.currentUnit === ward.id && p.bedNumber).length}</p>
+                            </div>
+                          </div>
+                          {canEdit('admissions') && (
+                            <Button 
+                              onClick={() => {
+                                const availableBed = Array.from({ length: ward.totalBeds }).findIndex((_, i) => {
+                                  const bedNum = i + 1
+                                  return !patients.find(p => p.currentUnit === ward.id && p.bedNumber === bedNum)
+                                }) + 1
+                                if (availableBed > 0) {
+                                  setAdmissionForm(prev => ({ ...prev, wardId: ward.id, bedNumber: String(availableBed) }))
+                                }
+                                setShowAdmissionDialog(true)
+                              }}
+                              className="bg-green-600 hover:bg-green-700"
+                            >
+                              <UserPlus className="h-4 w-4 mr-2" /> Admit to {ward.name}
+                            </Button>
                           )}
-                        </CardContent>
-                      </Card>
-                    </TabsContent>
-                  )
-                })}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </TabsContent>
+                ))}
               </Tabs>
-
-              {/* Bed Management for Inpatient Wards */}
-              <Card className="shadow-md">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Building2 className="h-5 w-5 text-blue-600" />
-                    Bed Management - Inpatient Wards
-                  </CardTitle>
-                  <CardDescription>
-                    Track bed availability in Male and Female Medical Wards
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {/* Male Ward Beds */}
-                    <div>
-                      <h3 className="font-semibold text-green-700 mb-3 flex items-center gap-2">
-                        <div className="w-3 h-3 rounded-full bg-green-600" />
-                        Male Medical Ward
-                      </h3>
-                      <div className="grid grid-cols-5 gap-2">
-                        {Array.from({ length: 10 }).map((_, i) => {
-                          const bedNum = i + 1
-                          const occupant = patients.find(p => p.currentUnit === 'mmw' && p.bedNumber === bedNum)
-                          return (
-                            <div
-                              key={bedNum}
-                              className={cn(
-                                "p-3 rounded-lg border-2 text-center transition-all cursor-pointer",
-                                occupant 
-                                  ? "bg-red-50 border-red-300 hover:border-red-400" 
-                                  : "bg-green-50 border-green-300 hover:border-green-400"
-                              )}
-                              title={occupant ? `${occupant.firstName} ${occupant.lastName}` : 'Available'}
-                            >
-                              <div className={cn(
-                                "w-8 h-8 rounded-full mx-auto mb-1 flex items-center justify-center text-xs font-bold",
-                                occupant ? "bg-red-500 text-white" : "bg-green-500 text-white"
-                              )}>
-                                {bedNum}
-                              </div>
-                              <p className="text-xs font-medium">
-                                {occupant ? 'Occupied' : 'Free'}
-                              </p>
-                            </div>
-                          )
-                        })}
-                      </div>
-                      <div className="mt-3 flex items-center gap-4 text-sm">
-                        <div className="flex items-center gap-2">
-                          <div className="w-4 h-4 rounded bg-green-500" />
-                          <span>Available</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <div className="w-4 h-4 rounded bg-red-500" />
-                          <span>Occupied</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Female Ward Beds */}
-                    <div>
-                      <h3 className="font-semibold text-pink-700 mb-3 flex items-center gap-2">
-                        <div className="w-3 h-3 rounded-full bg-pink-500" />
-                        Female Medical Ward
-                      </h3>
-                      <div className="grid grid-cols-5 gap-2">
-                        {Array.from({ length: 10 }).map((_, i) => {
-                          const bedNum = i + 1
-                          const occupant = patients.find(p => p.currentUnit === 'fmw' && p.bedNumber === bedNum)
-                          return (
-                            <div
-                              key={bedNum}
-                              className={cn(
-                                "p-3 rounded-lg border-2 text-center transition-all cursor-pointer",
-                                occupant 
-                                  ? "bg-red-50 border-red-300 hover:border-red-400" 
-                                  : "bg-green-50 border-green-300 hover:border-green-400"
-                              )}
-                              title={occupant ? `${occupant.firstName} ${occupant.lastName}` : 'Available'}
-                            >
-                              <div className={cn(
-                                "w-8 h-8 rounded-full mx-auto mb-1 flex items-center justify-center text-xs font-bold",
-                                occupant ? "bg-red-500 text-white" : "bg-green-500 text-white"
-                              )}>
-                                {bedNum}
-                              </div>
-                              <p className="text-xs font-medium">
-                                {occupant ? 'Occupied' : 'Free'}
-                              </p>
-                            </div>
-                          )
-                        })}
-                      </div>
-                      <div className="mt-3 flex items-center gap-4 text-sm">
-                        <div className="flex items-center gap-2">
-                          <div className="w-4 h-4 rounded bg-green-500" />
-                          <span>Available</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <div className="w-4 h-4 rounded bg-red-500" />
-                          <span>Occupied</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
             </div>
           )}
 
@@ -16095,24 +16011,72 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <Label>Ward *</Label>
-                  <Select value={admissionForm.wardId} onValueChange={v => setAdmissionForm({ ...admissionForm, wardId: v, wardName: healthCentreUnits.find(u => u.id === v)?.name || '' })}>
+                  <Select value={admissionForm.wardId} onValueChange={v => {
+                    const wardTotalBeds = v === 'mmw' ? 20 : v === 'fmw' ? 20 : v === 'wdu' ? 5 : v === 'opd' ? 10 : 10
+                    // Find first available bed
+                    const firstAvailableBed = Array.from({ length: wardTotalBeds }).findIndex((_, i) => {
+                      const bedNum = i + 1
+                      return !patients.find(p => p.currentUnit === v && p.bedNumber === bedNum)
+                    }) + 1
+                    setAdmissionForm({ 
+                      ...admissionForm, 
+                      wardId: v, 
+                      wardName: healthCentreUnits.find(u => u.id === v)?.name || '',
+                      bedNumber: firstAvailableBed > 0 ? String(firstAvailableBed) : ''
+                    })
+                  }}>
                     <SelectTrigger><SelectValue placeholder="Select ward" /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="mmw">Male Medical Ward</SelectItem>
-                      <SelectItem value="fmw">Female Medical Ward</SelectItem>
-                      <SelectItem value="emergency">Emergency Unit</SelectItem>
+                      <SelectItem value="mmw">Male Medical Ward (20 beds)</SelectItem>
+                      <SelectItem value="fmw">Female Medical Ward (20 beds)</SelectItem>
+                      <SelectItem value="wdu">Wound Dressing Unit (5 beds)</SelectItem>
+                      <SelectItem value="opd">Outpatient Department (10 beds)</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label>Bed Number *</Label>
-                  <Input 
-                    type="number"
-                    value={admissionForm.bedNumber}
-                    onChange={e => setAdmissionForm({ ...admissionForm, bedNumber: e.target.value })}
-                    placeholder="e.g., 5"
-                    min={1}
-                  />
+                  <Label>Bed Number * {admissionForm.wardId && (
+                    <span className="text-xs text-gray-500 ml-2">
+                      ({patients.filter(p => p.currentUnit === admissionForm.wardId && p.bedNumber).length} occupied)
+                    </span>
+                  )}</Label>
+                  {admissionForm.wardId ? (
+                    <Select 
+                      value={admissionForm.bedNumber} 
+                      onValueChange={v => setAdmissionForm({ ...admissionForm, bedNumber: v })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select available bed" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {(() => {
+                          const wardTotalBeds = admissionForm.wardId === 'mmw' ? 20 : admissionForm.wardId === 'fmw' ? 20 : admissionForm.wardId === 'wdu' ? 5 : 10
+                          return Array.from({ length: wardTotalBeds }).map((_, i) => {
+                            const bedNum = i + 1
+                            const isOccupied = patients.find(p => p.currentUnit === admissionForm.wardId && p.bedNumber === bedNum)
+                            if (isOccupied) return null
+                            return (
+                              <SelectItem key={bedNum} value={String(bedNum)}>
+                                Bed {bedNum} - Available
+                              </SelectItem>
+                            )
+                          })
+                        })()}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <Select disabled>
+                      <SelectTrigger><SelectValue placeholder="Select ward first" /></SelectTrigger>
+                    </Select>
+                  )}
+                  {admissionForm.wardId && (() => {
+                    const wardTotalBeds = admissionForm.wardId === 'mmw' ? 20 : admissionForm.wardId === 'fmw' ? 20 : admissionForm.wardId === 'wdu' ? 5 : 10
+                    const available = wardTotalBeds - patients.filter(p => p.currentUnit === admissionForm.wardId && p.bedNumber).length
+                    if (available === 0) {
+                      return <p className="text-xs text-red-500 mt-1">⚠️ This ward is fully occupied. Please select another ward.</p>
+                    }
+                    return <p className="text-xs text-green-600 mt-1">✓ {available} beds available</p>
+                  })()}
                 </div>
                 <div className="space-y-2">
                   <Label>Room Type</Label>
