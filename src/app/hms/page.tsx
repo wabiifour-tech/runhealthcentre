@@ -1682,7 +1682,8 @@ export default function HMSApp() {
     role: 'NURSE' as string,
     department: '',
     initials: '',
-    phone: ''
+    phone: '',
+    facilityCode: ''
   })
   const [signUpError, setSignUpError] = useState('')
   const [signUpSuccess, setSignUpSuccess] = useState(false)
@@ -3553,6 +3554,16 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
     setSignUpLoading(true)
 
     // Validation
+    if (!signUpForm.facilityCode.trim()) {
+      setSignUpError('Facility code is required')
+      setSignUpLoading(false)
+      return
+    }
+    if (signUpForm.facilityCode.toUpperCase() !== FACILITY_CODE) {
+      setSignUpError('Invalid facility code. Please contact administrator.')
+      setSignUpLoading(false)
+      return
+    }
     if (!signUpForm.name.trim()) {
       setSignUpError('Please enter your full name')
       setSignUpLoading(false)
@@ -3597,7 +3608,8 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
           role: signUpForm.role,
           department: signUpForm.department,
           initials: signUpForm.initials || signUpForm.name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2),
-          phone: signUpForm.phone
+          phone: signUpForm.phone,
+          facilityCode: signUpForm.facilityCode.toUpperCase()
         })
       })
 
@@ -3608,7 +3620,7 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
         setTimeout(() => {
           setShowSignUp(false)
           setSignUpSuccess(false)
-          setSignUpForm({ name: '', email: '', password: '', confirmPassword: '', role: 'NURSE', department: '', initials: '', phone: '' })
+          setSignUpForm({ name: '', email: '', password: '', confirmPassword: '', role: 'NURSE', department: '', initials: '', phone: '', facilityCode: '' })
         }, 3000)
       } else {
         setSignUpError(data.error || 'Registration failed')
@@ -5542,7 +5554,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                   <div className="p-4 bg-green-50 border border-green-200 text-green-700 rounded-lg text-center">
                     <CheckCircle className="w-8 h-8 mx-auto mb-2 text-green-600" />
                     <p className="font-semibold">Registration Successful!</p>
-                    <p className="text-sm mt-1">Your account is pending approval. An administrator will review your application.</p>
+                    <p className="text-sm mt-1">You can now sign in with your credentials.</p>
                   </div>
                 ) : (
                   <>
@@ -5559,6 +5571,19 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                       </div>
                       <h3 className="font-semibold text-gray-900">Create Account</h3>
                       <p className="text-sm text-gray-500">Register as staff member</p>
+                    </div>
+
+                    {/* Facility Code - First field */}
+                    <div className="space-y-2">
+                      <Label className="text-gray-700 font-medium">Facility Code *</Label>
+                      <Input
+                        placeholder="Enter facility code (e.g., RUHC-2026)"
+                        value={signUpForm.facilityCode}
+                        onChange={e => setSignUpForm({ ...signUpForm, facilityCode: e.target.value.toUpperCase() })}
+                        required
+                        className="h-10 uppercase"
+                      />
+                      <p className="text-xs text-gray-500">Contact administrator for facility code</p>
                     </div>
 
                     <div className="grid grid-cols-2 gap-3">

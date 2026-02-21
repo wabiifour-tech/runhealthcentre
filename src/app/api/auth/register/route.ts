@@ -106,8 +106,8 @@ export async function POST(request: NextRequest) {
           phone: phone || null,
           isActive: true,
           isFirstLogin: true, // Will require password change on first login
-          mustChangePassword: true, // Force password change after approval
-          approvalStatus: 'PENDING',
+          mustChangePassword: true, // Force password change on first login
+          approvalStatus: 'APPROVED', // Auto-approve users - they can login immediately
           createdAt: new Date()
         }
       })
@@ -116,7 +116,7 @@ export async function POST(request: NextRequest) {
 
       return NextResponse.json({ 
         success: true, 
-        message: 'Registration successful! Your account is pending approval.',
+        message: 'Registration successful! You can now login to your account.',
         user: {
           id: newUser.id,
           email: newUser.email,
