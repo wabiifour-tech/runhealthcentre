@@ -2,22 +2,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
 
-// Generate initials from name
-function generateInitials(name: string): string {
-  const parts = name.trim().split(' ')
-  if (parts.length >= 2) {
-    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
-  }
-  return name.substring(0, 2).toUpperCase()
-}
-
 // POST - Self-registration (creates pending account)
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
     const { name, email, password, role, department, initials, phone, dateOfBirth } = body
 
-    console.log('[Register] Request for:', email, 'role:', role)
+    console.log('[Register] Registration request for:', email, 'role:', role)
 
     // Validation
     if (!name || !email || !password || !role) {
@@ -66,35 +57,33 @@ export async function POST(request: NextRequest) {
     }
 
     // Get database client
-    let prisma: any = null
-    try {
-      const dbModule = await import('@/lib/db')
-      prisma = dbModule.getPrisma()
-      
-      if (prisma) {
-        // Test connection
-        await prisma.$queryRaw`SELECT 1`
-        console.log('[Register] Database connected')
-      }
-    } catch (e: any) {
-      console.error('[Register] Database error:', e.message)
-      return NextResponse.json({ 
-        success: false, 
-        error: 'Database connection failed. Please contact administrator.',
-        debug: process.env.NODE_ENV === 'development' ? e.message : undefined
-      }, { status: 503 })
-    }
+    const { getPrisma } = await import('@/lib/db')
+    const prisma = getPrisma()
     
     if (!prisma) {
-      console.log('[Register] No database client')
+      console.log('[Register] Database unavailable - client is null')
       return NextResponse.json({ 
         success: false, 
-        error: 'Database not configured. Please contact administrator.' 
+        error: 'Registration temporarily unavailable. Please contact administrator.' 
       }, { status: 503 })
     }
 
+    // Test connection first
+    try {
+      await (prisma as any).$queryRaw`SELECT 1`
+      console.log('[Register] Database connection OK')
+    } catch (connError: any) {
+      console.error('[Register] Database connection failed:', connError.message)
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Database connection failed. Please try again later.' 
+      }, { status: 503 })
+    }
+
+    const p = prisma as any
+
     // Check if email already exists
-    const existingUser = await prisma.user.findUnique({
+    const existingUser = await p.user.findUnique({
       where: { email: email.toLowerCase() }
     })
 
@@ -109,10 +98,10 @@ export async function POST(request: NextRequest) {
     const hashedPassword = await bcrypt.hash(password, 12)
 
     // Generate initials
-    const userInitials = initials || generateInitials(name)
+    const userInitials = initials || name.trim().split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)
 
-    // Create user with PENDING approval status
-    const newUser = await prisma.user.create({
+    // Create user
+    const newUser = await p.user.create({
       data: {
         email: email.toLowerCase(),
         name,
@@ -133,7 +122,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ 
       success: true, 
-      message: 'Registration successful! Your account is pending approval. You will be notified once an administrator reviews your application.',
+      message: 'Registration successful! Your account is pending approval.',
       user: {
         id: newUser.id,
         email: newUser.email,
@@ -147,8 +136,7 @@ export async function POST(request: NextRequest) {
     console.error('[Register] Error:', error)
     return NextResponse.json({ 
       success: false, 
-      error: 'Registration failed. Please try again.',
-      debug: process.env.NODE_ENV === 'development' ? error.message : undefined
+      error: 'Registration failed. Please try again.' 
     }, { status: 500 })
   }
 }

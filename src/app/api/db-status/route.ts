@@ -2,38 +2,36 @@
 import { NextResponse } from 'next/server'
 
 export async function GET() {
-  const envStatus = {
-    DATABASE_URL: !!process.env.DATABASE_URL,
-    DIRECT_DATABASE_URL: !!process.env.DIRECT_DATABASE_URL,
-    TURSO_DATABASE_URL: !!process.env.TURSO_DATABASE_URL,
-    TURSO_AUTH_TOKEN: !!process.env.TURSO_AUTH_TOKEN,
-    LIBSQL_URL: !!process.env.LIBSQL_URL,
-    NEXT_PHASE: process.env.NEXT_PHASE || 'not set',
-    NODE_ENV: process.env.NODE_ENV,
+  const dbUrl = process.env.DATABASE_URL
+  
+  // Safe details (no password exposed)
+  const details = {
+    hasDatabaseUrl: !!dbUrl,
+    host: dbUrl ? dbUrl.match(/@([^:]+):/)?.[1] : null,
+    port: dbUrl ? dbUrl.match(/:(\d+)\//)?.[1] : null,
+    database: dbUrl ? dbUrl.match(/\/([^?]+)$/)?.[1] : null,
+    nodeEnv: process.env.NODE_ENV,
+    nextPhase: process.env.NEXT_PHASE || 'not set',
+    timestamp: new Date().toISOString(),
   }
-
-  // Get URL host for debugging (without exposing credentials)
-  const dbUrl = process.env.DATABASE_URL || process.env.DIRECT_DATABASE_URL
-  const urlHost = dbUrl ? dbUrl.match(/@([^:]+):/)?.[1] || 'unknown' : 'not configured'
 
   try {
     const { testConnection } = await import('@/lib/db')
-    const connectionTest = await testConnection()
+    const result = await testConnection()
     
     return NextResponse.json({
-      status: connectionTest.success ? 'connected' : 'disconnected',
-      message: connectionTest.message,
-      environment: envStatus,
-      databaseHost: urlHost,
-      timestamp: new Date().toISOString()
+      status: result.success ? '✅ CONNECTED' : '❌ DISCONNECTED',
+      message: result.message,
+      details: {
+        ...details,
+        ...result.details,
+      }
     })
   } catch (error: any) {
     return NextResponse.json({
-      status: 'error',
+      status: '❌ ERROR',
       message: error.message,
-      environment: envStatus,
-      databaseHost: urlHost,
-      timestamp: new Date().toISOString()
+      details,
     })
   }
 }
