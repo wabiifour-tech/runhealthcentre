@@ -1,6 +1,4 @@
-// Database Configuration for Prisma 7 + PostgreSQL (Serverless)
-// Using direct URL with connection pooling
-
+// Database Configuration for Prisma 5 + PostgreSQL (Serverless)
 import { PrismaClient } from '../generated/prisma/client'
 
 const globalForPrisma = globalThis as unknown as {
@@ -23,11 +21,9 @@ function createPrismaClient(): PrismaClient | null {
   }
 
   try {
-    // For Prisma 7, we can pass datasourceUrl directly
-    // This bypasses the adapter requirement
+    // Prisma 5 works great with just the URL
     const client = new PrismaClient({
-      datasourceUrl: dbUrl,
-      log: ['error']
+      log: ['error'],
     })
     
     initError = null
