@@ -22,7 +22,7 @@ export async function GET() {
         const p = prisma as any
         
         // Try to query the database
-        const userCount = await p.users.count()
+        const userCount = await p.user.count()
         debug.userCount = userCount
         debug.mode = 'database'
         debug.message = 'Database connected successfully!'

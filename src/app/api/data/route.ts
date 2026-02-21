@@ -163,8 +163,8 @@ export async function GET(request: NextRequest) {
               p.discharge_summaries.findMany({ orderBy: { createdAt: 'desc' } }),
               p.announcements.findMany({ orderBy: { createdAt: 'desc' } }),
               p.voice_notes.findMany({ orderBy: { createdAt: 'desc' } }),
-              p.users.findMany({ 
-                select: { id: true, email: true, name: true, role: true, department: true, initials: true, isActive: true, isFirstLogin: true },
+              p.user.findMany({ 
+                select: { id: true, email: true, name: true, role: true, department: true, initials: true, isActive: true, isFirstLogin: true, phone: true, approvalStatus: true, lastLogin: true, createdAt: true },
                 orderBy: { createdAt: 'desc' }
               }),
               p.dispensed_drugs.findMany({ orderBy: { dispensedAt: 'desc' } })

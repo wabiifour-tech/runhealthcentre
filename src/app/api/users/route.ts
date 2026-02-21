@@ -26,7 +26,7 @@ export async function GET() {
     }
 
     const p = prisma as any
-    const users = await p.users.findMany({
+    const users = await p.user.findMany({
       select: {
         id: true,
         email: true,
@@ -35,12 +35,11 @@ export async function GET() {
         department: true,
         initials: true,
         phone: true,
-        dateOfBirth: true,
         isActive: true,
         isFirstLogin: true,
         lastLogin: true,
         createdAt: true,
-        updatedAt: true
+        approvalStatus: true
       },
       orderBy: { createdAt: 'desc' }
     })
@@ -81,9 +80,9 @@ export async function POST(request: NextRequest) {
       // Sync users from client - update existing, create new
       if (syncUsers && Array.isArray(syncUsers)) {
         for (const u of syncUsers) {
-          const existing = await p.users.findUnique({ where: { id: u.id } })
+          const existing = await p.user.findUnique({ where: { id: u.id } })
           if (existing) {
-            await p.users.update({
+            await p.user.update({
               where: { id: u.id },
               data: {
                 name: u.name,
@@ -91,7 +90,6 @@ export async function POST(request: NextRequest) {
                 department: u.department,
                 initials: u.initials,
                 phone: u.phone,
-                dateOfBirth: u.dateOfBirth,
                 isActive: u.isActive ?? true,
                 updatedAt: now
               }
@@ -102,7 +100,7 @@ export async function POST(request: NextRequest) {
               ? (u.password.startsWith('$2') ? u.password : await bcrypt.hash(u.password, 12))
               : await bcrypt.hash('password123', 12)
             
-            await p.users.create({
+            await p.user.create({
               data: {
                 id: u.id || `user-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
                 email: u.email,
@@ -111,7 +109,6 @@ export async function POST(request: NextRequest) {
                 department: u.department,
                 initials: u.initials,
                 phone: u.phone,
-                dateOfBirth: u.dateOfBirth,
                 password: passwordHash,
                 isActive: u.isActive ?? true,
                 isFirstLogin: u.isFirstLogin ?? true,
@@ -122,7 +119,7 @@ export async function POST(request: NextRequest) {
           }
         }
         
-        const allUsers = await p.users.findMany({
+        const allUsers = await p.user.findMany({
           select: {
             id: true,
             email: true,
@@ -131,12 +128,11 @@ export async function POST(request: NextRequest) {
             department: true,
             initials: true,
             phone: true,
-            dateOfBirth: true,
             isActive: true,
             isFirstLogin: true,
             lastLogin: true,
             createdAt: true,
-            updatedAt: true
+            approvalStatus: true
           },
           orderBy: { createdAt: 'desc' }
         })
@@ -158,7 +154,7 @@ export async function POST(request: NextRequest) {
       }
 
       // Check if user exists
-      const existing = await p.users.findUnique({ where: { email: user.email.toLowerCase() } })
+      const existing = await p.user.findUnique({ where: { email: user.email.toLowerCase() } })
       if (existing) {
         return NextResponse.json({
           success: false,
@@ -171,7 +167,7 @@ export async function POST(request: NextRequest) {
         ? await bcrypt.hash(user.password, 12)
         : await bcrypt.hash('password123', 12)
 
-      const newUser = await p.users.create({
+      const newUser = await p.user.create({
         data: {
           id: user.id || `user-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
           email: user.email.toLowerCase(),
@@ -180,10 +176,10 @@ export async function POST(request: NextRequest) {
           department: user.department,
           initials: user.initials,
           phone: user.phone,
-          dateOfBirth: user.dateOfBirth,
           password: passwordHash,
           isActive: user.isActive ?? true,
           isFirstLogin: user.isFirstLogin ?? true,
+          approvalStatus: 'APPROVED',
           createdAt: now,
           updatedAt: now
         }
@@ -230,7 +226,7 @@ export async function POST(request: NextRequest) {
         updateData.isFirstLogin = false
       }
 
-      const updatedUser = await p.users.update({
+      const updatedUser = await p.user.update({
         where: { id: user.id },
         data: updateData
       })
@@ -259,7 +255,7 @@ export async function POST(request: NextRequest) {
         }, { status: 400 })
       }
 
-      await p.users.delete({ where: { id: user.id } })
+      await p.user.delete({ where: { id: user.id } })
 
       return NextResponse.json({
         success: true,
@@ -304,7 +300,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     const p = prisma as any
-    await p.users.delete({ where: { id } })
+    await p.user.delete({ where: { id } })
 
     return NextResponse.json({
       success: true,
