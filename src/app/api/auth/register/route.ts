@@ -104,7 +104,6 @@ export async function POST(request: NextRequest) {
           department: department || null,
           initials: userInitials,
           phone: phone || null,
-          dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null,
           isActive: true,
           isFirstLogin: false,
           approvalStatus: 'PENDING',
