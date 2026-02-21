@@ -105,7 +105,8 @@ export async function POST(request: NextRequest) {
           initials: userInitials,
           phone: phone || null,
           isActive: true,
-          isFirstLogin: false,
+          isFirstLogin: true, // Will require password change on first login
+          mustChangePassword: true, // Force password change after approval
           approvalStatus: 'PENDING',
           createdAt: new Date()
         }

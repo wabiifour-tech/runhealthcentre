@@ -1,6 +1,7 @@
 // Authentication API - Login with Database Support
 import { NextRequest, NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
+import { randomUUID } from 'crypto'
 
 // Demo SuperAdmin credentials (fallback when database unavailable)
 const DEMO_SUPERADMIN = {
@@ -13,7 +14,8 @@ const DEMO_SUPERADMIN = {
   password: '$2b$12$KIl2rrn4SNdHn2fuH0STsejTZrL7gTCOGtxajJMPEAjppo9ybG5aC', // #Abolaji7977
   isFirstLogin: false,
   isActive: true,
-  approvalStatus: 'APPROVED'
+  approvalStatus: 'APPROVED',
+  mustChangePassword: false
 }
 
 // Check if database is available
@@ -40,6 +42,11 @@ async function getDatabaseClient() {
   }
 }
 
+// Generate session ID
+function generateSessionId(): string {
+  return randomUUID()
+}
+
 // Login endpoint
 export async function POST(request: NextRequest) {
   try {
@@ -55,6 +62,10 @@ export async function POST(request: NextRequest) {
     }
 
     const emailLower = email.toLowerCase()
+
+    // Get client info for session tracking
+    const userAgent = request.headers.get('user-agent') || 'Unknown'
+    const ip = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'Unknown'
 
     // Try database first
     const prisma = await getDatabaseClient()
@@ -102,19 +113,64 @@ export async function POST(request: NextRequest) {
             }, { status: 401 })
           }
 
-          // Update last login
+          // Generate new session ID
+          const sessionId = generateSessionId()
+
+          // End all other active sessions for this user (prevent simultaneous logins)
           try {
-            await p.user.update({
-              where: { id: user.id },
-              data: { lastLogin: new Date().toISOString() }
+            await p.userSession.updateMany({
+              where: { 
+                userId: user.id, 
+                isActive: true 
+              },
+              data: { 
+                isActive: false, 
+                endedAt: new Date() 
+              }
             })
           } catch (e) {
-            // Ignore update errors
+            console.log('[Login] Could not end other sessions - table may not exist yet')
+          }
+
+          // Create new session
+          try {
+            await p.userSession.create({
+              data: {
+                userId: user.id,
+                sessionId: sessionId,
+                deviceInfo: userAgent,
+                ipAddress: ip,
+                isActive: true,
+                startedAt: new Date(),
+                lastActivityAt: new Date()
+              }
+            })
+
+            // Update user with current session
+            await p.user.update({
+              where: { id: user.id },
+              data: { 
+                lastLogin: new Date(),
+                currentSessionId: sessionId,
+                lastSessionAt: new Date()
+              }
+            })
+          } catch (e) {
+            console.log('[Login] Could not create session - table may not exist yet')
+            // Still update last login
+            try {
+              await p.user.update({
+                where: { id: user.id },
+                data: { lastLogin: new Date() }
+              })
+            } catch (updateErr) {
+              // Ignore update errors
+            }
           }
 
           console.log('[Login] Login successful for:', user.email)
 
-          // Return user data
+          // Return user data with session info
           return NextResponse.json({ 
             success: true, 
             user: {
@@ -124,8 +180,10 @@ export async function POST(request: NextRequest) {
               role: user.role,
               department: user.department,
               initials: user.initials,
-              isFirstLogin: user.isFirstLogin || false
+              isFirstLogin: user.isFirstLogin || false,
+              mustChangePassword: user.mustChangePassword ?? user.isFirstLogin ?? false
             },
+            sessionId: sessionId,
             mode: 'database'
           })
         }
@@ -140,6 +198,7 @@ export async function POST(request: NextRequest) {
       
       if (passwordValid) {
         console.log('[Login] Demo SuperAdmin login successful')
+        const sessionId = generateSessionId()
         return NextResponse.json({ 
           success: true, 
           user: {
@@ -149,8 +208,10 @@ export async function POST(request: NextRequest) {
             role: DEMO_SUPERADMIN.role,
             department: DEMO_SUPERADMIN.department,
             initials: DEMO_SUPERADMIN.initials,
-            isFirstLogin: DEMO_SUPERADMIN.isFirstLogin
+            isFirstLogin: DEMO_SUPERADMIN.isFirstLogin,
+            mustChangePassword: DEMO_SUPERADMIN.mustChangePassword
           },
+          sessionId: sessionId,
           mode: 'demo'
         })
       }
@@ -195,6 +256,8 @@ export async function GET() {
         initials: true,
         isActive: true,
         approvalStatus: true,
+        isFirstLogin: true,
+        mustChangePassword: true,
         lastLogin: true,
         createdAt: true,
         phone: true

@@ -28,7 +28,12 @@ model User {
   
   // Security
   isFirstLogin    Boolean   @default(true) @map("is_first_login")
+  mustChangePassword Boolean @default(true) @map("must_change_password") // Force password change
   passwordLastChanged DateTime? @map("password_last_changed")
+  
+  // Session Management
+  currentSessionId String? @map("current_session_id") // Track active session
+  lastSessionAt    DateTime? @map("last_session_at") // Last session start time
   
   // Timestamps
   lastLogin       DateTime? @map("last_login")
@@ -41,8 +46,25 @@ model User {
   vitalSigns       VitalSign[]
   labRequests      LabRequest[]
   prescriptions    Prescription[]
+  sessions         UserSession[]
 
   @@map("User")
+}
+
+// User Session Model - Track active sessions to prevent simultaneous logins
+model UserSession {
+  id            String    @id @default(cuid())
+  userId        String    @map("user_id")
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sessionId     String    @unique @map("session_id") // Unique session identifier
+  deviceInfo    String?   @map("device_info") // Browser/Device info
+  ipAddress     String?   @map("ip_address")
+  isActive      Boolean   @default(true) @map("is_active")
+  startedAt     DateTime  @default(now()) @map("started_at")
+  endedAt       DateTime? @map("ended_at")
+  lastActivityAt DateTime @default(now()) @map("last_activity_at")
+
+  @@map("UserSession")
 }
 
 // ==================== PATIENT MANAGEMENT ====================

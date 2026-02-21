@@ -3516,11 +3516,11 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
         localStorage.removeItem('hms_remember_email')
       }
       
-      // Show password change modal if first login
-      if (result.user.isFirstLogin) {
+      // Show password change modal if first login or must change password
+      if (result.user.isFirstLogin || result.user.mustChangePassword) {
         setPasswordChangeRequired(true)
         setShowPasswordChangeModal(true)
-        setPasswordError('Please change your password on first login for security.')
+        setPasswordError('Please change your password for security before continuing.')
       }
 
       // Show welcome screen for 5 seconds before dashboard
@@ -3721,32 +3721,52 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
       return
     }
     
-    // Hash the new password
-    const hashedPassword = await hashPassword(passwordForm.newPassword)
-    
-    // Update the user's password
-    setSystemUsers(prev => prev.map(u => {
-      if (u.id === user?.id) {
-        return {
-          ...u,
-          password: hashedPassword,
-          passwordLastChanged: new Date().toISOString(),
-          mustChangePassword: false,
-          isFirstLogin: false
-        }
+    // Call the password change API
+    try {
+      const response = await fetch('/api/auth/change-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: user?.id,
+          currentPassword: passwordForm.currentPassword,
+          newPassword: passwordForm.newPassword,
+          confirmPassword: passwordForm.confirmPassword
+        })
+      })
+      
+      const result = await response.json()
+      
+      if (!result.success) {
+        setPasswordError(result.error || 'Failed to change password')
+        return
       }
-      return u
-    }))
-    
-    setPasswordSuccess(true)
-    setPasswordChangeRequired(false)
-    setShowPasswordChangeModal(false)
-    setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' })
-    
-    // Show success message
-    setTimeout(() => {
-      setPasswordSuccess(false)
-    }, 3000)
+      
+      // Update local state
+      setSystemUsers(prev => prev.map(u => {
+        if (u.id === user?.id) {
+          return {
+            ...u,
+            passwordLastChanged: new Date().toISOString(),
+            mustChangePassword: false,
+            isFirstLogin: false
+          }
+        }
+        return u
+      }))
+      
+      setPasswordSuccess(true)
+      setPasswordChangeRequired(false)
+      setShowPasswordChangeModal(false)
+      setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' })
+      
+      // Show success message
+      setTimeout(() => {
+        setPasswordSuccess(false)
+      }, 3000)
+    } catch (error) {
+      console.error('Password change error:', error)
+      setPasswordError('Failed to change password. Please try again.')
+    }
   }
 
   const handleLogout = () => {
