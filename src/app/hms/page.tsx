@@ -6682,15 +6682,16 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
               </Card>
 
               {/* Quick Actions */}
-              {canEdit('patients') && (
-                <Card className="shadow-md">
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-lg">Quick Actions</CardTitle>
-                  </CardHeader>
-                  <CardContent className="flex flex-wrap gap-3">
-                    <Button onClick={() => setShowPatientDialog(true)} className="bg-blue-600 hover:bg-blue-700">
-                      <Plus className="h-4 w-4 mr-2" /> New Patient
-                    </Button>
+              <Card className="shadow-md">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-lg">Quick Actions</CardTitle>
+                </CardHeader>
+                <CardContent className="flex flex-wrap gap-3">
+                    {canEdit('patients') && (
+                      <Button onClick={() => setShowPatientDialog(true)} className="bg-blue-600 hover:bg-blue-700">
+                        <Plus className="h-4 w-4 mr-2" /> New Patient
+                      </Button>
+                    )}
                     <Button variant="outline" onClick={() => setShowAppointmentDialog(true)} className="border-green-600 text-green-600 hover:bg-green-50">
                       <Calendar className="h-4 w-4 mr-2" /> Book Appointment
                     </Button>
@@ -6716,7 +6717,6 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                     )}
                   </CardContent>
                 </Card>
-              )}
 
               {/* Open Heavens Quick Access */}
               <Card className="shadow-md bg-gradient-to-r from-yellow-50 via-orange-50 to-red-50 border-2 border-yellow-200">
@@ -15932,36 +15932,31 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                 )
                 setLabRequests(updatedLabRequests)
                 
-                // Update consultation to send back to doctor with lab results
+                // Update consultation to send BACK TO DOCTOR for review with lab results
+                // This is critical - lab results must be reviewed by doctor before patient can proceed
                 const updatedConsultations = consultations.map(c => {
                   if (c.patientId === labResultForm.patientId && c.status === 'sent_back' && c.sendBackTo?.includes('laboratory')) {
-                    // Remove laboratory from sendBackTo since results are ready
+                    // Remove laboratory from sendBackTo and set status back to pending_review for doctor
                     const newSendBackTo = c.sendBackTo.filter(s => s !== 'laboratory')
                     return {
                       ...c,
-                      sendBackTo: newSendBackTo.length > 0 ? newSendBackTo : ['records'],
-                      notes: (c.notes || '') + `\nLab results available: ${labResultForm.result}`
+                      status: 'pending_review' as const, // Send back to doctor's pending queue
+                      sendBackTo: newSendBackTo.length > 0 ? newSendBackTo : [],
+                      notes: (c.notes || '') + `\n[LAB RESULTS READY] Test: ${labTests.find(t => t.id === labResultForm.testId)?.name || 'Unknown'}, Result: ${labResultForm.result} ${labResultForm.unit || ''}${labResultForm.isAbnormal ? ' (ABNORMAL)' : ''}`,
+                      labResultsReady: true,
+                      labResultId: newResult.id
                     }
                   }
                   return c
                 })
                 setConsultations(updatedConsultations)
                 
-                // Complete queue entry if patient was only sent to lab
-                const updatedQueueEntries = queueEntries.map(q => {
-                  if (q.patientId === labResultForm.patientId && q.status === 'in_progress') {
-                    // Check if there's a consultation that's only waiting for lab
-                    const patientConsultations = consultations.filter(c => c.patientId === labResultForm.patientId && c.status === 'sent_back')
-                    const onlyWaitingForLab = patientConsultations.some(c =>
-                      c.sendBackTo?.length === 1 && c.sendBackTo[0] === 'laboratory'
-                    )
-                    if (onlyWaitingForLab) {
-                      return { ...q, status: 'completed' as const, completedAt: new Date().toISOString() }
-                    }
-                  }
-                  return q
-                })
-                setQueueEntries(updatedQueueEntries)
+                // DO NOT complete queue - keep it in_progress until doctor reviews lab results
+                // Queue should only be completed when:
+                // 1. Doctor sends to nurse for admission
+                // 2. Doctor sends only to records (no other destinations)
+                // 3. Pharmacist dispenses medication
+                const updatedQueueEntries = queueEntries // Keep queue as-is (in_progress)
                 
                 // Immediately save to cache and broadcast
                 saveImmediateCache({ 
@@ -16708,10 +16703,26 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                 )
                 setQueueEntries(updatedQueueEntries)
                 
+                // Update consultation to mark as completed after pharmacy dispensing
+                const updatedConsultations = consultations.map(c => {
+                  if (c.patientId === dispenseForm.patientId && c.status === 'sent_back' && c.sendBackTo?.includes('pharmacy')) {
+                    return {
+                      ...c,
+                      status: 'completed' as const,
+                      medicationDispensed: true,
+                      dispensedAt: new Date().toISOString(),
+                      dispensedBy: dispenseForm.initials
+                    }
+                  }
+                  return c
+                })
+                setConsultations(updatedConsultations)
+                
                 // Immediately save to cache and broadcast
                 saveImmediateCache({ 
                   dispensedDrugs: updatedDispensedDrugs, 
-                  queueEntries: updatedQueueEntries 
+                  queueEntries: updatedQueueEntries,
+                  consultations: updatedConsultations
                 })
                 
                 setShowDispenseDialog(false)
