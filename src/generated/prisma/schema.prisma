@@ -1,0 +1,493 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ==================== USER MANAGEMENT ====================
+
+model User {
+  id         String  @id @default(cuid())
+  email      String  @unique
+  name       String
+  password   String
+  role       String  @default("NURSE")
+  department String?
+  initials   String?
+  phone      String?
+  avatar     String?
+
+  // Account Status
+  isActive        Boolean @default(true) @map("is_active")
+  approvalStatus  String  @default("APPROVED") @map("approval_status") // PENDING, APPROVED, REJECTED
+  rejectionReason String? @map("rejection_reason")
+
+  // Security
+  isFirstLogin        Boolean   @default(true) @map("is_first_login")
+  passwordLastChanged DateTime? @map("password_last_changed")
+
+  // Timestamps
+  lastLogin DateTime? @map("last_login")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+
+  patients      Patient[]
+  appointments  Appointment[]
+  consultations Consultation[]
+  vitalSigns    VitalSign[]
+  labRequests   LabRequest[]
+  prescriptions Prescription[]
+
+  @@map("User")
+}
+
+// ==================== PATIENT MANAGEMENT ====================
+
+model Patient {
+  id               String   @id @default(cuid())
+  patientId        String   @unique @map("patient_id")
+  firstName        String   @map("first_name")
+  lastName         String   @map("last_name")
+  middleName       String?  @map("middle_name")
+  dateOfBirth      DateTime @map("date_of_birth")
+  gender           String
+  bloodGroup       String?  @map("blood_group")
+  genotype         String?
+  phone            String?
+  email            String?
+  address          String?
+  emergencyContact String?  @map("emergency_contact")
+  emergencyPhone   String?  @map("emergency_phone")
+  occupation       String?
+  maritalStatus    String?  @map("marital_status")
+  religion         String?
+  nationality      String?
+  stateOfOrigin    String?  @map("state_of_origin")
+  lga              String?
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  registeredById String? @map("registered_by_id")
+  registeredBy   User?   @relation(fields: [registeredById], references: [id])
+
+  appointments  Appointment[]
+  consultations Consultation[]
+  vitalSigns    VitalSign[]
+  labRequests   LabRequest[]
+  prescriptions Prescription[]
+  payments      Payment[]
+  admissions    Admission[]
+  wallet        PatientWallet?
+
+  @@map("Patient")
+}
+
+// ==================== APPOINTMENTS ====================
+
+model Appointment {
+  id        String   @id @default(cuid())
+  patientId String   @map("patient_id")
+  patient   Patient  @relation(fields: [patientId], references: [id])
+  doctorId  String?  @map("doctor_id")
+  doctor    User?    @relation(fields: [doctorId], references: [id])
+  date      DateTime
+  time      String
+  type      String   @map("appointment_type")
+  status    String   @default("SCHEDULED")
+  reason    String?
+  notes     String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("Appointment")
+}
+
+// ==================== CLINICAL RECORDS ====================
+
+model Consultation {
+  id             String   @id @default(cuid())
+  patientId      String   @map("patient_id")
+  patient        Patient  @relation(fields: [patientId], references: [id])
+  doctorId       String   @map("doctor_id")
+  doctor         User     @relation(fields: [doctorId], references: [id])
+  appointmentId  String?  @map("appointment_id")
+  chiefComplaint String?  @map("chief_complaint")
+  presentIllness String?  @map("present_illness")
+  pastHistory    String?  @map("past_history")
+  examination    String?
+  diagnosis      String?
+  investigation  String?
+  treatment      String?
+  followUpNotes  String?  @map("follow_up_notes")
+  status         String   @default("active")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  @@map("Consultation")
+}
+
+model VitalSign {
+  id               String   @id @default(cuid())
+  patientId        String   @map("patient_id")
+  patient          Patient  @relation(fields: [patientId], references: [id])
+  recordedById     String   @map("recorded_by_id")
+  recordedBy       User     @relation(fields: [recordedById], references: [id])
+  temperature      Float?
+  bloodPressure    String?  @map("blood_pressure")
+  heartRate        Int?     @map("heart_rate")
+  respiratoryRate  Int?     @map("respiratory_rate")
+  weight           Float?
+  height           Float?
+  bmi              Float?
+  oxygenSaturation Float?   @map("oxygen_saturation")
+  notes            String?
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  @@map("VitalSign")
+}
+
+// ==================== LABORATORY ====================
+
+model LabTest {
+  id             String   @id @default(cuid())
+  name           String
+  code           String   @unique
+  category       String
+  price          Float
+  normalRange    String?  @map("normal_range")
+  unit           String?
+  turnaroundTime String?  @map("turnaround_time")
+  description    String?
+  isActive       Boolean  @default(true) @map("is_active")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  labRequests LabRequest[]
+
+  @@map("LabTest")
+}
+
+model LabRequest {
+  id            String   @id @default(cuid())
+  requestId     String   @unique @map("request_id")
+  patientId     String   @map("patient_id")
+  patient       Patient  @relation(fields: [patientId], references: [id])
+  requestedById String   @map("requested_by_id")
+  requestedBy   User     @relation(fields: [requestedById], references: [id])
+  labTestId     String   @map("lab_test_id")
+  labTest       LabTest  @relation(fields: [labTestId], references: [id])
+  status        String   @default("PENDING")
+  priority      String   @default("ROUTINE")
+  clinicalNotes String?  @map("clinical_notes")
+  result        String?
+  notes         String?
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  labResults LabResult[]
+
+  @@map("LabRequest")
+}
+
+model LabResult {
+  id           String     @id @default(cuid())
+  labRequestId String     @map("lab_request_id")
+  labRequest   LabRequest @relation(fields: [labRequestId], references: [id])
+  result       String
+  notes        String?
+  createdAt    DateTime   @default(now()) @map("created_at")
+
+  @@map("LabResult")
+}
+
+// ==================== PHARMACY ====================
+
+model Drug {
+  id            String    @id @default(cuid())
+  name          String
+  genericName   String?   @map("generic_name")
+  brand         String?
+  category      String
+  dosageForm    String    @map("dosage_form")
+  strength      String?
+  unitPrice     Float     @map("unit_price")
+  stockQuantity Int       @default(0) @map("stock_quantity")
+  reorderLevel  Int       @default(10) @map("reorder_level")
+  expiryDate    DateTime? @map("expiry_date")
+  supplier      String?
+  location      String?
+  isActive      Boolean   @default(true) @map("is_active")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  @@map("Drug")
+}
+
+model Prescription {
+  id             String   @id @default(cuid())
+  prescriptionId String   @unique @map("prescription_id")
+  patientId      String   @map("patient_id")
+  patient        Patient  @relation(fields: [patientId], references: [id])
+  prescribedById String   @map("prescribed_by_id")
+  prescribedBy   User     @relation(fields: [prescribedById], references: [id])
+  diagnosis      String?
+  status         String   @default("PENDING")
+  notes          String?
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  @@map("Prescription")
+}
+
+// ==================== BILLING ====================
+
+model Payment {
+  id        String   @id @default(cuid())
+  paymentId String   @unique @map("payment_id")
+  patientId String?  @map("patient_id")
+  patient   Patient? @relation(fields: [patientId], references: [id])
+  amount    Float
+  method    String
+  reference String?
+  status    String   @default("COMPLETED")
+  notes     String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("Payment")
+}
+
+// ==================== INPATIENT/ADMISSION ====================
+
+model Admission {
+  id                String    @id @default(cuid())
+  admissionId       String    @unique @map("admission_id")
+  patientId         String    @map("patient_id")
+  patient           Patient   @relation(fields: [patientId], references: [id])
+  ward              String?
+  bed               String?
+  admittingDoctorId String?   @map("admitting_doctor_id")
+  admissionDate     DateTime  @default(now()) @map("admission_date")
+  dischargeDate     DateTime? @map("discharge_date")
+  reason            String
+  diagnosis         String?
+  notes             String?
+  status            String    @default("ADMITTED")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  @@map("Admission")
+}
+
+// ==================== PATIENT WALLET ====================
+
+model PatientWallet {
+  id        String   @id @default(cuid())
+  patientId String   @unique @map("patient_id")
+  patient   Patient  @relation(fields: [patientId], references: [id])
+  balance   Float    @default(0)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  transactions WalletTransaction[]
+
+  @@map("PatientWallet")
+}
+
+model WalletTransaction {
+  id          String        @id @default(cuid())
+  walletId    String        @map("wallet_id")
+  wallet      PatientWallet @relation(fields: [walletId], references: [id])
+  amount      Float
+  type        String
+  reference   String?
+  description String?
+  createdAt   DateTime      @default(now()) @map("created_at")
+
+  @@map("WalletTransaction")
+}
+
+// ==================== OTHER MODELS ====================
+
+model Announcement {
+  id        String    @id @default(cuid())
+  title     String
+  content   String
+  priority  String    @default("NORMAL")
+  isActive  Boolean   @default(true) @map("is_active")
+  expiresAt DateTime? @map("expires_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+
+  @@map("Announcement")
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?  @map("user_id")
+  action    String
+  entity    String
+  entityId  String?  @map("entity_id")
+  details   String?
+  ipAddress String?  @map("ip_address")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("AuditLog")
+}
+
+model RosterEntry {
+  id         String   @id @default(cuid())
+  staffId    String   @map("staff_id")
+  date       DateTime
+  shift      String
+  department String?
+  notes      String?
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@map("RosterEntry")
+}
+
+model ImmunizationRecord {
+  id               String   @id @default(cuid())
+  patientId        String   @map("patient_id")
+  vaccineName      String   @map("vaccine_name")
+  dateAdministered DateTime @map("date_administered")
+  batchNumber      String?  @map("batch_number")
+  administeredBy   String?  @map("administered_by")
+  notes            String?
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  @@map("ImmunizationRecord")
+}
+
+model QueueEntry {
+  id          String   @id @default(cuid())
+  patientId   String   @map("patient_id")
+  queueNumber Int      @map("queue_number")
+  department  String
+  status      String   @default("WAITING")
+  priority    String   @default("NORMAL")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@map("QueueEntry")
+}
+
+model OpenHeavensDevotional {
+  id        String   @id @default(cuid())
+  date      DateTime @unique
+  title     String
+  verse     String
+  content   String
+  prayer    String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("OpenHeavensDevotional")
+}
+
+model InventoryItem {
+  id            String    @id @default(cuid())
+  name          String
+  category      String
+  quantity      Int
+  unit          String
+  reorderLevel  Int       @default(10) @map("reorder_level")
+  unitCost      Float     @map("unit_cost")
+  supplier      String?
+  location      String?
+  lastRestocked DateTime? @map("last_restocked")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  @@map("InventoryItem")
+}
+
+model Equipment {
+  id              String    @id @default(cuid())
+  name            String
+  serialNumber    String?   @map("serial_number")
+  category        String
+  status          String    @default("AVAILABLE")
+  location        String?
+  purchaseDate    DateTime? @map("purchase_date")
+  lastMaintenance DateTime? @map("last_maintenance")
+  nextMaintenance DateTime? @map("next_maintenance")
+  notes           String?
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  @@map("Equipment")
+}
+
+model MedicationAdministration {
+  id               String   @id @default(cuid())
+  patientId        String   @map("patient_id")
+  drugId           String?  @map("drug_id")
+  administeredById String?  @map("administered_by_id")
+  dosage           String
+  route            String?
+  administeredAt   DateTime @default(now()) @map("administered_at")
+  notes            String?
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  @@map("MedicationAdministration")
+}
+
+// ==================== SETTINGS ====================
+
+model AppSetting {
+  id String @id @default(cuid())
+
+  // Facility Information
+  facilityName      String  @map("facility_name")
+  facilityShortName String? @map("facility_short_name")
+  facilityCode      String? @map("facility_code")
+  facilityAddress   String? @map("facility_address")
+  facilityCity      String? @map("facility_city")
+  facilityState     String? @map("facility_state")
+  facilityCountry   String? @map("facility_country")
+
+  // Contact Information
+  primaryPhone   String? @map("primary_phone")
+  secondaryPhone String? @map("secondary_phone")
+  emergencyPhone String? @map("emergency_phone")
+  emailAddress   String? @map("email_address")
+  website        String?
+
+  // Branding
+  logoUrl        String? @map("logo_url")
+  logoBase64     String? @map("logo_base64")
+  primaryColor   String? @map("primary_color")
+  secondaryColor String? @map("secondary_color")
+  accentColor    String? @map("accent_color")
+
+  // Operational Settings
+  openingTime    String? @map("opening_time")
+  closingTime    String? @map("closing_time")
+  workingDays    String? @map("working_days")
+  timezone       String?
+  currency       String?
+  currencySymbol String? @map("currency_symbol")
+
+  // Feature Flags
+  enableOnlineBooking      Boolean @default(false) @map("enable_online_booking")
+  enableSmsNotifications   Boolean @default(false) @map("enable_sms_notifications")
+  enableEmailNotifications Boolean @default(false) @map("enable_email_notifications")
+  enableVoiceNotes         Boolean @default(true) @map("enable_voice_notes")
+  enableDailyDevotionals   Boolean @default(true) @map("enable_daily_devotionals")
+
+  // Custom Messages
+  welcomeMessage String? @map("welcome_message")
+  headerMessage  String? @map("header_message")
+  footerMessage  String? @map("footer_message")
+
+  // System
+  lastUpdated String? @map("last_updated")
+  updatedBy   String? @map("updated_by")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("app_settings")
+}
