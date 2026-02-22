@@ -1,0 +1,57 @@
+# Fly.io configuration for RUN Health Centre HMS
+# https://runhealthcentre-hms.fly.dev
+
+app = "runhealthcentre-hms"
+primary_region = "ams"  # Amsterdam - good for Nigeria
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  NODE_ENV = "production"
+  PORT = "3000"
+
+[http_service]
+  internal_port = 3000
+  force_https = true
+  auto_stop_machines = false  # Keep always running for hospital system
+  auto_start_machines = true
+  min_machines_running = 1    # At least 1 machine always running
+
+[http_service.concurrency]
+  type = "connections"
+  hard_limit = 100
+  soft_limit = 80
+
+# Health check
+[[http_service.checks]]
+  grace_period = "30s"
+  interval = "30s"
+  method = "GET"
+  timeout = "10s"
+  path = "/api/health"
+
+# VM configuration - start small, can scale up
+[vm]
+  cpu_kind = "shared"
+  cpus = 1
+  memory_mb = 512
+
+# Scale configuration
+[[services]]
+  protocol = "tcp"
+  internal_port = 3000
+
+  [[services.ports]]
+    port = 80
+    handlers = ["http"]
+
+  [[services.ports]]
+    port = 443
+    handlers = ["tls", "http"]
+
+# Auto scaling (optional - comment out if not needed)
+# [[scalings]]
+#   min = 1
+#   max = 3
+#   cpu_target = 80
