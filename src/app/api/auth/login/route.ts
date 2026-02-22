@@ -1,6 +1,7 @@
 // Authentication API - Login with Database Support
 import { NextRequest, NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
+import { getPrisma, testConnection } from '@/lib/db'
 
 // Demo SuperAdmin credentials (fallback when database unavailable)
 const DEMO_SUPERADMIN = {
@@ -16,36 +17,13 @@ const DEMO_SUPERADMIN = {
   approvalStatus: 'APPROVED'
 }
 
-// Check if database is available
-async function getDatabaseClient() {
-  try {
-    const dbModule = await import('@/lib/db')
-    const client = dbModule.default || dbModule.getPrisma?.()
-    
-    if (client) {
-      try {
-        const p = client as any
-        await p.$queryRaw`SELECT 1`
-        console.log('[Login] Database connection verified')
-        return client
-      } catch (e) {
-        console.log('[Login] Database test query failed')
-        return null
-      }
-    }
-    return null
-  } catch (e) {
-    console.log('[Login] Database module import failed')
-    return null
-  }
-}
-
 // Login endpoint
 export async function POST(request: NextRequest) {
   try {
     const { email, password } = await request.json()
 
-    console.log('[Login] Login request for:', email)
+    console.log('[Login] ====== LOGIN REQUEST ======')
+    console.log('[Login] Email:', email)
 
     if (!email || !password) {
       return NextResponse.json({ 
@@ -56,82 +34,111 @@ export async function POST(request: NextRequest) {
 
     const emailLower = email.toLowerCase()
 
-    // Try database first
-    const prisma = await getDatabaseClient()
-
-    if (prisma) {
-      try {
-        const p = prisma as any
-        const user = await p.user.findUnique({
-          where: { email: emailLower }
-        })
-
-        console.log('[Login] Database user found:', user ? user.email : 'not found')
-
-        if (user) {
-          // Check if account is active
-          if (!user.isActive) {
-            return NextResponse.json({ 
-              success: false, 
-              error: 'Your account has been deactivated. Please contact administrator.' 
-            }, { status: 403 })
-          }
-
-          // Check approval status
-          if (user.approvalStatus === 'PENDING') {
-            return NextResponse.json({ 
-              success: false, 
-              error: 'Your account is pending approval. An administrator will review your application shortly.' 
-            }, { status: 403 })
-          }
-
-          if (user.approvalStatus === 'REJECTED') {
-            return NextResponse.json({ 
-              success: false, 
-              error: 'Your account application was not approved. Please contact administrator for more information.' 
-            }, { status: 403 })
-          }
-
-          // Verify password
-          const passwordValid = await bcrypt.compare(password, user.password)
-
-          if (!passwordValid) {
-            return NextResponse.json({ 
-              success: false, 
-              error: 'Invalid email or password' 
-            }, { status: 401 })
-          }
-
-          // Update last login
+    // Test database connection first
+    console.log('[Login] Testing database connection...')
+    const dbTest = await testConnection()
+    
+    if (dbTest.success) {
+      console.log('[Login] Database connected:', dbTest.details)
+      
+      const prisma = getPrisma()
+      
+      if (prisma) {
+        try {
+          const p = prisma as any
+          
+          // Try both possible table names
+          let user = null
           try {
-            await p.user.update({
-              where: { id: user.id },
-              data: { lastLogin: new Date().toISOString() }
+            user = await p.users.findUnique({
+              where: { email: emailLower }
             })
           } catch (e) {
-            // Ignore update errors
+            // Try with 'user' table name
+            try {
+              user = await p.user.findUnique({
+                where: { email: emailLower }
+              })
+            } catch (e2) {
+              console.log('[Login] Could not find user table')
+            }
           }
 
-          console.log('[Login] Login successful for:', user.email)
+          console.log('[Login] Database user found:', user ? user.email : 'not found')
 
-          // Return user data
-          return NextResponse.json({ 
-            success: true, 
-            user: {
-              id: user.id,
-              email: user.email,
-              name: user.name,
-              role: user.role,
-              department: user.department,
-              initials: user.initials,
-              isFirstLogin: user.isFirstLogin || false
-            },
-            mode: 'database'
-          })
+          if (user) {
+            // Check if account is active
+            if (!user.isActive) {
+              return NextResponse.json({ 
+                success: false, 
+                error: 'Your account has been deactivated. Please contact administrator.' 
+              }, { status: 403 })
+            }
+
+            // Check approval status
+            if (user.approvalStatus === 'PENDING') {
+              return NextResponse.json({ 
+                success: false, 
+                error: 'Your account is pending approval. An administrator will review your application shortly.' 
+              }, { status: 403 })
+            }
+
+            if (user.approvalStatus === 'REJECTED') {
+              return NextResponse.json({ 
+                success: false, 
+                error: 'Your account application was not approved. Please contact administrator for more information.' 
+              }, { status: 403 })
+            }
+
+            // Verify password
+            const passwordValid = await bcrypt.compare(password, user.password)
+
+            if (!passwordValid) {
+              return NextResponse.json({ 
+                success: false, 
+                error: 'Invalid email or password' 
+              }, { status: 401 })
+            }
+
+            // Update last login
+            try {
+              await p.users.update({
+                where: { id: user.id },
+                data: { lastLogin: new Date().toISOString() }
+              }).catch(() => {
+                // Try with 'user' table
+                p.user.update({
+                  where: { id: user.id },
+                  data: { lastLogin: new Date().toISOString() }
+                }).catch(() => {})
+              })
+            } catch (e) {
+              // Ignore update errors
+            }
+
+            console.log('[Login] ✅ Login successful for:', user.email)
+
+            // Return user data
+            return NextResponse.json({ 
+              success: true, 
+              user: {
+                id: user.id,
+                email: user.email,
+                name: user.name,
+                role: user.role,
+                department: user.department,
+                initials: user.initials,
+                isFirstLogin: user.isFirstLogin || false
+              },
+              mode: 'database'
+            })
+          }
+        } catch (dbError: any) {
+          console.log('[Login] Database query error:', dbError.message)
         }
-      } catch (dbError: any) {
-        console.log('[Login] Database query error:', dbError.message)
       }
+    } else {
+      console.log('[Login] Database not available:', dbTest.message)
     }
 
     // Fallback to demo SuperAdmin (only for wabithetechnurse@ruhc)
@@ -139,7 +146,7 @@ export async function POST(request: NextRequest) {
       const passwordValid = await bcrypt.compare(password, DEMO_SUPERADMIN.password)
       
       if (passwordValid) {
-        console.log('[Login] Demo SuperAdmin login successful')
+        console.log('[Login] ✅ Demo SuperAdmin login successful')
         return NextResponse.json({ 
           success: true, 
           user: {
@@ -163,7 +170,7 @@ export async function POST(request: NextRequest) {
     }, { status: 401 })
 
   } catch (error: any) {
-    console.error('[Login] Login error:', error)
+    console.error('[Login] ❌ Login error:', error)
     return NextResponse.json({ 
       success: false, 
       error: 'An error occurred during login' 
@@ -174,7 +181,7 @@ export async function POST(request: NextRequest) {
 // Get all users (for admin)
 export async function GET() {
   try {
-    const prisma = await getDatabaseClient()
+    const prisma = getPrisma()
     
     if (!prisma) {
       return NextResponse.json({ 
@@ -185,22 +192,48 @@ export async function GET() {
     }
 
     const p = prisma as any
-    const users = await p.user.findMany({
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        role: true,
-        department: true,
-        initials: true,
-        isActive: true,
-        approvalStatus: true,
-        lastLogin: true,
-        createdAt: true,
-        phone: true
-      },
-      orderBy: { createdAt: 'desc' }
-    })
+    
+    // Try both table names
+    let users = []
+    try {
+      users = await p.users.findMany({
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          role: true,
+          department: true,
+          initials: true,
+          isActive: true,
+          approvalStatus: true,
+          lastLogin: true,
+          createdAt: true,
+          phone: true
+        },
+        orderBy: { createdAt: 'desc' }
+      })
+    } catch (e) {
+      try {
+        users = await p.user.findMany({
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            role: true,
+            department: true,
+            initials: true,
+            isActive: true,
+            approvalStatus: true,
+            lastLogin: true,
+            createdAt: true,
+            phone: true
+          },
+          orderBy: { createdAt: 'desc' }
+        })
+      } catch (e2) {
+        console.log('[Login] Could not fetch users from database')
+      }
+    }
 
     // Count pending approvals
     const pendingCount = users.filter((u: any) => u.approvalStatus === 'PENDING').length

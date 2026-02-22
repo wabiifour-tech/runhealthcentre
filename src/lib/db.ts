@@ -1,85 +1,194 @@
-// Prisma Client Singleton for RUN Health Centre HMS
-// Works with PostgreSQL (Supabase) on Vercel
+// Prisma Client for PostgreSQL (Supabase) - Prisma 7.x Compatible
+// Works on Vercel serverless with proper connection pooling
 
 import { Pool } from 'pg'
 import { PrismaPg } from '@prisma/adapter-pg'
 import { PrismaClient } from '../generated/prisma/client'
 
+// Global type for Prisma singleton
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined
+  pool: Pool | undefined
 }
 
-// Singleton instance
-let prismaInstance: PrismaClient | null = null
+// Connection state tracking
+let connectionAttempts = 0
+const MAX_RETRIES = 3
+const RETRY_DELAY = 1000
 
-export const getPrisma = (): PrismaClient | null => {
-  // Return cached instance if available
-  if (prismaInstance) return prismaInstance
-  if (globalForPrisma.prisma) {
-    prismaInstance = globalForPrisma.prisma
-    return prismaInstance
-  }
-  
-  // Don't create during build
-  if (process.env.NEXT_PHASE === 'phase-production-build') {
-    return null
-  }
-
+// Create Prisma client with proper error handling
+function createPrismaClient(): PrismaClient | null {
   const dbUrl = process.env.DATABASE_URL
 
   if (!dbUrl) {
-    console.log('[DB] No DATABASE_URL configured')
+    console.error('[DB] ❌ DATABASE_URL not configured')
+    console.error('[DB] Please set DATABASE_URL in your environment variables')
     return null
   }
 
-  console.log('[DB] Creating Prisma client...')
-  console.log('[DB] Host:', dbUrl.match(/@([^:]+):/)?.[1] || 'unknown')
+  // Validate URL format
+  if (!dbUrl.startsWith('postgresql://') && !dbUrl.startsWith('postgres://')) {
+    console.error('[DB] ❌ Invalid DATABASE_URL format. Must start with postgresql://')
+    return null
+  }
 
   try {
+    console.log('[DB] 🔄 Creating Prisma client...')
+    
+    // Extract host for logging (hide credentials)
+    const hostMatch = dbUrl.match(/@([^:]+):/)
+    const host = hostMatch ? hostMatch[1] : 'unknown'
+    console.log('[DB] 📍 Connecting to host:', host)
+
+    // Create connection pool with optimized settings for serverless
     const pool = new Pool({
       connectionString: dbUrl,
-      max: 1,
-      idleTimeoutMillis: 10000,
-      connectionTimeoutMillis: 10000,
-      ssl: { rejectUnauthorized: false },
+      max: 1, // Single connection for serverless
+      idleTimeoutMillis: 10000, // 10 seconds
+      connectionTimeoutMillis: 5000, // 5 seconds timeout
+      ssl: { 
+        rejectUnauthorized: false // Required for Supabase
+      },
     })
 
+    // Handle pool errors
     pool.on('error', (err) => {
-      console.error('[DB] Pool error:', err.message)
+      console.error('[DB] ⚠️ Pool error:', err.message)
     })
 
+    pool.on('connect', () => {
+      console.log('[DB] ✅ New connection established')
+    })
+
+    // Create Prisma client with pg adapter
     const adapter = new PrismaPg(pool)
     const client = new PrismaClient({ 
       adapter,
-      log: ['error']
+      log: [
+        { level: 'error', emit: 'console' },
+      ]
     })
-    
-    prismaInstance = client
-    globalForPrisma.prisma = client
-    
-    console.log('[DB] Prisma client created successfully')
+
+    // Store pool for cleanup
+    globalForPrisma.pool = pool
+
+    console.log('[DB] ✅ Prisma client created successfully')
+    connectionAttempts = 0 // Reset on success
     return client
+
   } catch (error) {
-    console.error('[DB] Failed to create Prisma client:', error)
+    console.error('[DB] ❌ Failed to create Prisma client:', error)
     return null
   }
 }
 
-// Test database connection
-export async function testConnection(): Promise<{ success: boolean; message: string }> {
+// Get Prisma client with singleton pattern
+export const getPrisma = (): PrismaClient | null => {
+  // Return cached instance if available
+  if (globalForPrisma.prisma) {
+    return globalForPrisma.prisma
+  }
+
+  // Don't create during build phase
+  if (process.env.NEXT_PHASE === 'phase-production-build') {
+    console.log('[DB] 🔨 Build phase - skipping Prisma client creation')
+    return null
+  }
+
+  // Create new instance
+  const client = createPrismaClient()
+  
+  if (client) {
+    globalForPrisma.prisma = client
+  }
+  
+  return client
+}
+
+// Test database connection with detailed feedback
+export async function testConnection(): Promise<{ 
+  success: boolean
+  message: string
+  details?: {
+    host?: string
+    database?: string
+    error?: string
+  }
+}> {
+  const dbUrl = process.env.DATABASE_URL
+
+  // Check if URL exists
+  if (!dbUrl) {
+    return { 
+      success: false, 
+      message: 'DATABASE_URL environment variable is not set',
+      details: { error: 'Missing environment variable' }
+    }
+  }
+
+  // Validate URL format
+  if (!dbUrl.startsWith('postgresql://') && !dbUrl.startsWith('postgres://')) {
+    return { 
+      success: false, 
+      message: 'Invalid DATABASE_URL format',
+      details: { error: 'URL must start with postgresql:// or postgres://' }
+    }
+  }
+
+  // Extract info from URL
+  const hostMatch = dbUrl.match(/@([^:]+):/)
+  const dbMatch = dbUrl.match(/\/([^?]+)/)
+  const host = hostMatch ? hostMatch[1] : 'unknown'
+  const database = dbMatch ? dbMatch[1] : 'unknown'
+
   const prisma = getPrisma()
   
   if (!prisma) {
-    return { success: false, message: 'Database client not initialized - check DATABASE_URL' }
+    return { 
+      success: false, 
+      message: 'Failed to create Prisma client',
+      details: { host, database }
+    }
   }
   
   try {
-    await (prisma as any).$queryRaw`SELECT 1`
-    return { success: true, message: 'Database connected successfully' }
+    // Execute test query
+    await (prisma as any).$queryRaw`SELECT 1 as test`
+    
+    console.log('[DB] ✅ Connection test successful')
+    return { 
+      success: true, 
+      message: 'Database connected successfully',
+      details: { host, database }
+    }
   } catch (error: any) {
-    return { success: false, message: `Connection failed: ${error.message}` }
+    console.error('[DB] ❌ Connection test failed:', error.message)
+    return { 
+      success: false, 
+      message: `Connection failed: ${error.message}`,
+      details: { host, database, error: error.message }
+    }
   }
 }
 
+// Graceful shutdown
+export async function disconnectPrisma(): Promise<void> {
+  try {
+    if (globalForPrisma.prisma) {
+      await globalForPrisma.prisma.$disconnect()
+      globalForPrisma.prisma = undefined
+      console.log('[DB] 🔌 Prisma client disconnected')
+    }
+    if (globalForPrisma.pool) {
+      await globalForPrisma.pool.end()
+      globalForPrisma.pool = undefined
+      console.log('[DB] 🔌 Connection pool closed')
+    }
+  } catch (error) {
+    console.error('[DB] ⚠️ Error during disconnect:', error)
+  }
+}
+
+// Export singleton instance
 export const prisma = getPrisma()
 export default prisma

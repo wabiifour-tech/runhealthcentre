@@ -1,6 +1,7 @@
 // User Registration API - Self-Registration with Admin Approval
 import { NextRequest, NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
+import { getPrisma, testConnection } from '@/lib/db'
 
 // Generate initials from name
 function generateInitials(name: string): string {
@@ -17,7 +18,10 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { name, email, password, role, department, initials, phone, dateOfBirth } = body
 
-    console.log('[Register] Request for:', email, 'role:', role)
+    console.log('[Register] ====== REGISTRATION REQUEST ======')
+    console.log('[Register] Email:', email)
+    console.log('[Register] Role:', role)
+    console.log('[Register] Name:', name)
 
     // Validation
     if (!name || !email || !password || !role) {
@@ -65,37 +69,44 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    // Get database client
-    let prisma: any = null
-    try {
-      const dbModule = await import('@/lib/db')
-      prisma = dbModule.getPrisma()
-      
-      if (prisma) {
-        // Test connection
-        await prisma.$queryRaw`SELECT 1`
-        console.log('[Register] Database connected')
-      }
-    } catch (e: any) {
-      console.error('[Register] Database error:', e.message)
-      return NextResponse.json({ 
-        success: false, 
-        error: 'Database connection failed. Please contact administrator.',
-        debug: process.env.NODE_ENV === 'development' ? e.message : undefined
-      }, { status: 503 })
-    }
+    // Test database connection first
+    console.log('[Register] Testing database connection...')
+    const dbTest = await testConnection()
     
-    if (!prisma) {
-      console.log('[Register] No database client')
+    if (!dbTest.success) {
+      console.error('[Register] Database connection failed:', dbTest.message)
       return NextResponse.json({ 
         success: false, 
-        error: 'Database not configured. Please contact administrator.' 
+        error: 'Database connection failed. Please try again later or contact administrator.',
+        debug: process.env.NODE_ENV === 'development' ? {
+          message: dbTest.message,
+          details: dbTest.details
+        } : undefined
       }, { status: 503 })
     }
 
+    console.log('[Register] Database connected successfully')
+
+    // Get Prisma client
+    const prisma = getPrisma()
+    
+    if (!prisma) {
+      console.error('[Register] Failed to get Prisma client')
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Database client unavailable. Please contact administrator.' 
+      }, { status: 503 })
+    }
+
+    const p = prisma as any
+
     // Check if email already exists
-    const existingUser = await prisma.user.findUnique({
+    console.log('[Register] Checking if email exists...')
+    const existingUser = await p.users.findUnique({
       where: { email: email.toLowerCase() }
+    }).catch((err: Error) => {
+      console.error('[Register] Error checking existing user:', err.message)
+      return null
     })
 
     if (existingUser) {
@@ -106,14 +117,17 @@ export async function POST(request: NextRequest) {
     }
 
     // Hash password
+    console.log('[Register] Hashing password...')
     const hashedPassword = await bcrypt.hash(password, 12)
 
     // Generate initials
     const userInitials = initials || generateInitials(name)
 
     // Create user with PENDING approval status
-    const newUser = await prisma.user.create({
+    console.log('[Register] Creating user...')
+    const newUser = await p.users.create({
       data: {
+        id: `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
         email: email.toLowerCase(),
         name,
         password: hashedPassword,
@@ -127,9 +141,12 @@ export async function POST(request: NextRequest) {
         approvalStatus: 'PENDING',
         createdAt: new Date()
       }
+    }).catch((err: Error) => {
+      console.error('[Register] Error creating user:', err.message)
+      throw err
     })
 
-    console.log('[Register] User created:', newUser.id)
+    console.log('[Register] ✅ User created successfully:', newUser.id)
 
     return NextResponse.json({ 
       success: true, 
@@ -144,7 +161,7 @@ export async function POST(request: NextRequest) {
     })
 
   } catch (error: any) {
-    console.error('[Register] Error:', error)
+    console.error('[Register] ❌ Registration error:', error)
     return NextResponse.json({ 
       success: false, 
       error: 'Registration failed. Please try again.',
