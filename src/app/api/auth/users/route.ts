@@ -80,6 +80,102 @@ export async function GET() {
   }
 }
 
+// POST - Create new staff user (Admin/SuperAdmin only)
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json()
+    const { name, email, role, department, initials, password, phone } = body
+
+    // Validation
+    if (!name || !email || !role || !password) {
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Name, email, role, and password are required' 
+      }, { status: 400 })
+    }
+
+    // Validate role
+    const allowedRoles = ['DOCTOR', 'NURSE', 'PHARMACIST', 'LAB_TECHNICIAN', 'MATRON', 'RECORDS_OFFICER', 'ADMIN']
+    if (!allowedRoles.includes(role)) {
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Invalid role' 
+      }, { status: 400 })
+    }
+
+    // Validate password
+    if (password.length < 8) {
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Password must be at least 8 characters' 
+      }, { status: 400 })
+    }
+
+    const prisma = await getDatabaseClient()
+    
+    if (!prisma) {
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Database unavailable' 
+      }, { status: 503 })
+    }
+
+    const p = prisma as any
+
+    // Check if email already exists
+    const existingUser = await p.user.findUnique({
+      where: { email: email.toLowerCase() }
+    })
+
+    if (existingUser) {
+      return NextResponse.json({ 
+        success: false, 
+        error: 'An account with this email already exists' 
+      }, { status: 400 })
+    }
+
+    // Hash password
+    const hashedPassword = await bcrypt.hash(password, 12)
+
+    // Create user
+    const newUser = await p.user.create({
+      data: {
+        email: email.toLowerCase(),
+        name,
+        password: hashedPassword,
+        role,
+        department: department || null,
+        initials: initials || name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2),
+        phone: phone || null,
+        isActive: true,
+        isFirstLogin: false,
+        approvalStatus: 'APPROVED',
+        createdAt: new Date()
+      }
+    })
+
+    return NextResponse.json({ 
+      success: true, 
+      message: 'Staff account created successfully',
+      user: {
+        id: newUser.id,
+        email: newUser.email,
+        name: newUser.name,
+        role: newUser.role,
+        department: newUser.department,
+        initials: newUser.initials
+      }
+    })
+
+  } catch (error: any) {
+    console.error('Create user error:', error)
+    return NextResponse.json({ 
+      success: false, 
+      error: 'Failed to create user' 
+    }, { status: 500 })
+  }
+}
+
 // PUT - Update user (activate/deactivate, approve/reject, reset password)
 export async function PUT(request: NextRequest) {
   try {

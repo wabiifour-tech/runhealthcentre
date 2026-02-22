@@ -1,4 +1,4 @@
-// Prisma configuration for SQLite
+// Prisma configuration for Turso/SQLite
 import { defineConfig } from "prisma/config";
 
 export default defineConfig({

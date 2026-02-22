@@ -17293,6 +17293,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                     <SelectItem value="PHARMACIST">Pharmacist</SelectItem>
                     <SelectItem value="LAB_TECHNICIAN">Lab Technician</SelectItem>
                     <SelectItem value="MATRON">Matron</SelectItem>
+                    <SelectItem value="RECORDS_OFFICER">Records Officer</SelectItem>
                     {user?.role === 'SUPER_ADMIN' && (
                       <SelectItem value="ADMIN">Admin</SelectItem>
                     )}
