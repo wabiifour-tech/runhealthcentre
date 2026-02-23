@@ -1,17 +1,16 @@
 // Prisma Client for PostgreSQL (Neon) - Prisma 7.x Compatible
-// Works on Vercel serverless with proper connection pooling
+// Works on Vercel serverless with Neon serverless driver
 
-import { Pool } from 'pg'
-import { PrismaPg } from '@prisma/adapter-pg'
+import { Pool } from '@neondatabase/serverless'
+import { PrismaNeon } from '@prisma/adapter-neon'
 import { PrismaClient } from '../generated/prisma/client'
 
 // Global type for Prisma singleton
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined
-  pool: Pool | undefined
 }
 
-// Create Prisma client with proper error handling
+// Create Prisma client with Neon serverless driver
 function createPrismaClient(): PrismaClient | null {
   const dbUrl = process.env.DATABASE_URL
 
@@ -27,44 +26,24 @@ function createPrismaClient(): PrismaClient | null {
   }
 
   try {
-    console.log('[DB] 🔄 Creating Prisma client...')
+    console.log('[DB] 🔄 Creating Prisma client with Neon adapter...')
     
     // Extract host for logging (hide credentials)
-    // Handle URLs with or without port
-    const hostMatch = dbUrl.match(/@([^:/]+)(?::(\d+))?/)
+    const hostMatch = dbUrl.match(/@([^:/]+)/)
     const host = hostMatch ? hostMatch[1] : 'unknown'
     console.log('[DB] 📍 Connecting to host:', host)
 
-    // Clean URL - remove channel_binding if present (Neon compatibility)
-    let cleanUrl = dbUrl.replace(/&?channel_binding=require/, '')
-    
-    // Create connection pool with optimized settings for serverless
-    const pool = new Pool({
-      connectionString: cleanUrl,
-      max: 1, // Single connection for serverless
-      idleTimeoutMillis: 10000, // 10 seconds
-      connectionTimeoutMillis: 15000, // 15 seconds timeout
-      ssl: { 
-        rejectUnauthorized: false // Required for Neon/Supabase
-      },
-    })
+    // Create Neon pool
+    const pool = new Pool({ connectionString: dbUrl })
 
-    // Handle pool errors
-    pool.on('error', (err) => {
-      console.error('[DB] ⚠️ Pool error:', err.message)
-    })
-
-    // Create Prisma client with pg adapter
-    const adapter = new PrismaPg(pool)
+    // Create Prisma client with Neon adapter
+    const adapter = new PrismaNeon(pool)
     const client = new PrismaClient({ 
       adapter,
       log: [
         { level: 'error', emit: 'console' },
       ]
     })
-
-    // Store pool for cleanup
-    globalForPrisma.pool = pool
 
     console.log('[DB] ✅ Prisma client created successfully')
     return client
@@ -128,8 +107,8 @@ export async function testConnection(): Promise<{
     }
   }
 
-  // Extract info from URL (handle with or without port)
-  const hostMatch = dbUrl.match(/@([^:/]+)(?::(\d+))?/)
+  // Extract info from URL
+  const hostMatch = dbUrl.match(/@([^:/]+)/)
   const dbMatch = dbUrl.match(/\/([^?]+)/)
   const host = hostMatch ? hostMatch[1] : 'unknown'
   const database = dbMatch ? dbMatch[1] : 'unknown'
@@ -171,11 +150,6 @@ export async function disconnectPrisma(): Promise<void> {
       await globalForPrisma.prisma.$disconnect()
       globalForPrisma.prisma = undefined
       console.log('[DB] 🔌 Prisma client disconnected')
-    }
-    if (globalForPrisma.pool) {
-      await globalForPrisma.pool.end()
-      globalForPrisma.pool = undefined
-      console.log('[DB] 🔌 Connection pool closed')
     }
   } catch (error) {
     console.error('[DB] ⚠️ Error during disconnect:', error)
