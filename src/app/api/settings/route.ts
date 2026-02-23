@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { getPrisma } from '@/lib/db'
 
 // Default settings
 const defaultSettings = {
@@ -26,29 +27,10 @@ const defaultSettings = {
 // In-memory settings for demo mode (persists during server runtime)
 let demoSettings = { ...defaultSettings }
 
-// Try to get prisma client with proper error handling
-async function getPrismaClient() {
-  try {
-    const dbModule = await import('@/lib/db')
-    const prisma = dbModule.default
-    
-    // Verify prisma is actually available
-    if (!prisma) {
-      console.log('Prisma client is null, using demo mode')
-      return null
-    }
-    
-    return prisma
-  } catch (e) {
-    console.log('Database not available, using demo mode:', (e as Error).message)
-    return null
-  }
-}
-
 // GET - Retrieve app settings
 export async function GET() {
   try {
-    const prisma = await getPrismaClient()
+    const prisma = await getPrisma()
     
     // Demo mode - return in-memory settings
     if (!prisma) {
@@ -120,8 +102,8 @@ export async function PUT(request: NextRequest) {
       )
     }
 
-    const prisma = await getPrismaClient()
-    
+    const prisma = await getPrisma()
+
     // Demo mode - update in memory
     if (!prisma) {
       console.log('Demo mode - updating settings in memory')

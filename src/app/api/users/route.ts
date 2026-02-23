@@ -1,16 +1,7 @@
 // Users API - Uses Prisma Database
 import { NextRequest, NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
-
-// Get prisma client
-async function getPrisma() {
-  try {
-    const dbModule = await import('@/lib/db')
-    return dbModule.default
-  } catch (e) {
-    return null
-  }
-}
+import { getPrisma } from '@/lib/db'
 
 // GET - Fetch all users
 export async function GET() {

@@ -1,14 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-
-// Try to get prisma client
-async function getPrisma() {
-  try {
-    const dbModule = await import('@/lib/db')
-    return dbModule.default
-  } catch (e) {
-    return null
-  }
-}
+import { getPrisma } from '@/lib/db'
 
 // GET - Find duplicate patients
 export async function GET(request: NextRequest) {

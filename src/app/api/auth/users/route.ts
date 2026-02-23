@@ -1,37 +1,15 @@
 // User Management API - For Admin/SuperAdmin
 import { NextRequest, NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
+import { getPrisma } from '@/lib/db'
 
 // SuperAdmin emails that cannot be deleted or deactivated
 const PROTECTED_EMAILS = ['wabithetechnurse@ruhc']
 
-// Get database client
-async function getDatabaseClient() {
-  try {
-    const dbModule = await import('@/lib/db')
-    const client = dbModule.default || dbModule.getPrisma?.()
-    
-    if (client) {
-      try {
-        const p = client as any
-        await p.$queryRaw`SELECT 1`
-        return client
-      } catch (e) {
-        console.log('[Users API] Database test query failed')
-        return null
-      }
-    }
-    return null
-  } catch (e) {
-    console.log('[Users API] Database module import failed')
-    return null
-  }
-}
-
 // GET - List all users with pending count
 export async function GET() {
   try {
-    const prisma = await getDatabaseClient()
+    const prisma = await getPrisma()
     
     if (!prisma) {
       return NextResponse.json({ 
@@ -111,12 +89,12 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    const prisma = await getDatabaseClient()
-    
+    const prisma = await getPrisma()
+
     if (!prisma) {
-      return NextResponse.json({ 
-        success: false, 
-        error: 'Database unavailable' 
+      return NextResponse.json({
+        success: false,
+        error: 'Database unavailable'
       }, { status: 503 })
     }
 
@@ -189,12 +167,12 @@ export async function PUT(request: NextRequest) {
       }, { status: 400 })
     }
 
-    const prisma = await getDatabaseClient()
-    
+    const prisma = await getPrisma()
+
     if (!prisma) {
-      return NextResponse.json({ 
-        success: false, 
-        error: 'Database unavailable' 
+      return NextResponse.json({
+        success: false,
+        error: 'Database unavailable'
       }, { status: 503 })
     }
 
@@ -206,18 +184,18 @@ export async function PUT(request: NextRequest) {
     })
 
     if (!user) {
-      return NextResponse.json({ 
-        success: false, 
-        error: 'User not found' 
+      return NextResponse.json({
+        success: false,
+        error: 'User not found'
       }, { status: 404 })
     }
 
     // Check for protected accounts
     if (PROTECTED_EMAILS.includes(user.email.toLowerCase())) {
       if (action === 'deactivate' || action === 'delete' || action === 'reject') {
-        return NextResponse.json({ 
-          success: false, 
-          error: 'Cannot modify the primary SuperAdmin account' 
+        return NextResponse.json({
+          success: false,
+          error: 'Cannot modify the primary SuperAdmin account'
         }, { status: 403 })
       }
     }
@@ -363,12 +341,12 @@ export async function DELETE(request: NextRequest) {
       }, { status: 400 })
     }
 
-    const prisma = await getDatabaseClient()
-    
+    const prisma = await getPrisma()
+
     if (!prisma) {
-      return NextResponse.json({ 
-        success: false, 
-        error: 'Database unavailable' 
+      return NextResponse.json({
+        success: false,
+        error: 'Database unavailable'
       }, { status: 503 })
     }
 
@@ -380,17 +358,17 @@ export async function DELETE(request: NextRequest) {
     })
 
     if (!user) {
-      return NextResponse.json({ 
-        success: false, 
-        error: 'User not found' 
+      return NextResponse.json({
+        success: false,
+        error: 'User not found'
       }, { status: 404 })
     }
 
     // Protect SuperAdmin accounts
     if (PROTECTED_EMAILS.includes(user.email.toLowerCase())) {
-      return NextResponse.json({ 
-        success: false, 
-        error: 'Cannot delete the primary SuperAdmin account' 
+      return NextResponse.json({
+        success: false,
+        error: 'Cannot delete the primary SuperAdmin account'
       }, { status: 403 })
     }
 

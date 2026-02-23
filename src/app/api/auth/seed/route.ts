@@ -1,6 +1,7 @@
 // Authentication API - Seed Default Users
 import { NextRequest, NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
+import { getPrisma } from '@/lib/db'
 
 // Demo users info (always available)
 const DEMO_CREDENTIALS = {
@@ -16,19 +17,12 @@ const ADMIN_PASSWORD_HASH = '$2b$12$NBxbO8I55rmeBxz0fnWOCOVQih4lSfBdCAp4oAvAP6yU
 // Seed default admin users
 export async function POST(request: NextRequest) {
   try {
-    // Try to get prisma (dynamic import)
-    let prisma: any = null
-    try {
-      const dbModule = await import('@/lib/db')
-      prisma = dbModule.default
-    } catch (e) {
-      console.log('Prisma not available, running in demo mode')
-    }
+    const prisma = await getPrisma()
 
     // If no database, return demo mode info
     if (!prisma) {
-      return NextResponse.json({ 
-        success: true, 
+      return NextResponse.json({
+        success: true,
         message: 'Running in demo mode - no database connection',
         mode: 'demo',
         defaultCredentials: DEMO_CREDENTIALS
@@ -115,18 +109,11 @@ export async function POST(request: NextRequest) {
 // Check if users exist
 export async function GET() {
   try {
-    // Try to get prisma (dynamic import)
-    let prisma: any = null
-    try {
-      const dbModule = await import('@/lib/db')
-      prisma = dbModule.default
-    } catch (e) {
-      // No prisma available
-    }
+    const prisma = await getPrisma()
 
     if (!prisma) {
-      return NextResponse.json({ 
-        success: true, 
+      return NextResponse.json({
+        success: true,
         userCount: 2,
         users: [
           { email: 'wabithetechnurse@ruhc', role: 'SUPER_ADMIN', isActive: true },

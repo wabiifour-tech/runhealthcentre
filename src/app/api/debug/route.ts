@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { getPrisma } from '@/lib/db'
 
 export async function GET() {
   const debug: Record<string, any> = {
@@ -12,21 +13,20 @@ export async function GET() {
   }
 
   try {
-    const dbModule = await import('@/lib/db')
-    const prisma = dbModule.default
-    
+    const prisma = await getPrisma()
+
     debug.prismaCreated = !!prisma
-    
+
     if (prisma) {
       try {
         const p = prisma as any
-        
+
         // Try to query the database
         const userCount = await p.users.count()
         debug.userCount = userCount
         debug.mode = 'database'
         debug.message = 'Database connected successfully!'
-        
+
       } catch (queryError: any) {
         debug.queryError = queryError.message
         debug.mode = 'demo'

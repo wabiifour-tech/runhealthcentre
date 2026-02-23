@@ -1,6 +1,7 @@
 // Email Verification API - Send verification code
 // Supports: Resend, Brevo, SendGrid, or any SMTP service
 import { NextRequest, NextResponse } from 'next/server'
+import { getPrisma } from '@/lib/db'
 
 // Store verification codes in memory (in production, use Redis or database)
 const verificationCodes = new Map<string, { code: string; expiresAt: number; attempts: number }>()
@@ -242,19 +243,18 @@ export async function POST(request: NextRequest) {
 
     // Check if email already exists in database
     try {
-      const dbModule = await import('@/lib/db')
-      const prisma = dbModule.default
-      
+      const prisma = await getPrisma()
+
       if (prisma) {
         const p = prisma as any
         const existingUser = await p.user.findUnique({
           where: { email: email.toLowerCase() }
         })
-        
+
         if (existingUser) {
-          return NextResponse.json({ 
-            success: false, 
-            error: 'An account with this email already exists. Please sign in instead.' 
+          return NextResponse.json({
+            success: false,
+            error: 'An account with this email already exists. Please sign in instead.'
           }, { status: 400 })
         }
       }
