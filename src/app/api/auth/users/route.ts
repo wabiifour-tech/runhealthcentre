@@ -19,7 +19,7 @@ export async function GET() {
     }
 
     const p = prisma as any
-    const users = await p.user.findMany({
+    const users = await p.users.findMany({
       select: {
         id: true,
         email: true,
@@ -101,7 +101,7 @@ export async function POST(request: NextRequest) {
     const p = prisma as any
 
     // Check if email already exists
-    const existingUser = await p.user.findUnique({
+    const existingUser = await p.users.findUnique({
       where: { email: email.toLowerCase() }
     })
 
@@ -116,7 +116,7 @@ export async function POST(request: NextRequest) {
     const hashedPassword = await bcrypt.hash(password, 12)
 
     // Create user
-    const newUser = await p.user.create({
+    const newUser = await p.users.create({
       data: {
         email: email.toLowerCase(),
         name,
@@ -179,7 +179,7 @@ export async function PUT(request: NextRequest) {
     const p = prisma as any
 
     // Get the user
-    const user = await p.user.findUnique({
+    const user = await p.users.findUnique({
       where: { id: userId }
     })
 
@@ -204,7 +204,7 @@ export async function PUT(request: NextRequest) {
 
     switch (action) {
       case 'approve':
-        result = await p.user.update({
+        result = await p.users.update({
           where: { id: userId },
           data: { 
             approvalStatus: 'APPROVED',
@@ -219,7 +219,7 @@ export async function PUT(request: NextRequest) {
         })
 
       case 'reject':
-        result = await p.user.update({
+        result = await p.users.update({
           where: { id: userId },
           data: { 
             approvalStatus: 'REJECTED',
@@ -234,7 +234,7 @@ export async function PUT(request: NextRequest) {
         })
 
       case 'activate':
-        result = await p.user.update({
+        result = await p.users.update({
           where: { id: userId },
           data: { 
             isActive: true,
@@ -248,7 +248,7 @@ export async function PUT(request: NextRequest) {
         })
 
       case 'deactivate':
-        result = await p.user.update({
+        result = await p.users.update({
           where: { id: userId },
           data: { 
             isActive: false,
@@ -279,7 +279,7 @@ export async function PUT(request: NextRequest) {
 
         const hashedPassword = await bcrypt.hash(data.password, 12)
         
-        result = await p.user.update({
+        result = await p.users.update({
           where: { id: userId },
           data: { 
             password: hashedPassword,
@@ -302,7 +302,7 @@ export async function PUT(request: NextRequest) {
         if (data?.initials) updateData.initials = data.initials
         if (data?.phone !== undefined) updateData.phone = data.phone
 
-        result = await p.user.update({
+        result = await p.users.update({
           where: { id: userId },
           data: updateData
         })
@@ -353,7 +353,7 @@ export async function DELETE(request: NextRequest) {
     const p = prisma as any
 
     // Get the user
-    const user = await p.user.findUnique({
+    const user = await p.users.findUnique({
       where: { id: userId }
     })
 
@@ -373,7 +373,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Delete user
-    await p.user.delete({
+    await p.users.delete({
       where: { id: userId }
     })
 

@@ -65,12 +65,12 @@ export async function POST(request: NextRequest) {
 
     for (const userData of defaultUsers) {
       try {
-        const existing = await p.user.findUnique({
+        const existing = await p.users.findUnique({
           where: { email: userData.email }
         })
 
         if (existing) {
-          await p.user.update({
+          await p.users.update({
             where: { email: userData.email },
             data: {
               password: userData.password,
@@ -79,7 +79,7 @@ export async function POST(request: NextRequest) {
           })
           updated++
         } else {
-          await p.user.create({
+          await p.users.create({
             data: userData
           })
           created++
@@ -125,8 +125,8 @@ export async function GET() {
     }
 
     const p = prisma as any
-    const userCount = await p.user.count()
-    const users = await p.user.findMany({
+    const userCount = await p.users.count()
+    const users = await p.users.findMany({
       select: {
         id: true,
         email: true,

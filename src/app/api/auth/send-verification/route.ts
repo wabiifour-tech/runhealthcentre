@@ -247,7 +247,7 @@ export async function POST(request: NextRequest) {
 
       if (prisma) {
         const p = prisma as any
-        const existingUser = await p.user.findUnique({
+        const existingUser = await p.users.findUnique({
           where: { email: email.toLowerCase() }
         })
 

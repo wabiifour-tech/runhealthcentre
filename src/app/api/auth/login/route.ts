@@ -47,46 +47,34 @@ export async function POST(request: NextRequest) {
         try {
           const p = prisma as any
           
-          // Try both possible table names
-          let user = null
-          try {
-            user = await p.users.findUnique({
-              where: { email: emailLower }
-            })
-          } catch (e) {
-            // Try with 'user' table name
-            try {
-              user = await p.user.findUnique({
-                where: { email: emailLower }
-              })
-            } catch (e2) {
-              console.log('[Login] Could not find user table')
-            }
-          }
+          // Try the users table
+          const user = await p.users.findUnique({
+            where: { email: emailLower }
+          })
 
           console.log('[Login] Database user found:', user ? user.email : 'not found')
 
           if (user) {
             // Check if account is active
             if (!user.isActive) {
-              return NextResponse.json({ 
-                success: false, 
-                error: 'Your account has been deactivated. Please contact administrator.' 
+              return NextResponse.json({
+                success: false,
+                error: 'Your account has been deactivated. Please contact administrator.'
               }, { status: 403 })
             }
 
             // Check approval status
             if (user.approvalStatus === 'PENDING') {
-              return NextResponse.json({ 
-                success: false, 
-                error: 'Your account is pending approval. An administrator will review your application shortly.' 
+              return NextResponse.json({
+                success: false,
+                error: 'Your account is pending approval. An administrator will review your application shortly.'
               }, { status: 403 })
             }
 
             if (user.approvalStatus === 'REJECTED') {
-              return NextResponse.json({ 
-                success: false, 
-                error: 'Your account application was not approved. Please contact administrator for more information.' 
+              return NextResponse.json({
+                success: false,
+                error: 'Your account application was not approved. Please contact administrator for more information.'
               }, { status: 403 })
             }
 
@@ -94,9 +82,9 @@ export async function POST(request: NextRequest) {
             const passwordValid = await bcrypt.compare(password, user.password)
 
             if (!passwordValid) {
-              return NextResponse.json({ 
-                success: false, 
-                error: 'Invalid email or password' 
+              return NextResponse.json({
+                success: false,
+                error: 'Invalid email or password'
               }, { status: 401 })
             }
 
@@ -105,12 +93,6 @@ export async function POST(request: NextRequest) {
               await p.users.update({
                 where: { id: user.id },
                 data: { lastLogin: new Date().toISOString() }
-              }).catch(() => {
-                // Try with 'user' table
-                p.user.update({
-                  where: { id: user.id },
-                  data: { lastLogin: new Date().toISOString() }
-                }).catch(() => {})
               })
             } catch (e) {
               // Ignore update errors
@@ -119,8 +101,8 @@ export async function POST(request: NextRequest) {
             console.log('[Login] ✅ Login successful for:', user.email)
 
             // Return user data
-            return NextResponse.json({ 
-              success: true, 
+            return NextResponse.json({
+              success: true,
               user: {
                 id: user.id,
                 email: user.email,
@@ -213,33 +195,14 @@ export async function GET() {
         orderBy: { createdAt: 'desc' }
       })
     } catch (e) {
-      try {
-        users = await p.user.findMany({
-          select: {
-            id: true,
-            email: true,
-            name: true,
-            role: true,
-            department: true,
-            initials: true,
-            isActive: true,
-            approvalStatus: true,
-            lastLogin: true,
-            createdAt: true,
-            phone: true
-          },
-          orderBy: { createdAt: 'desc' }
-        })
-      } catch (e2) {
-        console.log('[Login] Could not fetch users from database')
-      }
+      console.log('[Login] Could not fetch users from database:', (e as Error).message)
     }
 
     // Count pending approvals
     const pendingCount = users.filter((u: any) => u.approvalStatus === 'PENDING').length
 
-    return NextResponse.json({ 
-      success: true, 
+    return NextResponse.json({
+      success: true,
       users,
       pendingCount,
       mode: 'database'
