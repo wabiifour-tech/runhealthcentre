@@ -1,17 +1,13 @@
 // Prisma Client for PostgreSQL (Neon) - Prisma 7.x Compatible
 // Works on Vercel serverless with Neon serverless driver
 
-import { Pool } from '@neondatabase/serverless'
-import { PrismaNeon } from '@prisma/adapter-neon'
-import { PrismaClient } from '@/generated/prisma'
-
 // Global type for Prisma singleton
 const globalForPrisma = globalThis as unknown as {
-  prisma: PrismaClient | undefined
+  prisma: any | undefined
 }
 
 // Create Prisma client with Neon serverless driver
-function createPrismaClient(): PrismaClient | null {
+async function createPrismaClient(): Promise<any | null> {
   const dbUrl = process.env.DATABASE_URL
 
   if (!dbUrl) {
@@ -27,6 +23,11 @@ function createPrismaClient(): PrismaClient | null {
 
   try {
     console.log('[DB] 🔄 Creating Prisma client with Neon adapter...')
+    
+    // Dynamic imports for serverless compatibility
+    const { Pool } = await import('@neondatabase/serverless')
+    const { PrismaNeon } = await import('@prisma/adapter-neon')
+    const { PrismaClient } = await import('@/generated/prisma')
     
     // Extract host for logging (hide credentials)
     const hostMatch = dbUrl.match(/@([^:/]+)/)
@@ -55,7 +56,7 @@ function createPrismaClient(): PrismaClient | null {
 }
 
 // Get Prisma client with singleton pattern
-export const getPrisma = (): PrismaClient | null => {
+export const getPrisma = async (): Promise<any | null> => {
   // Return cached instance if available
   if (globalForPrisma.prisma) {
     return globalForPrisma.prisma
@@ -68,7 +69,7 @@ export const getPrisma = (): PrismaClient | null => {
   }
 
   // Create new instance
-  const client = createPrismaClient()
+  const client = await createPrismaClient()
   
   if (client) {
     globalForPrisma.prisma = client
@@ -113,7 +114,7 @@ export async function testConnection(): Promise<{
   const host = hostMatch ? hostMatch[1] : 'unknown'
   const database = dbMatch ? dbMatch[1] : 'unknown'
 
-  const prisma = getPrisma()
+  const prisma = await getPrisma()
   
   if (!prisma) {
     return { 
@@ -125,7 +126,7 @@ export async function testConnection(): Promise<{
   
   try {
     // Execute test query
-    await (prisma as any).$queryRaw`SELECT 1 as test`
+    await prisma.$queryRaw`SELECT 1 as test`
     
     console.log('[DB] ✅ Connection test successful')
     return { 
@@ -156,19 +157,17 @@ export async function disconnectPrisma(): Promise<void> {
   }
 }
 
-// Export - don't initialize at module load time
-let _prisma: PrismaClient | null = null
-export const prisma = new Proxy({} as PrismaClient, {
-  get(target, prop) {
-    if (!_prisma) {
-      _prisma = getPrisma()
+// Export a function to get prisma client
+let _prisma: any = null
+export const prisma = {
+  get client() {
+    return async () => {
+      if (!_prisma) {
+        _prisma = await getPrisma()
+      }
+      return _prisma
     }
-    if (_prisma) {
-      return (_prisma as any)[prop]
-    }
-    return undefined
   }
-})
+}
 
 export default prisma
-// Force rebuild Mon Feb 23 21:51:27 UTC 2026

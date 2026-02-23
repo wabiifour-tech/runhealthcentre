@@ -21,7 +21,7 @@ export async function GET() {
   const connectionTest = await testConnection()
   
   // Try to get Prisma client
-  const prisma = getPrisma()
+  const prisma = await getPrisma()
   const hasPrismaClient = !!prisma
   
   // Response time

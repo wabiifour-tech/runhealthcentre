@@ -29,9 +29,10 @@ const demoData: Record<string, any[]> = {
 // Try to get prisma client
 async function getPrisma() {
   try {
-    const dbModule = await import('@/lib/db')
-    return dbModule.default
+    const { getPrisma: getClient } = await import('@/lib/db')
+    return await getClient()
   } catch (e) {
+    console.error('[Data API] Failed to get Prisma:', e)
     return null
   }
 }
