@@ -1749,6 +1749,7 @@ export default function HMSApp() {
   
   // System users - loaded from database via API
   const [systemUsers, setSystemUsers] = useState<SystemUser[]>([])
+  const [prevPendingCount, setPrevPendingCount] = useState<number>(0)
   const [payments, setPayments] = useState<Payment[]>([])
   const [expenses, setExpenses] = useState<Expense[]>([])
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([])
@@ -3065,6 +3066,35 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
   useEffect(() => {
     loadDataFromDB()
   }, [])
+
+  // Monitor for new pending user approvals - notify admin
+  useEffect(() => {
+    if (!user || (user.role !== 'SUPER_ADMIN' && user.role !== 'ADMIN')) return
+    
+    const currentPendingCount = systemUsers.filter((u: any) => u.approvalStatus === 'PENDING').length
+    
+    // Only notify if count increased (new pending user)
+    if (prevPendingCount > 0 && currentPendingCount > prevPendingCount) {
+      const newCount = currentPendingCount - prevPendingCount
+      showToast(`🔔 ${newCount} new user${newCount > 1 ? 's' : ''} awaiting approval!`, 'warning')
+      // Play notification sound using Web Audio API
+      try {
+        const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)()
+        const oscillator = audioContext.createOscillator()
+        const gainNode = audioContext.createGain()
+        oscillator.connect(gainNode)
+        gainNode.connect(audioContext.destination)
+        oscillator.frequency.value = 800
+        oscillator.type = 'sine'
+        gainNode.gain.setValueAtTime(0.3, audioContext.currentTime)
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5)
+        oscillator.start(audioContext.currentTime)
+        oscillator.stop(audioContext.currentTime + 0.5)
+      } catch (e) {}
+    }
+    
+    setPrevPendingCount(currentPendingCount)
+  }, [systemUsers, user, prevPendingCount])
 
   // Save patient to database
   const savePatientToDB = async (patient: Patient) => {
