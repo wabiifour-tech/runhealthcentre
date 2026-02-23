@@ -3,7 +3,7 @@
 
 import { Pool } from '@neondatabase/serverless'
 import { PrismaNeon } from '@prisma/adapter-neon'
-import { PrismaClient } from '../generated/prisma/client'
+import { PrismaClient } from '@/generated/prisma'
 
 // Global type for Prisma singleton
 const globalForPrisma = globalThis as unknown as {

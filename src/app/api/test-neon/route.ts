@@ -5,7 +5,7 @@ export async function GET() {
     // Test if we can import the modules
     const { Pool } = await import('@neondatabase/serverless')
     const { PrismaNeon } = await import('@prisma/adapter-neon')
-    const { PrismaClient } = await import('../../generated/prisma/client')
+    const { PrismaClient } = await import('@/generated/prisma')
     
     const dbUrl = process.env.DATABASE_URL || ''
     
