@@ -1,4 +1,4 @@
-// Prisma Client for PostgreSQL (Supabase) - Prisma 7.x Compatible
+// Prisma Client for PostgreSQL (Neon) - Prisma 7.x Compatible
 // Works on Vercel serverless with proper connection pooling
 
 import { Pool } from 'pg'
@@ -30,18 +30,22 @@ function createPrismaClient(): PrismaClient | null {
     console.log('[DB] 🔄 Creating Prisma client...')
     
     // Extract host for logging (hide credentials)
-    const hostMatch = dbUrl.match(/@([^:]+):/)
+    // Handle URLs with or without port
+    const hostMatch = dbUrl.match(/@([^:/]+)(?::(\d+))?/)
     const host = hostMatch ? hostMatch[1] : 'unknown'
     console.log('[DB] 📍 Connecting to host:', host)
 
+    // Clean URL - remove channel_binding if present (Neon compatibility)
+    let cleanUrl = dbUrl.replace(/&?channel_binding=require/, '')
+    
     // Create connection pool with optimized settings for serverless
     const pool = new Pool({
-      connectionString: dbUrl,
+      connectionString: cleanUrl,
       max: 1, // Single connection for serverless
       idleTimeoutMillis: 10000, // 10 seconds
-      connectionTimeoutMillis: 10000, // 10 seconds timeout
+      connectionTimeoutMillis: 15000, // 15 seconds timeout
       ssl: { 
-        rejectUnauthorized: false // Required for Supabase
+        rejectUnauthorized: false // Required for Neon/Supabase
       },
     })
 
@@ -124,8 +128,8 @@ export async function testConnection(): Promise<{
     }
   }
 
-  // Extract info from URL
-  const hostMatch = dbUrl.match(/@([^:]+):/)
+  // Extract info from URL (handle with or without port)
+  const hostMatch = dbUrl.match(/@([^:/]+)(?::(\d+))?/)
   const dbMatch = dbUrl.match(/\/([^?]+)/)
   const host = hostMatch ? hostMatch[1] : 'unknown'
   const database = dbMatch ? dbMatch[1] : 'unknown'
