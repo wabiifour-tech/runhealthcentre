@@ -2010,6 +2010,22 @@ export default function HMSApp() {
     }, 5000)
   }
   
+  // Helper to get auth headers from current user - defined early for use in API calls
+  const getAuthHeaders = (): HeadersInit => {
+    const headers: HeadersInit = {
+      'Content-Type': 'application/json',
+    }
+    if (user) {
+      headers['x-user-id'] = user.id
+      headers['x-user-email'] = user.email
+      headers['x-user-name'] = encodeURIComponent(user.name || '')
+      headers['x-user-role'] = user.role
+      if (user.department) headers['x-user-department'] = user.department
+      if (user.initials) headers['x-user-initials'] = user.initials
+    }
+    return headers
+  }
+  
   // Handle logo upload
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -3205,7 +3221,9 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
   // Load staff users from database
   const loadStaffUsers = async () => {
     try {
-      const response = await fetch('/api/auth/users')
+      const response = await fetch('/api/auth/users', {
+        headers: getAuthHeaders()
+      })
       const data = await response.json()
       if (data.success && data.users) {
         setSystemUsers(data.users.map((u: any) => ({
@@ -3274,7 +3292,7 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
     try {
       const response = await fetch('/api/auth/users', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify({
           name: userForm.name,
           email: userForm.email.toLowerCase(),
@@ -3350,7 +3368,7 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
     try {
       const response = await fetch('/api/auth/users', {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify({
           id: userForm.id,
           name: userForm.name,
@@ -3398,7 +3416,7 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
     try {
       const response = await fetch('/api/auth/users', {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify({
           id: staffUser.id,
           isActive: !staffUser.isActive
@@ -3457,7 +3475,7 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
     try {
       const response = await fetch('/api/auth/users', {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify({
           id: selectedUserForAction.id,
           password: resetPasswordForm.newPassword,
@@ -3519,7 +3537,8 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
 
     try {
       const response = await fetch(`/api/auth/users?id=${selectedUserForAction.id}`, {
-        method: 'DELETE'
+        method: 'DELETE',
+        headers: getAuthHeaders()
       })
 
       const data = await response.json()
@@ -9363,7 +9382,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                                     try {
                                       const response = await fetch('/api/auth/users', {
                                         method: 'PUT',
-                                        headers: { 'Content-Type': 'application/json' },
+                                        headers: getAuthHeaders(),
                                         body: JSON.stringify({ userId: u.id, action: 'approve' })
                                       })
                                       const data = await response.json()
@@ -9390,7 +9409,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                                     try {
                                       const response = await fetch('/api/auth/users', {
                                         method: 'PUT',
-                                        headers: { 'Content-Type': 'application/json' },
+                                        headers: getAuthHeaders(),
                                         body: JSON.stringify({ userId: u.id, action: 'reject' })
                                       })
                                       const data = await response.json()
@@ -9481,7 +9500,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                                     try {
                                       const response = await fetch('/api/auth/users', {
                                         method: 'PUT',
-                                        headers: { 'Content-Type': 'application/json' },
+                                        headers: getAuthHeaders(),
                                         body: JSON.stringify({
                                           userId: u.id,
                                           action: u.isActive ? 'deactivate' : 'activate'
@@ -9526,7 +9545,8 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                                     
                                     try {
                                       const response = await fetch(`/api/auth/users?userId=${u.id}`, {
-                                        method: 'DELETE'
+                                        method: 'DELETE',
+                                        headers: getAuthHeaders()
                                       })
                                       const data = await response.json()
                                       if (data.success) {
@@ -17703,7 +17723,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                 try {
                   const response = await fetch('/api/auth/users', {
                     method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: getAuthHeaders(),
                     body: JSON.stringify({
                       userId: selectedUserForAction?.id,
                       action: 'reset_password',
