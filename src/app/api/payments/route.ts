@@ -1,4 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { createLogger } from '@/lib/logger'
+import { errorResponse, successResponse, Errors } from '@/lib/errors'
+
+const logger = createLogger('Payments')
 
 // Paystack Payment Integration
 // Note: In production, add PAYSTACK_SECRET_KEY to your environment variables
@@ -31,117 +35,113 @@ export async function POST(request: NextRequest) {
 
     // Validate required fields
     if (!amount || !email) {
-      return NextResponse.json({
-        success: false,
-        error: 'Missing required fields: amount, email'
-      }, { status: 400 })
+      throw Errors.validation('Amount and email are required')
     }
 
     // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
     if (!emailRegex.test(email)) {
-      return NextResponse.json({
-        success: false,
-        error: 'Invalid email format'
-      }, { status: 400 })
+      throw Errors.validation('Invalid email format')
     }
 
     // Validate amount (minimum 100 kobo = 1 naira for Paystack)
     if (amount < 100) {
-      return NextResponse.json({
-        success: false,
-        error: 'Minimum amount is ₦1'
-      }, { status: 400 })
+      throw Errors.validation('Minimum amount is ₦1')
     }
 
     const paymentReference = reference || generateReference()
+    const secretKey = process.env.PAYSTACK_SECRET_KEY
 
-    // In production, uncomment this to integrate with actual Paystack API:
-    /*
-    const response = await fetch('https://api.paystack.co/transaction/initialize', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        amount: amount * 100, // Convert to kobo
-        email,
-        reference: paymentReference,
-        callback_url: callback_url || `${process.env.NEXT_PUBLIC_BASE_URL}/payment/callback`,
-        metadata: {
-          ...metadata,
-          hospital: 'RUN Health Centre',
-          custom_fields: [
-            {
-              display_name: 'Patient Name',
-              variable_name: 'patient_name',
-              value: metadata?.patientName || 'N/A'
-            },
-            {
-              display_name: 'Invoice Number',
-              variable_name: 'invoice_no',
-              value: metadata?.invoiceNo || 'N/A'
+    // Production: Integrate with actual Paystack API
+    if (secretKey) {
+      try {
+        const response = await fetch('https://api.paystack.co/transaction/initialize', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${secretKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            amount: amount * 100, // Convert to kobo
+            email,
+            reference: paymentReference,
+            callback_url: callback_url || `${process.env.NEXT_PUBLIC_BASE_URL}/payment/callback`,
+            metadata: {
+              ...metadata,
+              hospital: 'RUN Health Centre',
+              custom_fields: [
+                {
+                  display_name: 'Patient Name',
+                  variable_name: 'patient_name',
+                  value: metadata?.patientName || 'N/A'
+                },
+                {
+                  display_name: 'Invoice Number',
+                  variable_name: 'invoice_no',
+                  value: metadata?.invoiceNo || 'N/A'
+                }
+              ]
             }
-          ]
-        }
-      })
-    })
+          })
+        })
 
-    const data = await response.json()
-    
-    if (!data.status) {
-      return NextResponse.json({
-        success: false,
-        error: data.message || 'Payment initialization failed'
-      }, { status: 400 })
+        const data = await response.json()
+        
+        if (!data.status) {
+          logger.error('Paystack initialization failed', { 
+            reference: paymentReference,
+            error: data.message 
+          })
+          throw Errors.database('Payment initialization failed')
+        }
+
+        logger.info('Payment initialized successfully', {
+          reference: paymentReference,
+          amount,
+          email,
+          type: metadata?.type || 'general'
+        })
+
+        return successResponse({
+          data: {
+            authorization_url: data.data.authorization_url,
+            access_code: data.data.access_code,
+            reference: data.data.reference
+          }
+        })
+      } catch (fetchError) {
+        logger.error('Paystack API error', { error: String(fetchError) })
+        throw Errors.database('Payment service unavailable')
+      }
     }
 
-    return NextResponse.json({
-      success: true,
-      data: {
-        authorization_url: data.data.authorization_url,
-        access_code: data.data.access_code,
-        reference: data.data.reference
-      }
-    })
-    */
-
-    // Demo/Simulation mode - Returns mock payment link
+    // Demo/Simulation mode
     const mockPaymentData = {
       authorization_url: `https://paystack.com/pay/${paymentReference}`,
       access_code: `access_${Date.now()}`,
       reference: paymentReference
     }
 
-    // Log the payment request
-    console.log('=== PAYMENT INITIALIZATION ===')
-    console.log(`Reference: ${paymentReference}`)
-    console.log(`Amount: ₦${amount.toLocaleString()}`)
-    console.log(`Email: ${email}`)
-    console.log(`Type: ${metadata?.type || 'general'}`)
-    console.log('==============================')
+    logger.info('Payment initialized (demo mode)', {
+      reference: paymentReference,
+      amount,
+      email,
+      type: metadata?.type || 'general'
+    })
 
-    return NextResponse.json({
-      success: true,
+    return successResponse({
       mode: 'demo',
       message: 'Demo mode - Configure PAYSTACK_SECRET_KEY for live payments',
       data: mockPaymentData
     })
 
-  } catch (error: any) {
-    console.error('Payment initialization error:', error)
-    return NextResponse.json({
-      success: false,
-      error: error.message || 'Failed to initialize payment'
-    }, { status: 500 })
+  } catch (error) {
+    return errorResponse(error, { module: 'Payments', operation: 'initialize' })
   }
 }
 
-export async function GET(request: NextRequest) {
-  // Payment service status
-  return NextResponse.json({
-    success: true,
+export async function GET() {
+  return successResponse({
     service: 'RUN Health Centre Payment Service',
     status: 'active',
     provider: 'Paystack',

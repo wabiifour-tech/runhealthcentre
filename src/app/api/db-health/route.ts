@@ -2,6 +2,10 @@
 // Returns detailed database connection status
 import { NextResponse } from 'next/server'
 import { testConnection, getPrisma } from '@/lib/db'
+import { createLogger } from '@/lib/logger'
+import { errorResponse, successResponse } from '@/lib/errors'
+
+const logger = createLogger('DBHealth')
 
 export async function GET() {
   try {
@@ -30,8 +34,14 @@ export async function GET() {
     
     // Determine overall status
     const isHealthy = connectionTest.success && hasPrismaClient
+
+    logger.debug('Health check completed', { 
+      isHealthy, 
+      responseTime, 
+      dbHost 
+    })
     
-    return NextResponse.json({
+    return successResponse({
       status: isHealthy ? 'healthy' : 'unhealthy',
       timestamp: new Date().toISOString(),
       responseTime: `${responseTime}ms`,
@@ -65,15 +75,8 @@ export async function GET() {
         '4. Check if SSL is required and properly configured',
         '5. Verify the database exists and tables are created',
       ] : null,
-    }, { 
-      status: isHealthy ? 200 : 503 
     })
-  } catch (error: any) {
-    console.error('DB Health check error:', error)
-    return NextResponse.json({
-      status: 'error',
-      timestamp: new Date().toISOString(),
-      error: error.message || 'Unknown error occurred'
-    }, { status: 500 })
+  } catch (error) {
+    return errorResponse(error, { module: 'DBHealth', operation: 'check' })
   }
 }

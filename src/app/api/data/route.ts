@@ -1,8 +1,12 @@
 // Comprehensive Data API for RUN Health Centre HMS
-// Handles all data operations with Upstash Redis database
+// Handles all data operations with Neon PostgreSQL database
 // Falls back to demo mode when database is not available
 import { NextRequest, NextResponse } from 'next/server'
-import { redis, isRedisConfigured, REDIS_KEYS } from '@/lib/redis'
+import { createLogger } from '@/lib/logger'
+import { errorResponse, successResponse, Errors } from '@/lib/errors'
+import { authenticateRequest } from '@/lib/auth-middleware'
+
+const logger = createLogger('DataAPI')
 
 // In-memory data store for demo mode
 const demoData: Record<string, any[]> = {
@@ -32,7 +36,7 @@ async function getPrisma() {
     const { getPrisma: getClient } = await import('@/lib/db')
     return await getClient()
   } catch (e) {
-    console.error('[Data API] Failed to get Prisma:', e)
+    logger.error('Failed to get Prisma client', { error: String(e) })
     return null
   }
 }
@@ -55,104 +59,87 @@ export async function GET(request: NextRequest) {
     try {
       switch (type) {
         case 'patients':
-          return NextResponse.json({ 
-            success: true, 
+          return successResponse({ 
             data: await p.patients.findMany({ orderBy: { registeredAt: 'desc' } }) 
           })
 
         case 'vitals':
-          return NextResponse.json({ 
-            success: true, 
+          return successResponse({ 
             data: await p.vital_signs.findMany({ orderBy: { recordedAt: 'desc' } }) 
           })
 
         case 'consultations':
-          return NextResponse.json({ 
-            success: true, 
+          return successResponse({ 
             data: await p.consultations.findMany({ orderBy: { createdAt: 'desc' } }) 
           })
 
         case 'drugs':
-          return NextResponse.json({ 
-            success: true, 
+          return successResponse({ 
             data: await p.drugs.findMany({ where: { isActive: true }, orderBy: { name: 'asc' } }) 
           })
 
         case 'labTests':
-          return NextResponse.json({ 
-            success: true, 
+          return successResponse({ 
             data: await p.lab_tests.findMany({ where: { isActive: true }, orderBy: { name: 'asc' } }) 
           })
 
         case 'labRequests':
-          return NextResponse.json({ 
-            success: true, 
+          return successResponse({ 
             data: await p.lab_requests.findMany({ orderBy: { requestedAt: 'desc' } }) 
           })
 
         case 'labResults':
-          return NextResponse.json({ 
-            success: true, 
+          return successResponse({ 
             data: await p.lab_results.findMany({ orderBy: { createdAt: 'desc' } }) 
           })
 
         case 'queueEntries':
-          return NextResponse.json({ 
-            success: true, 
+          return successResponse({ 
             data: await p.queue_entries.findMany({ orderBy: { checkedInAt: 'desc' } }) 
           })
 
         case 'appointments':
-          return NextResponse.json({ 
-            success: true, 
+          return successResponse({ 
             data: await p.appointments.findMany({ orderBy: { createdAt: 'desc' } }) 
           })
 
         case 'admissions':
-          return NextResponse.json({ 
-            success: true, 
+          return successResponse({ 
             data: await p.admissions.findMany({ orderBy: { createdAt: 'desc' } }) 
           })
 
         case 'prescriptions':
-          return NextResponse.json({ 
-            success: true, 
+          return successResponse({ 
             data: await p.prescriptions.findMany({ orderBy: { createdAt: 'desc' } }) 
           })
 
         case 'medicalCertificates':
-          return NextResponse.json({ 
-            success: true, 
+          return successResponse({ 
             data: await p.medical_certificates.findMany({ orderBy: { createdAt: 'desc' } }) 
           })
 
         case 'referralLetters':
-          return NextResponse.json({ 
-            success: true, 
+          return successResponse({ 
             data: await p.referral_letters.findMany({ orderBy: { createdAt: 'desc' } }) 
           })
 
         case 'dischargeSummaries':
-          return NextResponse.json({ 
-            success: true, 
+          return successResponse({ 
             data: await p.discharge_summaries.findMany({ orderBy: { createdAt: 'desc' } }) 
           })
 
         case 'announcements':
-          return NextResponse.json({ 
-            success: true, 
+          return successResponse({ 
             data: await p.announcements.findMany({ orderBy: { createdAt: 'desc' } }) 
           })
 
         case 'voiceNotes':
-          return NextResponse.json({ 
-            success: true, 
+          return successResponse({ 
             data: await p.voice_notes.findMany({ orderBy: { createdAt: 'desc' } }) 
           })
 
         case 'auditLogs':
-          return NextResponse.json({ 
-            success: true, 
+          return successResponse({ 
             data: await p.audit_logs.findMany({ orderBy: { timestamp: 'desc' }, take: 100 }) 
           })
 
@@ -183,8 +170,8 @@ export async function GET(request: NextRequest) {
               })
             ])
 
-          return NextResponse.json({ 
-            success: true, 
+          logger.debug('Fetched all data', { patientCount: patients.length })
+          return successResponse({ 
             data: {
               patients, vitals, consultations, drugs, labTests, labRequests, labResults,
               queueEntries, appointments, admissions, prescriptions, medicalCertificates,
@@ -194,22 +181,22 @@ export async function GET(request: NextRequest) {
         }
 
         default:
-          return NextResponse.json({ success: false, error: 'Invalid data type' }, { status: 400 })
+          throw Errors.validation('Invalid data type')
       }
     } catch (dbError: any) {
-      console.log('Database error, using demo mode:', dbError.message)
+      // Re-throw API errors
+      if (dbError.name === 'ApiError') throw dbError
+      logger.warn('Database error, using demo mode', { error: dbError.message })
       return handleDemoGet(type)
     }
-  } catch (error: any) {
-    console.error('GET error:', error)
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 })
+  } catch (error) {
+    return errorResponse(error, { module: 'DataAPI', operation: 'get' })
   }
 }
 
 function handleDemoGet(type: string) {
   if (type === 'all') {
-    return NextResponse.json({ 
-      success: true, 
+    return successResponse({ 
       data: demoData,
       mode: 'demo'
     })
@@ -225,8 +212,7 @@ function handleDemoGet(type: string) {
               type === 'voiceNotes' ? 'voiceNotes' :
               type === 'auditLogs' ? 'auditLogs' : type
   
-  return NextResponse.json({ 
-    success: true, 
+  return successResponse({ 
     data: demoData[key] || [],
     mode: 'demo'
   })
@@ -266,131 +252,148 @@ export async function POST(request: NextRequest) {
               id: generateId()
             }
           })
-          return NextResponse.json({ success: true, data: patient })
+          logger.info('Patient created', { hospitalNumber, ruhcCode })
+          return successResponse({ data: patient })
         }
 
         case 'vital': {
           const vital = await p.vital_signs.create({
             data: { ...data, recordedAt: now, id: generateId() }
           })
-          return NextResponse.json({ success: true, data: vital })
+          logger.info('Vital signs recorded', { patientId: data.patientId })
+          return successResponse({ data: vital })
         }
 
         case 'consultation': {
           const consultation = await p.consultations.create({
             data: { ...data, createdAt: now, id: generateId() }
           })
-          return NextResponse.json({ success: true, data: consultation })
+          logger.info('Consultation created', { patientId: data.patientId })
+          return successResponse({ data: consultation })
         }
 
         case 'drug': {
           const drug = await p.drugs.create({
             data: { ...data, createdAt: now, id: generateId() }
           })
-          return NextResponse.json({ success: true, data: drug })
+          logger.info('Drug added', { name: data.name })
+          return successResponse({ data: drug })
         }
 
         case 'labTest': {
           const labTest = await p.lab_tests.create({
             data: { ...data, createdAt: now, id: generateId() }
           })
-          return NextResponse.json({ success: true, data: labTest })
+          logger.info('Lab test added', { name: data.name })
+          return successResponse({ data: labTest })
         }
 
         case 'labRequest': {
           const labRequest = await p.lab_requests.create({
             data: { ...data, requestedAt: now, id: generateId() }
           })
-          return NextResponse.json({ success: true, data: labRequest })
+          logger.info('Lab request created', { patientId: data.patientId })
+          return successResponse({ data: labRequest })
         }
 
         case 'labResult': {
           const labResult = await p.lab_results.create({
             data: { ...data, createdAt: now, id: generateId() }
           })
-          return NextResponse.json({ success: true, data: labResult })
+          logger.info('Lab result added', { requestId: data.requestId })
+          return successResponse({ data: labResult })
         }
 
         case 'queueEntry': {
           const queueEntry = await p.queue_entries.create({
             data: { ...data, checkedInAt: now, id: generateId() }
           })
-          return NextResponse.json({ success: true, data: queueEntry })
+          logger.info('Queue entry created', { patientId: data.patientId })
+          return successResponse({ data: queueEntry })
         }
 
         case 'appointment': {
           const appointment = await p.appointments.create({
             data: { ...data, createdAt: now, id: generateId() }
           })
-          return NextResponse.json({ success: true, data: appointment })
+          logger.info('Appointment created', { patientId: data.patientId })
+          return successResponse({ data: appointment })
         }
 
         case 'admission': {
           const admission = await p.admissions.create({
             data: { ...data, createdAt: now, id: generateId() }
           })
-          return NextResponse.json({ success: true, data: admission })
+          logger.info('Admission created', { patientId: data.patientId })
+          return successResponse({ data: admission })
         }
 
         case 'prescription': {
           const prescription = await p.prescriptions.create({
             data: { ...data, createdAt: now, id: generateId() }
           })
-          return NextResponse.json({ success: true, data: prescription })
+          logger.info('Prescription created', { patientId: data.patientId })
+          return successResponse({ data: prescription })
         }
 
         case 'medicalCertificate': {
           const cert = await p.medical_certificates.create({
             data: { ...data, createdAt: now, id: generateId() }
           })
-          return NextResponse.json({ success: true, data: cert })
+          logger.info('Medical certificate created', { patientId: data.patientId })
+          return successResponse({ data: cert })
         }
 
         case 'referralLetter': {
           const referral = await p.referral_letters.create({
             data: { ...data, createdAt: now, id: generateId() }
           })
-          return NextResponse.json({ success: true, data: referral })
+          logger.info('Referral letter created', { patientId: data.patientId })
+          return successResponse({ data: referral })
         }
 
         case 'dischargeSummary': {
           const discharge = await p.discharge_summaries.create({
             data: { ...data, createdAt: now, id: generateId() }
           })
-          return NextResponse.json({ success: true, data: discharge })
+          logger.info('Discharge summary created', { patientId: data.patientId })
+          return successResponse({ data: discharge })
         }
 
         case 'announcement': {
           const announcement = await p.announcements.create({
             data: { ...data, createdAt: now, id: generateId() }
           })
-          return NextResponse.json({ success: true, data: announcement })
+          logger.info('Announcement created', { title: data.title })
+          return successResponse({ data: announcement })
         }
 
         case 'voiceNote': {
           const voiceNote = await p.voice_notes.create({
             data: { ...data, createdAt: now, id: generateId() }
           })
-          return NextResponse.json({ success: true, data: voiceNote })
+          logger.info('Voice note created', { patientId: data.patientId })
+          return successResponse({ data: voiceNote })
         }
 
         case 'auditLog': {
           const auditLog = await p.audit_logs.create({
             data: { ...data, timestamp: now, id: generateId() }
           })
-          return NextResponse.json({ success: true, data: auditLog })
+          return successResponse({ data: auditLog })
         }
 
         default:
-          return NextResponse.json({ success: false, error: 'Invalid data type' }, { status: 400 })
+          throw Errors.validation('Invalid data type')
       }
     } catch (dbError: any) {
-      console.log('Database error, using demo mode:', dbError.message)
+      // Re-throw API errors
+      if (dbError.name === 'ApiError') throw dbError
+      logger.warn('Database error, using demo mode', { error: dbError.message })
       return handleDemoPost(type, data, now, generateId)
     }
-  } catch (error: any) {
-    console.error('POST error:', error)
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 })
+  } catch (error) {
+    return errorResponse(error, { module: 'DataAPI', operation: 'create' })
   }
 }
 
@@ -412,7 +415,8 @@ function handleDemoPost(type: string, data: any, now: string, generateId: () => 
     items.forEach((item: any) => {
       demoData[key].push({ ...item, id: generateId(), createdAt: now })
     })
-    return NextResponse.json({ success: true, message: `Created ${items.length} items`, mode: 'demo' })
+    logger.info('Seeded data', { type, count: items.length })
+    return successResponse({ message: `Created ${items.length} items`, mode: 'demo' })
   }
 
   const newRecord = {
@@ -430,7 +434,8 @@ function handleDemoPost(type: string, data: any, now: string, generateId: () => 
     demoData[key].push(newRecord)
   }
 
-  return NextResponse.json({ success: true, data: newRecord, mode: 'demo' })
+  logger.debug('Demo record created', { type, id: newRecord.id })
+  return successResponse({ data: newRecord, mode: 'demo' })
 }
 
 // PUT - Update record
@@ -453,9 +458,9 @@ export async function PUT(request: NextRequest) {
       const index = demoData[key]?.findIndex((item: any) => item.id === id)
       if (index !== undefined && index >= 0) {
         demoData[key][index] = { ...demoData[key][index], ...data }
-        return NextResponse.json({ success: true, data: demoData[key][index], mode: 'demo' })
+        return successResponse({ data: demoData[key][index], mode: 'demo' })
       }
-      return NextResponse.json({ success: false, error: 'Record not found' }, { status: 404 })
+      throw Errors.notFound('Record')
     }
 
     const p = prisma as any
@@ -467,7 +472,8 @@ export async function PUT(request: NextRequest) {
             where: { id },
             data: { ...data, lastEditedAt: new Date().toISOString() }
           })
-          return NextResponse.json({ success: true, data: patient })
+          logger.info('Patient updated', { patientId: id })
+          return successResponse({ data: patient })
         }
 
         case 'vital': {
@@ -475,7 +481,7 @@ export async function PUT(request: NextRequest) {
             where: { id },
             data
           })
-          return NextResponse.json({ success: true, data: vital })
+          return successResponse({ data: vital })
         }
 
         case 'consultation': {
@@ -483,7 +489,8 @@ export async function PUT(request: NextRequest) {
             where: { id },
             data
           })
-          return NextResponse.json({ success: true, data: consultation })
+          logger.info('Consultation updated', { consultationId: id })
+          return successResponse({ data: consultation })
         }
 
         case 'drug': {
@@ -491,7 +498,7 @@ export async function PUT(request: NextRequest) {
             where: { id },
             data
           })
-          return NextResponse.json({ success: true, data: drug })
+          return successResponse({ data: drug })
         }
 
         case 'labRequest': {
@@ -499,7 +506,8 @@ export async function PUT(request: NextRequest) {
             where: { id },
             data
           })
-          return NextResponse.json({ success: true, data: labRequest })
+          logger.info('Lab request updated', { requestId: id })
+          return successResponse({ data: labRequest })
         }
 
         case 'labResult': {
@@ -507,7 +515,7 @@ export async function PUT(request: NextRequest) {
             where: { id },
             data
           })
-          return NextResponse.json({ success: true, data: labResult })
+          return successResponse({ data: labResult })
         }
 
         case 'queueEntry': {
@@ -515,7 +523,7 @@ export async function PUT(request: NextRequest) {
             where: { id },
             data
           })
-          return NextResponse.json({ success: true, data: queueEntry })
+          return successResponse({ data: queueEntry })
         }
 
         case 'appointment': {
@@ -523,7 +531,8 @@ export async function PUT(request: NextRequest) {
             where: { id },
             data
           })
-          return NextResponse.json({ success: true, data: appointment })
+          logger.info('Appointment updated', { appointmentId: id })
+          return successResponse({ data: appointment })
         }
 
         case 'admission': {
@@ -531,7 +540,8 @@ export async function PUT(request: NextRequest) {
             where: { id },
             data: { ...data, updatedAt: new Date().toISOString() }
           })
-          return NextResponse.json({ success: true, data: admission })
+          logger.info('Admission updated', { admissionId: id })
+          return successResponse({ data: admission })
         }
 
         case 'prescription': {
@@ -539,7 +549,7 @@ export async function PUT(request: NextRequest) {
             where: { id },
             data
           })
-          return NextResponse.json({ success: true, data: prescription })
+          return successResponse({ data: prescription })
         }
 
         case 'announcement': {
@@ -547,7 +557,7 @@ export async function PUT(request: NextRequest) {
             where: { id },
             data
           })
-          return NextResponse.json({ success: true, data: announcement })
+          return successResponse({ data: announcement })
         }
 
         case 'voiceNote': {
@@ -555,19 +565,19 @@ export async function PUT(request: NextRequest) {
             where: { id },
             data
           })
-          return NextResponse.json({ success: true, data: voiceNote })
+          return successResponse({ data: voiceNote })
         }
 
         default:
-          return NextResponse.json({ success: false, error: 'Invalid data type' }, { status: 400 })
+          throw Errors.validation('Invalid data type')
       }
     } catch (dbError: any) {
-      console.log('Database error in PUT:', dbError.message)
-      return NextResponse.json({ success: false, error: dbError.message }, { status: 500 })
+      if (dbError.name === 'ApiError') throw dbError
+      logger.error('Database error in PUT', { error: dbError.message })
+      throw Errors.database('Update failed')
     }
-  } catch (error: any) {
-    console.error('PUT error:', error)
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 })
+  } catch (error) {
+    return errorResponse(error, { module: 'DataAPI', operation: 'update' })
   }
 }
 
@@ -579,35 +589,12 @@ export async function DELETE(request: NextRequest) {
     const id = searchParams.get('id')
 
     if (!type || !id) {
-      return NextResponse.json({ success: false, error: 'Type and ID required' }, { status: 400 })
+      throw Errors.validation('Type and ID are required')
     }
 
     const prisma = await getPrisma()
 
     if (!prisma) {
-      // Try Redis if Prisma not available
-      if (isRedisConfigured()) {
-        try {
-          const redisKey = type === 'patient' ? REDIS_KEYS.PATIENTS :
-                          type === 'consultation' ? REDIS_KEYS.CONSULTATIONS :
-                          type === 'vital' ? REDIS_KEYS.VITALS :
-                          type === 'appointment' ? REDIS_KEYS.APPOINTMENTS :
-                          type === 'labRequest' ? REDIS_KEYS.LAB_REQUESTS :
-                          type === 'labResult' ? REDIS_KEYS.LAB_RESULTS :
-                          type === 'prescription' ? REDIS_KEYS.PRESCRIPTIONS :
-                          type === 'announcement' ? REDIS_KEYS.ANNOUNCEMENTS :
-                          type === 'queueEntry' ? REDIS_KEYS.QUEUE : null
-
-          if (redisKey) {
-            await redis.hdel(redisKey, id)
-            console.log(`Deleted ${type} with id ${id} from Redis`)
-            return NextResponse.json({ success: true, message: 'Deleted successfully from Redis' })
-          }
-        } catch (redisError: any) {
-          console.error('Redis delete error:', redisError)
-        }
-      }
-      
       // Demo mode - remove from memory
       const key = type === 'labRequest' ? 'labRequests' :
                   type === 'labResult' ? 'labResults' :
@@ -622,7 +609,7 @@ export async function DELETE(request: NextRequest) {
       if (index !== undefined && index >= 0) {
         demoData[key].splice(index, 1)
       }
-      return NextResponse.json({ success: true, message: 'Deleted successfully', mode: 'demo' })
+      return successResponse({ message: 'Deleted successfully', mode: 'demo' })
     }
 
     const p = prisma as any
@@ -631,6 +618,7 @@ export async function DELETE(request: NextRequest) {
       switch (type) {
         case 'patient':
           await p.patients.delete({ where: { id } })
+          logger.info('Patient deleted', { patientId: id })
           break
         case 'vital':
           await p.vital_signs.delete({ where: { id } })
@@ -640,6 +628,7 @@ export async function DELETE(request: NextRequest) {
           break
         case 'drug':
           await p.drugs.update({ where: { id }, data: { isActive: false } })
+          logger.info('Drug deactivated', { drugId: id })
           break
         case 'labTest':
           await p.lab_tests.update({ where: { id }, data: { isActive: false } })
@@ -655,6 +644,7 @@ export async function DELETE(request: NextRequest) {
           break
         case 'appointment':
           await p.appointments.delete({ where: { id } })
+          logger.info('Appointment deleted', { appointmentId: id })
           break
         case 'admission':
           await p.admissions.delete({ where: { id } })
@@ -677,20 +667,17 @@ export async function DELETE(request: NextRequest) {
         case 'dischargeSummary':
           await p.discharge_summaries.delete({ where: { id } })
           break
-        case 'labResult':
-          await p.lab_results.delete({ where: { id } })
-          break
         default:
-          return NextResponse.json({ success: false, error: 'Invalid data type' }, { status: 400 })
+          throw Errors.validation('Invalid data type')
       }
 
-      return NextResponse.json({ success: true, message: 'Deleted successfully' })
+      return successResponse({ message: 'Deleted successfully' })
     } catch (dbError: any) {
-      console.log('Database error in DELETE:', dbError.message)
-      return NextResponse.json({ success: false, error: dbError.message }, { status: 500 })
+      if (dbError.name === 'ApiError') throw dbError
+      logger.error('Database error in DELETE', { error: dbError.message })
+      throw Errors.database('Delete failed')
     }
-  } catch (error: any) {
-    console.error('DELETE error:', error)
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 })
+  } catch (error) {
+    return errorResponse(error, { module: 'DataAPI', operation: 'delete' })
   }
 }

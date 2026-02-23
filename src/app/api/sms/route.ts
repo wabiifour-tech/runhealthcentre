@@ -1,4 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { createLogger } from '@/lib/logger'
+import { errorResponse, successResponse, Errors } from '@/lib/errors'
+
+const logger = createLogger('SMS')
 
 interface SMSRequest {
   to: string | string[] // Phone number(s) - can be single or array for bulk
@@ -184,10 +188,7 @@ export async function POST(request: NextRequest) {
     // Validate phone numbers
     const invalidNumbers = recipients.filter(phone => !isValidPhoneNumber(phone))
     if (invalidNumbers.length > 0) {
-      return NextResponse.json({
-        success: false,
-        error: `Invalid phone number(s): ${invalidNumbers.slice(0, 3).join(', ')}${invalidNumbers.length > 3 ? '...' : ''}`
-      }, { status: 400 })
+      throw Errors.validation(`Invalid phone number(s): ${invalidNumbers.slice(0, 3).join(', ')}${invalidNumbers.length > 3 ? '...' : ''}`)
     }
 
     // Generate message from template or use custom
@@ -216,8 +217,13 @@ export async function POST(request: NextRequest) {
         }
         smsLog.push(logEntry)
         
-        return NextResponse.json({
-          success: result.success,
+        logger.info('Bulk SMS sent', { 
+          recipients: recipients.length, 
+          sent: result.sent, 
+          failed: result.failed 
+        })
+        
+        return successResponse({
           message: `Bulk SMS sent: ${result.sent} successful, ${result.failed} failed`,
           data: {
             id: logEntry.id,
@@ -248,8 +254,13 @@ export async function POST(request: NextRequest) {
         }
         smsLog.push(logEntry)
         
-        return NextResponse.json({
-          success: result.success,
+        logger.info('SMS sent', { 
+          to: formatNigerianNumber(recipients[0]), 
+          type,
+          success: result.success 
+        })
+        
+        return successResponse({
           message: result.success ? 'SMS sent successfully' : `Failed to send SMS: ${result.error}`,
           data: {
             id: logEntry.id,
@@ -264,16 +275,12 @@ export async function POST(request: NextRequest) {
       }
     } else {
       // SIMULATION MODE - Logs SMS without actually sending
-      console.log('=== SMS SIMULATION MODE ===')
-      console.log(`Mode: ${SMS_MODE}`)
-      console.log(`Recipients: ${recipients.length}`)
-      recipients.forEach((r, i) => {
-        console.log(`  ${i + 1}. ${formatNigerianNumber(r)}`)
+      logger.info('SMS simulation', {
+        mode: SMS_MODE,
+        recipients: recipients.length,
+        message: truncatedMessage.substring(0, 50) + '...',
+        cost: estimatedCost
       })
-      console.log(`Message: ${truncatedMessage}`)
-      console.log(`Cost: ₦${estimatedCost}`)
-      console.log('Set SMS_MODE=production and TERMII_API_KEY to send real SMS')
-      console.log('=========================')
       
       // Log each recipient
       const logEntries = recipients.map((recipient, index) => ({
@@ -291,8 +298,7 @@ export async function POST(request: NextRequest) {
       
       smsLog.push(...logEntries)
       
-      return NextResponse.json({
-        success: true,
+      return successResponse({
         message: `SMS simulated successfully (${recipients.length} recipient${recipients.length > 1 ? 's' : ''})`,
         data: {
           ids: logEntries.map(e => e.id),
@@ -306,12 +312,8 @@ export async function POST(request: NextRequest) {
       })
     }
 
-  } catch (error: any) {
-    console.error('SMS notification error:', error)
-    return NextResponse.json({
-      success: false,
-      error: error.message || 'Failed to send SMS notification'
-    }, { status: 500 })
+  } catch (error) {
+    return errorResponse(error, { module: 'SMS', operation: 'send' })
   }
 }
 
@@ -331,8 +333,7 @@ export async function GET(request: NextRequest) {
     filteredLogs = filteredLogs.filter(log => log.type === type)
   }
 
-  return NextResponse.json({
-    success: true,
+  return successResponse({
     service: 'RUN Health Centre SMS Notification Service',
     status: 'active',
     mode: SMS_MODE,

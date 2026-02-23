@@ -2,18 +2,25 @@
 import { NextRequest, NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
 import { getPrisma } from '@/lib/db'
+import { createLogger } from '@/lib/logger'
+import { errorResponse, successResponse, Errors } from '@/lib/errors'
+import { authenticateRequest } from '@/lib/auth-middleware'
 
-// GET - Fetch all users
-export async function GET() {
+const logger = createLogger('Users')
+
+// GET - Fetch all users (Admin only)
+export async function GET(request: NextRequest) {
   try {
+    // Verify admin access
+    const auth = await authenticateRequest(request, { requireAdmin: true })
+    if (!auth.authenticated) {
+      throw Errors.forbidden(auth.error)
+    }
+
     const prisma = await getPrisma()
     
     if (!prisma) {
-      return NextResponse.json({
-        success: false,
-        error: 'Database not available',
-        mode: 'demo'
-      }, { status: 503 })
+      throw Errors.database('Database not available')
     }
 
     const p = prisma as any
@@ -36,33 +43,32 @@ export async function GET() {
       orderBy: { createdAt: 'desc' }
     })
 
-    return NextResponse.json({
-      success: true,
+    logger.debug('Users fetched', { count: users.length, admin: auth.user?.email })
+
+    return successResponse({
       users,
       persistent: true
     })
-  } catch (error: any) {
-    console.error('GET users error:', error)
-    return NextResponse.json({
-      success: false,
-      error: error.message
-    }, { status: 500 })
+  } catch (error) {
+    return errorResponse(error, { module: 'Users', operation: 'list' })
   }
 }
 
-// POST - Create, update, or delete users
+// POST - Create, update, or delete users (Admin only)
 export async function POST(request: NextRequest) {
   try {
+    // Verify admin access
+    const auth = await authenticateRequest(request, { requireAdmin: true })
+    if (!auth.authenticated) {
+      throw Errors.forbidden(auth.error)
+    }
+
     const body = await request.json()
     const { action, user, users: syncUsers } = body
     const prisma = await getPrisma()
 
     if (!prisma) {
-      return NextResponse.json({
-        success: false,
-        error: 'Database not available',
-        mode: 'demo'
-      }, { status: 503 })
+      throw Errors.database('Database not available')
     }
 
     const p = prisma as any
@@ -132,8 +138,9 @@ export async function POST(request: NextRequest) {
           orderBy: { createdAt: 'desc' }
         })
         
-        return NextResponse.json({
-          success: true,
+        logger.info('Users synced', { count: syncUsers.length, admin: auth.user?.email })
+        
+        return successResponse({
           users: allUsers,
           persistent: true
         })
@@ -142,19 +149,13 @@ export async function POST(request: NextRequest) {
 
     if (action === 'add') {
       if (!user?.email) {
-        return NextResponse.json({
-          success: false,
-          error: 'Email is required'
-        }, { status: 400 })
+        throw Errors.validation('Email is required')
       }
 
       // Check if user exists
       const existing = await p.users.findUnique({ where: { email: user.email.toLowerCase() } })
       if (existing) {
-        return NextResponse.json({
-          success: false,
-          error: 'User with this email already exists'
-        }, { status: 400 })
+        throw Errors.validation('User with this email already exists')
       }
 
       // Hash password
@@ -180,8 +181,9 @@ export async function POST(request: NextRequest) {
         }
       })
 
-      return NextResponse.json({
-        success: true,
+      logger.info('User added', { email: newUser.email, role: newUser.role, admin: auth.user?.email })
+
+      return successResponse({
         user: {
           id: newUser.id,
           email: newUser.email,
@@ -198,10 +200,7 @@ export async function POST(request: NextRequest) {
 
     if (action === 'update') {
       if (!user?.id) {
-        return NextResponse.json({
-          success: false,
-          error: 'User ID is required'
-        }, { status: 400 })
+        throw Errors.validation('User ID is required')
       }
 
       const updateData: any = {
@@ -226,8 +225,9 @@ export async function POST(request: NextRequest) {
         data: updateData
       })
 
-      return NextResponse.json({
-        success: true,
+      logger.info('User updated', { userId: user.id, admin: auth.user?.email })
+
+      return successResponse({
         user: {
           id: updatedUser.id,
           email: updatedUser.email,
@@ -244,68 +244,56 @@ export async function POST(request: NextRequest) {
 
     if (action === 'delete') {
       if (!user?.id) {
-        return NextResponse.json({
-          success: false,
-          error: 'User ID is required'
-        }, { status: 400 })
+        throw Errors.validation('User ID is required')
       }
 
       await p.users.delete({ where: { id: user.id } })
 
-      return NextResponse.json({
-        success: true,
+      logger.info('User deleted', { userId: user.id, admin: auth.user?.email })
+
+      return successResponse({
         message: 'User deleted successfully',
         persistent: true
       })
     }
 
-    return NextResponse.json({
-      success: false,
-      error: 'Invalid action'
-    }, { status: 400 })
+    throw Errors.validation('Invalid action')
 
-  } catch (error: any) {
-    console.error('POST users error:', error)
-    return NextResponse.json({
-      success: false,
-      error: error.message
-    }, { status: 500 })
+  } catch (error) {
+    return errorResponse(error, { module: 'Users', operation: 'modify' })
   }
 }
 
-// DELETE - Delete a user
+// DELETE - Delete a user (Admin only)
 export async function DELETE(request: NextRequest) {
   try {
+    // Verify admin access
+    const auth = await authenticateRequest(request, { requireAdmin: true })
+    if (!auth.authenticated) {
+      throw Errors.forbidden(auth.error)
+    }
+
     const { searchParams } = new URL(request.url)
     const id = searchParams.get('id')
 
     if (!id) {
-      return NextResponse.json({
-        success: false,
-        error: 'User ID is required'
-      }, { status: 400 })
+      throw Errors.validation('User ID is required')
     }
 
     const prisma = await getPrisma()
     if (!prisma) {
-      return NextResponse.json({
-        success: false,
-        error: 'Database not available'
-      }, { status: 503 })
+      throw Errors.database('Database not available')
     }
 
     const p = prisma as any
     await p.users.delete({ where: { id } })
 
-    return NextResponse.json({
-      success: true,
+    logger.info('User deleted', { userId: id, admin: auth.user?.email })
+
+    return successResponse({
       message: 'User deleted successfully'
     })
-  } catch (error: any) {
-    console.error('DELETE user error:', error)
-    return NextResponse.json({
-      success: false,
-      error: error.message
-    }, { status: 500 })
+  } catch (error) {
+    return errorResponse(error, { module: 'Users', operation: 'delete' })
   }
 }

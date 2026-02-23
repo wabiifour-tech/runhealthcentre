@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getPrisma } from '@/lib/db'
+import { createLogger } from '@/lib/logger'
+import { errorResponse, successResponse, Errors } from '@/lib/errors'
+import { authenticateRequest, hasRoleLevel } from '@/lib/auth-middleware'
+
+const logger = createLogger('Settings')
 
 // Default settings
 const defaultSettings = {
@@ -34,9 +39,8 @@ export async function GET() {
     
     // Demo mode - return in-memory settings
     if (!prisma) {
-      console.log('Returning demo settings:', demoSettings.facilityName)
-      return NextResponse.json({ 
-        success: true, 
+      logger.debug('Returning demo settings')
+      return successResponse({ 
         settings: demoSettings, 
         mode: 'demo',
         message: 'Running in demo mode - settings are in-memory'
@@ -52,70 +56,57 @@ export async function GET() {
 
       // Create default settings if not exists
       if (!settings) {
-        console.log('Creating default settings in database')
+        logger.info('Creating default settings in database')
         settings = await p.app_settings.create({
           data: defaultSettings
         })
       }
 
-      console.log('Retrieved settings from database:', settings.facilityName)
-      return NextResponse.json({ success: true, settings, mode: 'database' })
+      logger.debug('Retrieved settings from database')
+      return successResponse({ settings, mode: 'database' })
     } catch (dbError) {
-      console.error('Database operation failed:', dbError)
+      logger.error('Database operation failed', { error: String(dbError) })
       // Fall back to demo mode
-      return NextResponse.json({ 
-        success: true, 
+      return successResponse({ 
         settings: demoSettings, 
         mode: 'demo',
         message: 'Database error, using demo mode'
       })
     }
   } catch (error) {
-    console.error('Error fetching settings:', error)
-    return NextResponse.json({ 
-      success: true, 
-      settings: demoSettings, 
-      mode: 'demo',
-      error: 'Failed to fetch settings'
-    })
+    return errorResponse(error, { module: 'Settings', operation: 'get' })
   }
 }
 
 // PUT - Update app settings (superadmin only)
 export async function PUT(request: NextRequest) {
   try {
-    const body = await request.json()
-    const { 
-      userId, 
-      userRole,
-      settings: newSettings 
-    } = body
-
-    console.log('Settings update request:', { userId, userRole, facilityName: newSettings?.facilityName })
-
-    // Only superadmin can update settings
-    if (userRole !== 'SUPER_ADMIN') {
-      console.log('Access denied - user is not SUPER_ADMIN:', userRole)
-      return NextResponse.json(
-        { success: false, error: 'Only superadmin can modify settings' },
-        { status: 403 }
-      )
+    // Verify super admin access
+    const auth = await authenticateRequest(request, { requiredRole: 'SUPER_ADMIN' })
+    if (!auth.authenticated) {
+      throw Errors.forbidden('Only superadmin can modify settings')
     }
+
+    const body = await request.json()
+    const { settings: newSettings } = body
+
+    logger.info('Settings update request', { 
+      admin: auth.user?.email,
+      facilityName: newSettings?.facilityName 
+    })
 
     const prisma = await getPrisma()
 
     // Demo mode - update in memory
     if (!prisma) {
-      console.log('Demo mode - updating settings in memory')
+      logger.info('Demo mode - updating settings in memory')
       demoSettings = { 
         ...demoSettings, 
         ...newSettings, 
         lastUpdated: new Date().toISOString(), 
-        updatedBy: userId 
+        updatedBy: auth.user?.id 
       }
-      console.log('Updated demo settings:', demoSettings.facilityName, demoSettings.primaryPhone)
-      return NextResponse.json({ 
-        success: true, 
+      return successResponse({ 
         settings: demoSettings, 
         mode: 'demo',
         message: 'Settings saved successfully (demo mode)'
@@ -131,7 +122,7 @@ export async function PUT(request: NextRequest) {
       })
 
       if (!settings) {
-        console.log('Creating settings record before update')
+        logger.info('Creating settings record before update')
         settings = await p.app_settings.create({
           data: {
             ...defaultSettings,
@@ -139,13 +130,12 @@ export async function PUT(request: NextRequest) {
             facilityShortName: newSettings.facilityShortName || 'RUHC',
             facilityCode: newSettings.facilityCode || 'RUHC-2026',
             lastUpdated: new Date().toISOString(),
-            updatedBy: userId,
+            updatedBy: auth.user?.id,
           }
         })
       }
 
       // Update settings
-      console.log('Updating settings in database')
       const updatedSettings = await p.app_settings.update({
         where: { id: 'default' },
         data: {
@@ -194,39 +184,39 @@ export async function PUT(request: NextRequest) {
           
           // System
           lastUpdated: new Date().toISOString(),
-          updatedBy: userId,
+          updatedBy: auth.user?.id,
         }
       })
 
-      console.log('Settings updated successfully:', updatedSettings.facilityName)
-      return NextResponse.json({ 
-        success: true, 
+      logger.info('Settings updated successfully', { 
+        admin: auth.user?.email,
+        facilityName: updatedSettings.facilityName 
+      })
+      
+      return successResponse({ 
         settings: updatedSettings,
         message: 'Settings saved successfully'
       })
     } catch (dbError: any) {
-      console.error('Database operation failed, falling back to demo mode:', dbError.message)
+      logger.error('Database operation failed, falling back to demo mode', { 
+        error: dbError.message 
+      })
       
       // Fall back to demo mode - still save settings in memory
       demoSettings = { 
         ...demoSettings, 
         ...newSettings, 
         lastUpdated: new Date().toISOString(), 
-        updatedBy: userId 
+        updatedBy: auth.user?.id 
       }
       
-      return NextResponse.json({ 
-        success: true, 
+      return successResponse({ 
         settings: demoSettings, 
         mode: 'demo',
         message: 'Settings saved (database unavailable, using demo mode)'
       })
     }
-  } catch (error: any) {
-    console.error('Error updating settings:', error)
-    return NextResponse.json(
-      { success: false, error: 'Failed to update settings: ' + error.message },
-      { status: 500 }
-    )
+  } catch (error) {
+    return errorResponse(error, { module: 'Settings', operation: 'update' })
   }
 }

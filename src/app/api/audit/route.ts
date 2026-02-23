@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getClientIP, getUserAgent, getDeviceInfo, getIPLocation } from '@/lib/ip-utils'
-import { isIPBlocked, recordFailedAttempt, clearFailedAttempts, checkAdminAccess, getIPSettings } from '../ip-settings/route'
+import { isIPBlocked, recordFailedAttempt, clearFailedAttempts, checkAdminAccess } from '../ip-settings/route'
+import { createLogger } from '@/lib/logger'
+import { errorResponse, successResponse, Errors } from '@/lib/errors'
+import { authenticateRequest } from '@/lib/auth-middleware'
+
+const logger = createLogger('Audit')
 
 // Audit Log interface
 export interface AuditLogEntry {
@@ -71,6 +76,12 @@ export async function addAuditLog(
     auditLogs = auditLogs.slice(-10000)
   }
   
+  logger.info('Audit log added', { 
+    action: entry.action, 
+    userId: entry.userId, 
+    entityType: entry.entityType 
+  })
+  
   return logEntry
 }
 
@@ -94,6 +105,8 @@ export function addSystemAuditLog(
     auditLogs = auditLogs.slice(-10000)
   }
   
+  logger.info('System audit log added', { action: entry.action })
+  
   return logEntry
 }
 
@@ -105,58 +118,78 @@ export function clearOldAuditLogs(daysToKeep: number = 90): number {
   const initialLength = auditLogs.length
   auditLogs = auditLogs.filter(log => new Date(log.timestamp) >= cutoff)
   
-  return initialLength - auditLogs.length
+  const removed = initialLength - auditLogs.length
+  if (removed > 0) {
+    logger.info('Old audit logs cleared', { removed, remaining: auditLogs.length })
+  }
+  
+  return removed
 }
 
-// GET endpoint - retrieve audit logs
+// GET endpoint - retrieve audit logs (Admin only)
 export async function GET(request: NextRequest) {
-  const { searchParams } = new URL(request.url)
-  
-  const userId = searchParams.get('userId')
-  const action = searchParams.get('action')
-  const entityType = searchParams.get('entityType')
-  const startDate = searchParams.get('startDate')
-  const endDate = searchParams.get('endDate')
-  const limit = parseInt(searchParams.get('limit') || '100')
-  
-  let logs = getAuditLogs()
-  
-  // Filter by user
-  if (userId) {
-    logs = logs.filter(log => log.userId === userId)
+  try {
+    // Verify admin access
+    const auth = await authenticateRequest(request, { requireAdmin: true })
+    if (!auth.authenticated) {
+      throw Errors.forbidden(auth.error)
+    }
+
+    const { searchParams } = new URL(request.url)
+    
+    const userId = searchParams.get('userId')
+    const action = searchParams.get('action')
+    const entityType = searchParams.get('entityType')
+    const startDate = searchParams.get('startDate')
+    const endDate = searchParams.get('endDate')
+    const limit = parseInt(searchParams.get('limit') || '100')
+    
+    let logs = getAuditLogs()
+    
+    // Filter by user
+    if (userId) {
+      logs = logs.filter(log => log.userId === userId)
+    }
+    
+    // Filter by action
+    if (action) {
+      logs = logs.filter(log => log.action === action)
+    }
+    
+    // Filter by entity type
+    if (entityType) {
+      logs = logs.filter(log => log.entityType === entityType)
+    }
+    
+    // Filter by date range
+    if (startDate) {
+      const start = new Date(startDate)
+      logs = logs.filter(log => new Date(log.timestamp) >= start)
+    }
+    
+    if (endDate) {
+      const end = new Date(endDate)
+      end.setHours(23, 59, 59, 999)
+      logs = logs.filter(log => new Date(log.timestamp) <= end)
+    }
+    
+    // Apply limit
+    logs = logs.slice(0, limit)
+    
+    logger.info('Audit logs retrieved', { 
+      admin: auth.user?.email, 
+      count: logs.length,
+      filters: { userId, action, entityType, startDate, endDate }
+    })
+
+    return successResponse({
+      count: logs.length,
+      total: auditLogs.length,
+      logs
+    })
+  } catch (error) {
+    return errorResponse(error, { module: 'Audit', operation: 'getLogs' })
   }
-  
-  // Filter by action
-  if (action) {
-    logs = logs.filter(log => log.action === action)
-  }
-  
-  // Filter by entity type
-  if (entityType) {
-    logs = logs.filter(log => log.entityType === entityType)
-  }
-  
-  // Filter by date range
-  if (startDate) {
-    const start = new Date(startDate)
-    logs = logs.filter(log => new Date(log.timestamp) >= start)
-  }
-  
-  if (endDate) {
-    const end = new Date(endDate)
-    end.setHours(23, 59, 59, 999)
-    logs = logs.filter(log => new Date(log.timestamp) <= end)
-  }
-  
-  // Apply limit
-  logs = logs.slice(0, limit)
-  
-  return NextResponse.json({
-    success: true,
-    count: logs.length,
-    total: auditLogs.length,
-    logs
-  })
 }
 
 // POST endpoint - add audit log or check status
@@ -168,7 +201,7 @@ export async function POST(request: NextRequest) {
     // Handle special request types
     if (body.type === 'check_blocked') {
       const blockedStatus = isIPBlocked(ip)
-      return NextResponse.json({
+      return successResponse({
         blocked: blockedStatus.blocked,
         reason: blockedStatus.reason,
         remainingMinutes: blockedStatus.remainingMinutes
@@ -177,7 +210,7 @@ export async function POST(request: NextRequest) {
     
     if (body.type === 'check_admin_access') {
       const accessStatus = await checkAdminAccess(ip, body.data?.userRole || '')
-      return NextResponse.json({
+      return successResponse({
         allowed: accessStatus.allowed,
         reason: accessStatus.reason
       })
@@ -192,11 +225,10 @@ export async function POST(request: NextRequest) {
         action: 'failed_login',
         entityType: 'authentication',
         entityId: 'login_attempt',
-        description: `Failed login attempt for email: ${body.email || 'unknown'}`,
+        description: `Failed login attempt`,
         status: 'failed',
       })
-      return NextResponse.json({
-        success: true,
+      return successResponse({
         blocked: result.blocked,
         attemptsRemaining: result.attemptsRemaining
       })
@@ -214,10 +246,15 @@ export async function POST(request: NextRequest) {
         description: `User logged in successfully`,
         status: 'success',
       })
-      return NextResponse.json({ success: true })
+      return successResponse({})
     }
     
-    // Standard audit log entry
+    // Standard audit log entry - requires authentication
+    const auth = await authenticateRequest(request)
+    if (!auth.authenticated) {
+      throw Errors.unauthorized(auth.error)
+    }
+
     const entry = await addAuditLog(request, {
       userId: body.userId,
       userName: body.userName,
@@ -233,22 +270,36 @@ export async function POST(request: NextRequest) {
       reason: body.reason,
     })
     
-    return NextResponse.json({ success: true, entry })
+    return successResponse({ entry })
   } catch (error) {
-    console.error('Audit log error:', error)
-    return NextResponse.json({ success: false, error: 'Failed to create audit log' }, { status: 500 })
+    return errorResponse(error, { module: 'Audit', operation: 'addLog' })
   }
 }
 
-// DELETE endpoint - clear old logs
+// DELETE endpoint - clear old logs (Admin only)
 export async function DELETE(request: NextRequest) {
-  const { searchParams } = new URL(request.url)
-  const daysToKeep = parseInt(searchParams.get('daysToKeep') || '90')
-  
-  const deleted = clearOldAuditLogs(daysToKeep)
-  
-  return NextResponse.json({
-    success: true,
-    message: `Deleted ${deleted} audit logs older than ${daysToKeep} days`
-  })
+  try {
+    // Verify admin access
+    const auth = await authenticateRequest(request, { requireAdmin: true })
+    if (!auth.authenticated) {
+      throw Errors.forbidden(auth.error)
+    }
+
+    const { searchParams } = new URL(request.url)
+    const daysToKeep = parseInt(searchParams.get('daysToKeep') || '90')
+    
+    const deleted = clearOldAuditLogs(daysToKeep)
+    
+    logger.info('Audit logs cleared', { 
+      admin: auth.user?.email, 
+      daysToKeep, 
+      deleted 
+    })
+    
+    return successResponse({
+      message: `Deleted ${deleted} audit logs older than ${daysToKeep} days`
+    })
+  } catch (error) {
+    return errorResponse(error, { module: 'Audit', operation: 'clearLogs' })
+  }
 }

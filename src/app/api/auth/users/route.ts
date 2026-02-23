@@ -2,20 +2,28 @@
 import { NextRequest, NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
 import { getPrisma } from '@/lib/db'
+import { createLogger } from '@/lib/logger'
+import { errorResponse, successResponse, Errors, ApiError, ErrorType } from '@/lib/errors'
+import { authenticateRequest, isAdmin } from '@/lib/auth-middleware'
+
+const logger = createLogger('UserManagement')
 
 // SuperAdmin emails that cannot be deleted or deactivated
 const PROTECTED_EMAILS = ['wabithetechnurse@ruhc']
 
-// GET - List all users with pending count
-export async function GET() {
+// GET - List all users with pending count (Admin only)
+export async function GET(request: NextRequest) {
   try {
+    // Verify admin access
+    const auth = await authenticateRequest(request, { requireAdmin: true })
+    if (!auth.authenticated) {
+      throw Errors.forbidden(auth.error)
+    }
+
     const prisma = await getPrisma()
     
     if (!prisma) {
-      return NextResponse.json({ 
-        success: false, 
-        error: 'Database unavailable' 
-      }, { status: 503 })
+      throw Errors.database('Database unavailable')
     }
 
     const p = prisma as any
@@ -42,60 +50,55 @@ export async function GET() {
     // Count pending approvals
     const pendingCount = users.filter((u: any) => u.approvalStatus === 'PENDING').length
 
-    return NextResponse.json({ 
-      success: true, 
+    logger.info('Users list retrieved', { 
+      admin: auth.user?.email, 
+      count: users.length, 
+      pendingCount 
+    })
+
+    return successResponse({ 
       users,
       count: users.length,
       pendingCount
     })
 
-  } catch (error: any) {
-    console.error('Get users error:', error)
-    return NextResponse.json({ 
-      success: false, 
-      error: 'Failed to fetch users' 
-    }, { status: 500 })
+  } catch (error) {
+    return errorResponse(error, { module: 'UserManagement', operation: 'list' })
   }
 }
 
 // POST - Create new staff user (Admin/SuperAdmin only)
 export async function POST(request: NextRequest) {
   try {
+    // Verify admin access
+    const auth = await authenticateRequest(request, { requireAdmin: true })
+    if (!auth.authenticated) {
+      throw Errors.forbidden(auth.error)
+    }
+
     const body = await request.json()
     const { name, email, role, department, initials, password, phone } = body
 
     // Validation
     if (!name || !email || !role || !password) {
-      return NextResponse.json({ 
-        success: false, 
-        error: 'Name, email, role, and password are required' 
-      }, { status: 400 })
+      throw Errors.validation('Name, email, role, and password are required')
     }
 
     // Validate role
     const allowedRoles = ['DOCTOR', 'NURSE', 'PHARMACIST', 'LAB_TECHNICIAN', 'MATRON', 'RECORDS_OFFICER', 'ADMIN']
     if (!allowedRoles.includes(role)) {
-      return NextResponse.json({ 
-        success: false, 
-        error: 'Invalid role' 
-      }, { status: 400 })
+      throw Errors.validation('Invalid role specified')
     }
 
     // Validate password
     if (password.length < 8) {
-      return NextResponse.json({ 
-        success: false, 
-        error: 'Password must be at least 8 characters' 
-      }, { status: 400 })
+      throw Errors.validation('Password must be at least 8 characters')
     }
 
     const prisma = await getPrisma()
 
     if (!prisma) {
-      return NextResponse.json({
-        success: false,
-        error: 'Database unavailable'
-      }, { status: 503 })
+      throw Errors.database('Database unavailable')
     }
 
     const p = prisma as any
@@ -106,10 +109,7 @@ export async function POST(request: NextRequest) {
     })
 
     if (existingUser) {
-      return NextResponse.json({ 
-        success: false, 
-        error: 'An account with this email already exists' 
-      }, { status: 400 })
+      throw Errors.validation('An account with this email already exists')
     }
 
     // Hash password
@@ -132,8 +132,13 @@ export async function POST(request: NextRequest) {
       }
     })
 
-    return NextResponse.json({ 
-      success: true, 
+    logger.info('User created', { 
+      admin: auth.user?.email, 
+      newUser: newUser.email, 
+      role: newUser.role 
+    })
+
+    return successResponse({ 
       message: 'Staff account created successfully',
       user: {
         id: newUser.id,
@@ -145,35 +150,31 @@ export async function POST(request: NextRequest) {
       }
     })
 
-  } catch (error: any) {
-    console.error('Create user error:', error)
-    return NextResponse.json({ 
-      success: false, 
-      error: 'Failed to create user' 
-    }, { status: 500 })
+  } catch (error) {
+    return errorResponse(error, { module: 'UserManagement', operation: 'create' })
   }
 }
 
 // PUT - Update user (activate/deactivate, approve/reject, reset password)
 export async function PUT(request: NextRequest) {
   try {
+    // Verify admin access
+    const auth = await authenticateRequest(request, { requireAdmin: true })
+    if (!auth.authenticated) {
+      throw Errors.forbidden(auth.error)
+    }
+
     const body = await request.json()
     const { userId, action, data } = body
 
     if (!userId || !action) {
-      return NextResponse.json({ 
-        success: false, 
-        error: 'User ID and action are required' 
-      }, { status: 400 })
+      throw Errors.validation('User ID and action are required')
     }
 
     const prisma = await getPrisma()
 
     if (!prisma) {
-      return NextResponse.json({
-        success: false,
-        error: 'Database unavailable'
-      }, { status: 503 })
+      throw Errors.database('Database unavailable')
     }
 
     const p = prisma as any
@@ -184,19 +185,13 @@ export async function PUT(request: NextRequest) {
     })
 
     if (!user) {
-      return NextResponse.json({
-        success: false,
-        error: 'User not found'
-      }, { status: 404 })
+      throw Errors.notFound('User')
     }
 
     // Check for protected accounts
     if (PROTECTED_EMAILS.includes(user.email.toLowerCase())) {
       if (action === 'deactivate' || action === 'delete' || action === 'reject') {
-        return NextResponse.json({
-          success: false,
-          error: 'Cannot modify the primary SuperAdmin account'
-        }, { status: 403 })
+        throw Errors.forbidden('Cannot modify the primary SuperAdmin account')
       }
     }
 
@@ -212,8 +207,8 @@ export async function PUT(request: NextRequest) {
             updatedAt: new Date()
           }
         })
-        return NextResponse.json({ 
-          success: true, 
+        logger.info('User approved', { admin: auth.user?.email, targetUser: user.email })
+        return successResponse({ 
           message: 'Account approved successfully',
           user: result
         })
@@ -227,8 +222,8 @@ export async function PUT(request: NextRequest) {
             updatedAt: new Date()
           }
         })
-        return NextResponse.json({ 
-          success: true, 
+        logger.info('User rejected', { admin: auth.user?.email, targetUser: user.email })
+        return successResponse({ 
           message: 'Account rejected',
           user: result
         })
@@ -241,8 +236,8 @@ export async function PUT(request: NextRequest) {
             updatedAt: new Date()
           }
         })
-        return NextResponse.json({ 
-          success: true, 
+        logger.info('User activated', { admin: auth.user?.email, targetUser: user.email })
+        return successResponse({ 
           message: 'Account activated successfully',
           user: result
         })
@@ -255,26 +250,20 @@ export async function PUT(request: NextRequest) {
             updatedAt: new Date()
           }
         })
-        return NextResponse.json({ 
-          success: true, 
+        logger.info('User deactivated', { admin: auth.user?.email, targetUser: user.email })
+        return successResponse({ 
           message: 'Account deactivated successfully',
           user: result
         })
 
       case 'reset_password':
         if (!data?.password) {
-          return NextResponse.json({ 
-            success: false, 
-            error: 'New password is required' 
-          }, { status: 400 })
+          throw Errors.validation('New password is required')
         }
 
         // Validate password strength
         if (data.password.length < 8) {
-          return NextResponse.json({ 
-            success: false, 
-            error: 'Password must be at least 8 characters' 
-          }, { status: 400 })
+          throw Errors.validation('Password must be at least 8 characters')
         }
 
         const hashedPassword = await bcrypt.hash(data.password, 12)
@@ -288,8 +277,8 @@ export async function PUT(request: NextRequest) {
             updatedAt: new Date()
           }
         })
-        return NextResponse.json({ 
-          success: true, 
+        logger.info('User password reset', { admin: auth.user?.email, targetUser: user.email })
+        return successResponse({ 
           message: 'Password reset successfully. User must change password on next login.',
           user: result
         })
@@ -306,48 +295,41 @@ export async function PUT(request: NextRequest) {
           where: { id: userId },
           data: updateData
         })
-        return NextResponse.json({ 
-          success: true, 
+        logger.info('User updated', { admin: auth.user?.email, targetUser: user.email })
+        return successResponse({ 
           message: 'User updated successfully',
           user: result
         })
 
       default:
-        return NextResponse.json({ 
-          success: false, 
-          error: 'Invalid action' 
-        }, { status: 400 })
+        throw Errors.validation('Invalid action specified')
     }
 
-  } catch (error: any) {
-    console.error('Update user error:', error)
-    return NextResponse.json({ 
-      success: false, 
-      error: 'Failed to update user' 
-    }, { status: 500 })
+  } catch (error) {
+    return errorResponse(error, { module: 'UserManagement', operation: 'update' })
   }
 }
 
-// DELETE - Delete user
+// DELETE - Delete user (Admin only)
 export async function DELETE(request: NextRequest) {
   try {
+    // Verify admin access
+    const auth = await authenticateRequest(request, { requireAdmin: true })
+    if (!auth.authenticated) {
+      throw Errors.forbidden(auth.error)
+    }
+
     const { searchParams } = new URL(request.url)
     const userId = searchParams.get('userId')
 
     if (!userId) {
-      return NextResponse.json({ 
-        success: false, 
-        error: 'User ID is required' 
-      }, { status: 400 })
+      throw Errors.validation('User ID is required')
     }
 
     const prisma = await getPrisma()
 
     if (!prisma) {
-      return NextResponse.json({
-        success: false,
-        error: 'Database unavailable'
-      }, { status: 503 })
+      throw Errors.database('Database unavailable')
     }
 
     const p = prisma as any
@@ -358,18 +340,12 @@ export async function DELETE(request: NextRequest) {
     })
 
     if (!user) {
-      return NextResponse.json({
-        success: false,
-        error: 'User not found'
-      }, { status: 404 })
+      throw Errors.notFound('User')
     }
 
     // Protect SuperAdmin accounts
     if (PROTECTED_EMAILS.includes(user.email.toLowerCase())) {
-      return NextResponse.json({
-        success: false,
-        error: 'Cannot delete the primary SuperAdmin account'
-      }, { status: 403 })
+      throw Errors.forbidden('Cannot delete the primary SuperAdmin account')
     }
 
     // Delete user
@@ -377,16 +353,13 @@ export async function DELETE(request: NextRequest) {
       where: { id: userId }
     })
 
-    return NextResponse.json({ 
-      success: true, 
+    logger.info('User deleted', { admin: auth.user?.email, targetUser: user.email })
+
+    return successResponse({ 
       message: 'User account deleted successfully'
     })
 
-  } catch (error: any) {
-    console.error('Delete user error:', error)
-    return NextResponse.json({ 
-      success: false, 
-      error: 'Failed to delete user' 
-    }, { status: 500 })
+  } catch (error) {
+    return errorResponse(error, { module: 'UserManagement', operation: 'delete' })
   }
 }

@@ -1,4 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { createLogger } from '@/lib/logger'
+import { errorResponse, successResponse, Errors } from '@/lib/errors'
+
+const logger = createLogger('Notifications')
 
 interface EmailRequest {
   to: string
@@ -87,22 +91,19 @@ export async function POST(request: NextRequest) {
 
     // Validate required fields
     if (!to || !subject) {
-      return NextResponse.json({
-        success: false,
-        error: 'Missing required fields: to, subject'
-      }, { status: 400 })
+      throw Errors.validation('Recipient and subject are required')
     }
 
     // Generate email content from template
     const emailBody = templates[type](data)
 
     // Log the email (in production, this would send via email service)
-    console.log('=== EMAIL NOTIFICATION ===')
-    console.log(`To: ${to}`)
-    console.log(`Subject: ${subject}`)
-    console.log(`Type: ${type}`)
-    console.log('Body:', emailBody)
-    console.log('========================')
+    logger.info('Email notification', { 
+      to, 
+      subject, 
+      type,
+      patientName 
+    })
 
     // In production, you would integrate with an email service like:
     // - Resend (resend.com)
@@ -110,13 +111,13 @@ export async function POST(request: NextRequest) {
     // - AWS SES
     // - Nodemailer with SMTP
     
-    // For now, we'll simulate success and log the email
+    // For now, we'll simulate success
     // When you have an email service, replace this with actual sending logic
 
     // Simulate email sending delay
     await new Promise(resolve => setTimeout(resolve, 100))
 
-    // Store notification in a log (you could use a database)
+    // Store notification in a log
     const notificationLog = {
       id: `notif_${Date.now()}`,
       to,
@@ -127,25 +128,18 @@ export async function POST(request: NextRequest) {
       status: 'sent'
     }
 
-    return NextResponse.json({
-      success: true,
+    return successResponse({
       message: 'Email notification sent successfully',
       data: notificationLog
     })
 
-  } catch (error: any) {
-    console.error('Email notification error:', error)
-    return NextResponse.json({
-      success: false,
-      error: error.message || 'Failed to send email notification'
-    }, { status: 500 })
+  } catch (error) {
+    return errorResponse(error, { module: 'Notifications', operation: 'send' })
   }
 }
 
-export async function GET(request: NextRequest) {
-  // Return email service status and configuration info
-  return NextResponse.json({
-    success: true,
+export async function GET() {
+  return successResponse({
     service: 'RUN Health Centre Email Notification Service',
     status: 'active',
     templates: Object.keys(templates),

@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import ZAI from 'z-ai-web-dev-sdk'
+import { createLogger } from '@/lib/logger'
+import { errorResponse, successResponse, Errors } from '@/lib/errors'
+
+const logger = createLogger('Emergency')
 
 interface EmergencyAlert {
   id: string
@@ -21,10 +24,7 @@ export async function POST(request: NextRequest) {
     const { type, location, description, reporterName, reporterPhone, sendSMS } = body
 
     if (!type || !location) {
-      return NextResponse.json({ 
-        success: false, 
-        error: 'Emergency type and location are required' 
-      }, { status: 400 })
+      throw Errors.validation('Emergency type and location are required')
     }
 
     // Create emergency alert
@@ -43,18 +43,22 @@ export async function POST(request: NextRequest) {
     activeAlerts.unshift(alert)
     if (activeAlerts.length > 50) activeAlerts = activeAlerts.slice(0, 50)
 
+    logger.info('Emergency alert created', { 
+      alertId: alert.id, 
+      type, 
+      location 
+    })
+
     // Send SMS notifications if requested
     if (sendSMS) {
       try {
-        const zai = await ZAI.create()
-        
         // Emergency contacts for the health centre
         const emergencyContacts = [
           process.env.EMERGENCY_PHONE_1,
           process.env.EMERGENCY_PHONE_2,
         ].filter(Boolean)
 
-        if (emergencyContacts.length > 0) {
+        if (emergencyContacts.length > 0 && process.env.TERMII_API_KEY) {
           const emergencyMessage = `🚨 EMERGENCY ALERT\nType: ${type.toUpperCase()}\nLocation: ${location}\nDescription: ${description || 'Emergency reported'}\nTime: ${new Date().toLocaleString()}\nReporter: ${reporterName || 'Anonymous'}\n\nPlease respond immediately.`
           
           // Send SMS via Termii
@@ -72,27 +76,22 @@ export async function POST(request: NextRequest) {
           })
 
           if (response.ok) {
-            console.log('Emergency SMS sent successfully')
+            logger.info('Emergency SMS sent', { alertId: alert.id })
           }
         }
       } catch (smsError) {
-        console.error('Failed to send emergency SMS:', smsError)
+        logger.error('Failed to send emergency SMS', { error: String(smsError) })
       }
     }
 
-    return NextResponse.json({
-      success: true,
+    return successResponse({
       alert,
       message: 'Emergency alert created successfully',
       responseInstructions: getResponseInstructions(type)
     })
 
   } catch (error) {
-    console.error('Emergency alert error:', error)
-    return NextResponse.json({
-      success: false,
-      error: 'Failed to create emergency alert'
-    }, { status: 500 })
+    return errorResponse(error, { module: 'Emergency', operation: 'create' })
   }
 }
 
@@ -105,8 +104,7 @@ export async function GET(request: NextRequest) {
     alerts = alerts.filter(a => a.status === status)
   }
   
-  return NextResponse.json({
-    success: true,
+  return successResponse({
     alerts,
     totalActive: activeAlerts.filter(a => a.status === 'active').length
   })
@@ -118,34 +116,25 @@ export async function PUT(request: NextRequest) {
     const { alertId, status } = body
 
     if (!alertId || !status) {
-      return NextResponse.json({ 
-        success: false, 
-        error: 'Alert ID and status are required' 
-      }, { status: 400 })
+      throw Errors.validation('Alert ID and status are required')
     }
 
     const alertIndex = activeAlerts.findIndex(a => a.id === alertId)
     if (alertIndex === -1) {
-      return NextResponse.json({ 
-        success: false, 
-        error: 'Alert not found' 
-      }, { status: 404 })
+      throw Errors.notFound('Alert')
     }
 
     activeAlerts[alertIndex].status = status as 'active' | 'responding' | 'resolved'
 
-    return NextResponse.json({
-      success: true,
+    logger.info('Alert status updated', { alertId, newStatus: status })
+
+    return successResponse({
       alert: activeAlerts[alertIndex],
       message: `Alert status updated to ${status}`
     })
 
   } catch (error) {
-    console.error('Update alert error:', error)
-    return NextResponse.json({
-      success: false,
-      error: 'Failed to update alert status'
-    }, { status: 500 })
+    return errorResponse(error, { module: 'Emergency', operation: 'update' })
   }
 }
 

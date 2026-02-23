@@ -2,6 +2,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
 import { getPrisma, testConnection } from '@/lib/db'
+import { createLogger } from '@/lib/logger'
+import { errorResponse, successResponse, Errors } from '@/lib/errors'
+
+const logger = createLogger('Register')
 
 // Generate initials from name
 function generateInitials(name: string): string {
@@ -18,34 +22,22 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { name, email, password, role, department, initials, phone, dateOfBirth } = body
 
-    console.log('[Register] ====== REGISTRATION REQUEST ======')
-    console.log('[Register] Email:', email)
-    console.log('[Register] Role:', role)
-    console.log('[Register] Name:', name)
+    logger.debug('Registration request', { email, role, name })
 
     // Validation
     if (!name || !email || !password || !role) {
-      return NextResponse.json({ 
-        success: false, 
-        error: 'Name, email, password, and role are required' 
-      }, { status: 400 })
+      throw Errors.validation('Name, email, password, and role are required')
     }
 
     // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
     if (!emailRegex.test(email)) {
-      return NextResponse.json({ 
-        success: false, 
-        error: 'Please enter a valid email address' 
-      }, { status: 400 })
+      throw Errors.validation('Please enter a valid email address')
     }
 
     // Validate password strength
     if (password.length < 8) {
-      return NextResponse.json({ 
-        success: false, 
-        error: 'Password must be at least 8 characters' 
-      }, { status: 400 })
+      throw Errors.validation('Password must be at least 8 characters')
     }
 
     const hasUppercase = /[A-Z]/.test(password)
@@ -54,77 +46,51 @@ export async function POST(request: NextRequest) {
     const hasSpecial = /[!@#$%^&*(),.?":{}|<>]/.test(password)
 
     if (!hasUppercase || !hasLowercase || !hasNumber || !hasSpecial) {
-      return NextResponse.json({ 
-        success: false, 
-        error: 'Password must contain uppercase, lowercase, number, and special character' 
-      }, { status: 400 })
+      throw Errors.validation('Password must contain uppercase, lowercase, number, and special character')
     }
 
     // Validate role
     const allowedRoles = ['DOCTOR', 'NURSE', 'PHARMACIST', 'LAB_TECHNICIAN', 'MATRON', 'RECORDS_OFFICER']
     if (!allowedRoles.includes(role)) {
-      return NextResponse.json({ 
-        success: false, 
-        error: 'Invalid role. You can only register as Doctor, Nurse, Pharmacist, Lab Technician, Matron, or Records Officer.' 
-      }, { status: 400 })
+      throw Errors.validation('Invalid role. You can only register as Doctor, Nurse, Pharmacist, Lab Technician, Matron, or Records Officer.')
     }
 
     // Test database connection first
-    console.log('[Register] Testing database connection...')
     const dbTest = await testConnection()
     
     if (!dbTest.success) {
-      console.error('[Register] Database connection failed:', dbTest.message)
-      return NextResponse.json({ 
-        success: false, 
-        error: 'Database connection failed. Please try again later or contact administrator.',
-        debug: process.env.NODE_ENV === 'development' ? {
-          message: dbTest.message,
-          details: dbTest.details
-        } : undefined
-      }, { status: 503 })
+      logger.error('Database connection failed', { message: dbTest.message })
+      throw Errors.database('Database connection failed. Please try again later.')
     }
-
-    console.log('[Register] Database connected successfully')
 
     // Get Prisma client
     const prisma = await getPrisma()
     
     if (!prisma) {
-      console.error('[Register] Failed to get Prisma client')
-      return NextResponse.json({ 
-        success: false, 
-        error: 'Database client unavailable. Please contact administrator.' 
-      }, { status: 503 })
+      throw Errors.database('Database client unavailable')
     }
 
     const p = prisma as any
 
     // Check if email already exists
-    console.log('[Register] Checking if email exists...')
     const existingUser = await p.users.findUnique({
       where: { email: email.toLowerCase() }
     }).catch((err: Error) => {
-      console.error('[Register] Error checking existing user:', err.message)
+      logger.error('Error checking existing user', { error: err.message })
       return null
     })
 
     if (existingUser) {
-      return NextResponse.json({ 
-        success: false, 
-        error: 'An account with this email already exists. Please sign in instead.' 
-      }, { status: 400 })
+      throw Errors.validation('An account with this email already exists. Please sign in instead.')
     }
 
     // Hash password
-    console.log('[Register] Hashing password...')
     const hashedPassword = await bcrypt.hash(password, 12)
 
     // Generate initials
     const userInitials = initials || generateInitials(name)
 
     // Create user with PENDING approval status
-    console.log('[Register] Creating user...')
     const newUser = await p.users.create({
       data: {
         id: `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
@@ -142,14 +108,17 @@ export async function POST(request: NextRequest) {
         createdAt: new Date()
       }
     }).catch((err: Error) => {
-      console.error('[Register] Error creating user:', err.message)
-      throw err
+      logger.error('Error creating user', { error: err.message })
+      throw Errors.database('Failed to create user account')
     })
 
-    console.log('[Register] ✅ User created successfully:', newUser.id)
+    logger.info('User registered', { 
+      userId: newUser.id, 
+      email: newUser.email, 
+      role: newUser.role 
+    })
 
-    return NextResponse.json({ 
-      success: true, 
+    return successResponse({ 
       message: 'Registration successful! Your account is pending approval. You will be notified once an administrator reviews your application.',
       user: {
         id: newUser.id,
@@ -160,12 +129,7 @@ export async function POST(request: NextRequest) {
       }
     })
 
-  } catch (error: any) {
-    console.error('[Register] ❌ Registration error:', error)
-    return NextResponse.json({ 
-      success: false, 
-      error: 'Registration failed. Please try again.',
-      debug: process.env.NODE_ENV === 'development' ? error.message : undefined
-    }, { status: 500 })
+  } catch (error) {
+    return errorResponse(error, { module: 'Register', operation: 'create' })
   }
 }
