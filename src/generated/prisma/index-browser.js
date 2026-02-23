@@ -415,6 +415,44 @@ exports.Prisma.Audit_logsScalarFieldEnum = {
   timestamp: 'timestamp'
 };
 
+exports.Prisma.App_settingsScalarFieldEnum = {
+  id: 'id',
+  facilityName: 'facilityName',
+  facilityShortName: 'facilityShortName',
+  facilityCode: 'facilityCode',
+  facilityAddress: 'facilityAddress',
+  facilityCity: 'facilityCity',
+  facilityState: 'facilityState',
+  facilityCountry: 'facilityCountry',
+  primaryPhone: 'primaryPhone',
+  secondaryPhone: 'secondaryPhone',
+  emergencyPhone: 'emergencyPhone',
+  emailAddress: 'emailAddress',
+  website: 'website',
+  logoUrl: 'logoUrl',
+  logoBase64: 'logoBase64',
+  primaryColor: 'primaryColor',
+  secondaryColor: 'secondaryColor',
+  accentColor: 'accentColor',
+  openingTime: 'openingTime',
+  closingTime: 'closingTime',
+  workingDays: 'workingDays',
+  timezone: 'timezone',
+  currency: 'currency',
+  currencySymbol: 'currencySymbol',
+  enableOnlineBooking: 'enableOnlineBooking',
+  enableSmsNotifications: 'enableSmsNotifications',
+  enableEmailNotifications: 'enableEmailNotifications',
+  enableVoiceNotes: 'enableVoiceNotes',
+  enableDailyDevotionals: 'enableDailyDevotionals',
+  welcomeMessage: 'welcomeMessage',
+  headerMessage: 'headerMessage',
+  footerMessage: 'footerMessage',
+  lastUpdated: 'lastUpdated',
+  updatedBy: 'updatedBy',
+  createdAt: 'createdAt'
+};
+
 exports.Prisma.SortOrder = {
   asc: 'asc',
   desc: 'desc'
@@ -460,7 +498,8 @@ exports.Prisma.ModelName = {
   medical_certificates: 'medical_certificates',
   referral_letters: 'referral_letters',
   discharge_summaries: 'discharge_summaries',
-  audit_logs: 'audit_logs'
+  audit_logs: 'audit_logs',
+  app_settings: 'app_settings'
 };
 
 /**

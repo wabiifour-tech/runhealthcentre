@@ -103,6 +103,11 @@ export type discharge_summaries = $Result.DefaultSelection<Prisma.$discharge_sum
  * 
  */
 export type audit_logs = $Result.DefaultSelection<Prisma.$audit_logsPayload>
+/**
+ * Model app_settings
+ * 
+ */
+export type app_settings = $Result.DefaultSelection<Prisma.$app_settingsPayload>
 
 /**
  * ##  Prisma Client ʲˢ
@@ -400,6 +405,16 @@ export class PrismaClient<
     * ```
     */
   get audit_logs(): Prisma.audit_logsDelegate<ExtArgs, ClientOptions>;
+
+  /**
+   * `prisma.app_settings`: Exposes CRUD operations for the **app_settings** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more App_settings
+    * const app_settings = await prisma.app_settings.findMany()
+    * ```
+    */
+  get app_settings(): Prisma.app_settingsDelegate<ExtArgs, ClientOptions>;
 }
 
 export namespace Prisma {
@@ -851,7 +866,8 @@ export namespace Prisma {
     medical_certificates: 'medical_certificates',
     referral_letters: 'referral_letters',
     discharge_summaries: 'discharge_summaries',
-    audit_logs: 'audit_logs'
+    audit_logs: 'audit_logs',
+    app_settings: 'app_settings'
   };
 
   export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -867,7 +883,7 @@ export namespace Prisma {
       omit: GlobalOmitOptions
     }
     meta: {
-      modelProps: "users" | "patients" | "consultations" | "vital_signs" | "lab_requests" | "lab_results" | "prescriptions" | "queue_entries" | "appointments" | "admissions" | "drugs" | "lab_tests" | "announcements" | "voice_notes" | "medical_certificates" | "referral_letters" | "discharge_summaries" | "audit_logs"
+      modelProps: "users" | "patients" | "consultations" | "vital_signs" | "lab_requests" | "lab_results" | "prescriptions" | "queue_entries" | "appointments" | "admissions" | "drugs" | "lab_tests" | "announcements" | "voice_notes" | "medical_certificates" | "referral_letters" | "discharge_summaries" | "audit_logs" | "app_settings"
       txIsolationLevel: Prisma.TransactionIsolationLevel
     }
     model: {
@@ -2203,6 +2219,80 @@ export namespace Prisma {
           }
         }
       }
+      app_settings: {
+        payload: Prisma.$app_settingsPayload<ExtArgs>
+        fields: Prisma.app_settingsFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.app_settingsFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$app_settingsPayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.app_settingsFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$app_settingsPayload>
+          }
+          findFirst: {
+            args: Prisma.app_settingsFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$app_settingsPayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.app_settingsFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$app_settingsPayload>
+          }
+          findMany: {
+            args: Prisma.app_settingsFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$app_settingsPayload>[]
+          }
+          create: {
+            args: Prisma.app_settingsCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$app_settingsPayload>
+          }
+          createMany: {
+            args: Prisma.app_settingsCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.app_settingsCreateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$app_settingsPayload>[]
+          }
+          delete: {
+            args: Prisma.app_settingsDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$app_settingsPayload>
+          }
+          update: {
+            args: Prisma.app_settingsUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$app_settingsPayload>
+          }
+          deleteMany: {
+            args: Prisma.app_settingsDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.app_settingsUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateManyAndReturn: {
+            args: Prisma.app_settingsUpdateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$app_settingsPayload>[]
+          }
+          upsert: {
+            args: Prisma.app_settingsUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$app_settingsPayload>
+          }
+          aggregate: {
+            args: Prisma.App_settingsAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregateApp_settings>
+          }
+          groupBy: {
+            args: Prisma.app_settingsGroupByArgs<ExtArgs>
+            result: $Utils.Optional<App_settingsGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.app_settingsCountArgs<ExtArgs>
+            result: $Utils.Optional<App_settingsCountAggregateOutputType> | number
+          }
+        }
+      }
     }
   } & {
     other: {
@@ -2329,6 +2419,7 @@ export namespace Prisma {
     referral_letters?: referral_lettersOmit
     discharge_summaries?: discharge_summariesOmit
     audit_logs?: audit_logsOmit
+    app_settings?: app_settingsOmit
   }
 
   /* Types for Logging */
@@ -22419,6 +22510,1391 @@ export namespace Prisma {
 
 
   /**
+   * Model app_settings
+   */
+
+  export type AggregateApp_settings = {
+    _count: App_settingsCountAggregateOutputType | null
+    _min: App_settingsMinAggregateOutputType | null
+    _max: App_settingsMaxAggregateOutputType | null
+  }
+
+  export type App_settingsMinAggregateOutputType = {
+    id: string | null
+    facilityName: string | null
+    facilityShortName: string | null
+    facilityCode: string | null
+    facilityAddress: string | null
+    facilityCity: string | null
+    facilityState: string | null
+    facilityCountry: string | null
+    primaryPhone: string | null
+    secondaryPhone: string | null
+    emergencyPhone: string | null
+    emailAddress: string | null
+    website: string | null
+    logoUrl: string | null
+    logoBase64: string | null
+    primaryColor: string | null
+    secondaryColor: string | null
+    accentColor: string | null
+    openingTime: string | null
+    closingTime: string | null
+    workingDays: string | null
+    timezone: string | null
+    currency: string | null
+    currencySymbol: string | null
+    enableOnlineBooking: boolean | null
+    enableSmsNotifications: boolean | null
+    enableEmailNotifications: boolean | null
+    enableVoiceNotes: boolean | null
+    enableDailyDevotionals: boolean | null
+    welcomeMessage: string | null
+    headerMessage: string | null
+    footerMessage: string | null
+    lastUpdated: Date | null
+    updatedBy: string | null
+    createdAt: Date | null
+  }
+
+  export type App_settingsMaxAggregateOutputType = {
+    id: string | null
+    facilityName: string | null
+    facilityShortName: string | null
+    facilityCode: string | null
+    facilityAddress: string | null
+    facilityCity: string | null
+    facilityState: string | null
+    facilityCountry: string | null
+    primaryPhone: string | null
+    secondaryPhone: string | null
+    emergencyPhone: string | null
+    emailAddress: string | null
+    website: string | null
+    logoUrl: string | null
+    logoBase64: string | null
+    primaryColor: string | null
+    secondaryColor: string | null
+    accentColor: string | null
+    openingTime: string | null
+    closingTime: string | null
+    workingDays: string | null
+    timezone: string | null
+    currency: string | null
+    currencySymbol: string | null
+    enableOnlineBooking: boolean | null
+    enableSmsNotifications: boolean | null
+    enableEmailNotifications: boolean | null
+    enableVoiceNotes: boolean | null
+    enableDailyDevotionals: boolean | null
+    welcomeMessage: string | null
+    headerMessage: string | null
+    footerMessage: string | null
+    lastUpdated: Date | null
+    updatedBy: string | null
+    createdAt: Date | null
+  }
+
+  export type App_settingsCountAggregateOutputType = {
+    id: number
+    facilityName: number
+    facilityShortName: number
+    facilityCode: number
+    facilityAddress: number
+    facilityCity: number
+    facilityState: number
+    facilityCountry: number
+    primaryPhone: number
+    secondaryPhone: number
+    emergencyPhone: number
+    emailAddress: number
+    website: number
+    logoUrl: number
+    logoBase64: number
+    primaryColor: number
+    secondaryColor: number
+    accentColor: number
+    openingTime: number
+    closingTime: number
+    workingDays: number
+    timezone: number
+    currency: number
+    currencySymbol: number
+    enableOnlineBooking: number
+    enableSmsNotifications: number
+    enableEmailNotifications: number
+    enableVoiceNotes: number
+    enableDailyDevotionals: number
+    welcomeMessage: number
+    headerMessage: number
+    footerMessage: number
+    lastUpdated: number
+    updatedBy: number
+    createdAt: number
+    _all: number
+  }
+
+
+  export type App_settingsMinAggregateInputType = {
+    id?: true
+    facilityName?: true
+    facilityShortName?: true
+    facilityCode?: true
+    facilityAddress?: true
+    facilityCity?: true
+    facilityState?: true
+    facilityCountry?: true
+    primaryPhone?: true
+    secondaryPhone?: true
+    emergencyPhone?: true
+    emailAddress?: true
+    website?: true
+    logoUrl?: true
+    logoBase64?: true
+    primaryColor?: true
+    secondaryColor?: true
+    accentColor?: true
+    openingTime?: true
+    closingTime?: true
+    workingDays?: true
+    timezone?: true
+    currency?: true
+    currencySymbol?: true
+    enableOnlineBooking?: true
+    enableSmsNotifications?: true
+    enableEmailNotifications?: true
+    enableVoiceNotes?: true
+    enableDailyDevotionals?: true
+    welcomeMessage?: true
+    headerMessage?: true
+    footerMessage?: true
+    lastUpdated?: true
+    updatedBy?: true
+    createdAt?: true
+  }
+
+  export type App_settingsMaxAggregateInputType = {
+    id?: true
+    facilityName?: true
+    facilityShortName?: true
+    facilityCode?: true
+    facilityAddress?: true
+    facilityCity?: true
+    facilityState?: true
+    facilityCountry?: true
+    primaryPhone?: true
+    secondaryPhone?: true
+    emergencyPhone?: true
+    emailAddress?: true
+    website?: true
+    logoUrl?: true
+    logoBase64?: true
+    primaryColor?: true
+    secondaryColor?: true
+    accentColor?: true
+    openingTime?: true
+    closingTime?: true
+    workingDays?: true
+    timezone?: true
+    currency?: true
+    currencySymbol?: true
+    enableOnlineBooking?: true
+    enableSmsNotifications?: true
+    enableEmailNotifications?: true
+    enableVoiceNotes?: true
+    enableDailyDevotionals?: true
+    welcomeMessage?: true
+    headerMessage?: true
+    footerMessage?: true
+    lastUpdated?: true
+    updatedBy?: true
+    createdAt?: true
+  }
+
+  export type App_settingsCountAggregateInputType = {
+    id?: true
+    facilityName?: true
+    facilityShortName?: true
+    facilityCode?: true
+    facilityAddress?: true
+    facilityCity?: true
+    facilityState?: true
+    facilityCountry?: true
+    primaryPhone?: true
+    secondaryPhone?: true
+    emergencyPhone?: true
+    emailAddress?: true
+    website?: true
+    logoUrl?: true
+    logoBase64?: true
+    primaryColor?: true
+    secondaryColor?: true
+    accentColor?: true
+    openingTime?: true
+    closingTime?: true
+    workingDays?: true
+    timezone?: true
+    currency?: true
+    currencySymbol?: true
+    enableOnlineBooking?: true
+    enableSmsNotifications?: true
+    enableEmailNotifications?: true
+    enableVoiceNotes?: true
+    enableDailyDevotionals?: true
+    welcomeMessage?: true
+    headerMessage?: true
+    footerMessage?: true
+    lastUpdated?: true
+    updatedBy?: true
+    createdAt?: true
+    _all?: true
+  }
+
+  export type App_settingsAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which app_settings to aggregate.
+     */
+    where?: app_settingsWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of app_settings to fetch.
+     */
+    orderBy?: app_settingsOrderByWithRelationInput | app_settingsOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: app_settingsWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` app_settings from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` app_settings.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned app_settings
+    **/
+    _count?: true | App_settingsCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: App_settingsMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: App_settingsMaxAggregateInputType
+  }
+
+  export type GetApp_settingsAggregateType<T extends App_settingsAggregateArgs> = {
+        [P in keyof T & keyof AggregateApp_settings]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateApp_settings[P]>
+      : GetScalarType<T[P], AggregateApp_settings[P]>
+  }
+
+
+
+
+  export type app_settingsGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: app_settingsWhereInput
+    orderBy?: app_settingsOrderByWithAggregationInput | app_settingsOrderByWithAggregationInput[]
+    by: App_settingsScalarFieldEnum[] | App_settingsScalarFieldEnum
+    having?: app_settingsScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: App_settingsCountAggregateInputType | true
+    _min?: App_settingsMinAggregateInputType
+    _max?: App_settingsMaxAggregateInputType
+  }
+
+  export type App_settingsGroupByOutputType = {
+    id: string
+    facilityName: string
+    facilityShortName: string
+    facilityCode: string
+    facilityAddress: string | null
+    facilityCity: string | null
+    facilityState: string | null
+    facilityCountry: string
+    primaryPhone: string | null
+    secondaryPhone: string | null
+    emergencyPhone: string | null
+    emailAddress: string | null
+    website: string | null
+    logoUrl: string | null
+    logoBase64: string | null
+    primaryColor: string
+    secondaryColor: string
+    accentColor: string
+    openingTime: string
+    closingTime: string
+    workingDays: string
+    timezone: string
+    currency: string
+    currencySymbol: string
+    enableOnlineBooking: boolean
+    enableSmsNotifications: boolean
+    enableEmailNotifications: boolean
+    enableVoiceNotes: boolean
+    enableDailyDevotionals: boolean
+    welcomeMessage: string | null
+    headerMessage: string | null
+    footerMessage: string | null
+    lastUpdated: Date | null
+    updatedBy: string | null
+    createdAt: Date
+    _count: App_settingsCountAggregateOutputType | null
+    _min: App_settingsMinAggregateOutputType | null
+    _max: App_settingsMaxAggregateOutputType | null
+  }
+
+  type GetApp_settingsGroupByPayload<T extends app_settingsGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<App_settingsGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof App_settingsGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], App_settingsGroupByOutputType[P]>
+            : GetScalarType<T[P], App_settingsGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type app_settingsSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    facilityName?: boolean
+    facilityShortName?: boolean
+    facilityCode?: boolean
+    facilityAddress?: boolean
+    facilityCity?: boolean
+    facilityState?: boolean
+    facilityCountry?: boolean
+    primaryPhone?: boolean
+    secondaryPhone?: boolean
+    emergencyPhone?: boolean
+    emailAddress?: boolean
+    website?: boolean
+    logoUrl?: boolean
+    logoBase64?: boolean
+    primaryColor?: boolean
+    secondaryColor?: boolean
+    accentColor?: boolean
+    openingTime?: boolean
+    closingTime?: boolean
+    workingDays?: boolean
+    timezone?: boolean
+    currency?: boolean
+    currencySymbol?: boolean
+    enableOnlineBooking?: boolean
+    enableSmsNotifications?: boolean
+    enableEmailNotifications?: boolean
+    enableVoiceNotes?: boolean
+    enableDailyDevotionals?: boolean
+    welcomeMessage?: boolean
+    headerMessage?: boolean
+    footerMessage?: boolean
+    lastUpdated?: boolean
+    updatedBy?: boolean
+    createdAt?: boolean
+  }, ExtArgs["result"]["app_settings"]>
+
+  export type app_settingsSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    facilityName?: boolean
+    facilityShortName?: boolean
+    facilityCode?: boolean
+    facilityAddress?: boolean
+    facilityCity?: boolean
+    facilityState?: boolean
+    facilityCountry?: boolean
+    primaryPhone?: boolean
+    secondaryPhone?: boolean
+    emergencyPhone?: boolean
+    emailAddress?: boolean
+    website?: boolean
+    logoUrl?: boolean
+    logoBase64?: boolean
+    primaryColor?: boolean
+    secondaryColor?: boolean
+    accentColor?: boolean
+    openingTime?: boolean
+    closingTime?: boolean
+    workingDays?: boolean
+    timezone?: boolean
+    currency?: boolean
+    currencySymbol?: boolean
+    enableOnlineBooking?: boolean
+    enableSmsNotifications?: boolean
+    enableEmailNotifications?: boolean
+    enableVoiceNotes?: boolean
+    enableDailyDevotionals?: boolean
+    welcomeMessage?: boolean
+    headerMessage?: boolean
+    footerMessage?: boolean
+    lastUpdated?: boolean
+    updatedBy?: boolean
+    createdAt?: boolean
+  }, ExtArgs["result"]["app_settings"]>
+
+  export type app_settingsSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    facilityName?: boolean
+    facilityShortName?: boolean
+    facilityCode?: boolean
+    facilityAddress?: boolean
+    facilityCity?: boolean
+    facilityState?: boolean
+    facilityCountry?: boolean
+    primaryPhone?: boolean
+    secondaryPhone?: boolean
+    emergencyPhone?: boolean
+    emailAddress?: boolean
+    website?: boolean
+    logoUrl?: boolean
+    logoBase64?: boolean
+    primaryColor?: boolean
+    secondaryColor?: boolean
+    accentColor?: boolean
+    openingTime?: boolean
+    closingTime?: boolean
+    workingDays?: boolean
+    timezone?: boolean
+    currency?: boolean
+    currencySymbol?: boolean
+    enableOnlineBooking?: boolean
+    enableSmsNotifications?: boolean
+    enableEmailNotifications?: boolean
+    enableVoiceNotes?: boolean
+    enableDailyDevotionals?: boolean
+    welcomeMessage?: boolean
+    headerMessage?: boolean
+    footerMessage?: boolean
+    lastUpdated?: boolean
+    updatedBy?: boolean
+    createdAt?: boolean
+  }, ExtArgs["result"]["app_settings"]>
+
+  export type app_settingsSelectScalar = {
+    id?: boolean
+    facilityName?: boolean
+    facilityShortName?: boolean
+    facilityCode?: boolean
+    facilityAddress?: boolean
+    facilityCity?: boolean
+    facilityState?: boolean
+    facilityCountry?: boolean
+    primaryPhone?: boolean
+    secondaryPhone?: boolean
+    emergencyPhone?: boolean
+    emailAddress?: boolean
+    website?: boolean
+    logoUrl?: boolean
+    logoBase64?: boolean
+    primaryColor?: boolean
+    secondaryColor?: boolean
+    accentColor?: boolean
+    openingTime?: boolean
+    closingTime?: boolean
+    workingDays?: boolean
+    timezone?: boolean
+    currency?: boolean
+    currencySymbol?: boolean
+    enableOnlineBooking?: boolean
+    enableSmsNotifications?: boolean
+    enableEmailNotifications?: boolean
+    enableVoiceNotes?: boolean
+    enableDailyDevotionals?: boolean
+    welcomeMessage?: boolean
+    headerMessage?: boolean
+    footerMessage?: boolean
+    lastUpdated?: boolean
+    updatedBy?: boolean
+    createdAt?: boolean
+  }
+
+  export type app_settingsOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "facilityName" | "facilityShortName" | "facilityCode" | "facilityAddress" | "facilityCity" | "facilityState" | "facilityCountry" | "primaryPhone" | "secondaryPhone" | "emergencyPhone" | "emailAddress" | "website" | "logoUrl" | "logoBase64" | "primaryColor" | "secondaryColor" | "accentColor" | "openingTime" | "closingTime" | "workingDays" | "timezone" | "currency" | "currencySymbol" | "enableOnlineBooking" | "enableSmsNotifications" | "enableEmailNotifications" | "enableVoiceNotes" | "enableDailyDevotionals" | "welcomeMessage" | "headerMessage" | "footerMessage" | "lastUpdated" | "updatedBy" | "createdAt", ExtArgs["result"]["app_settings"]>
+
+  export type $app_settingsPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "app_settings"
+    objects: {}
+    scalars: $Extensions.GetPayloadResult<{
+      id: string
+      facilityName: string
+      facilityShortName: string
+      facilityCode: string
+      facilityAddress: string | null
+      facilityCity: string | null
+      facilityState: string | null
+      facilityCountry: string
+      primaryPhone: string | null
+      secondaryPhone: string | null
+      emergencyPhone: string | null
+      emailAddress: string | null
+      website: string | null
+      logoUrl: string | null
+      logoBase64: string | null
+      primaryColor: string
+      secondaryColor: string
+      accentColor: string
+      openingTime: string
+      closingTime: string
+      workingDays: string
+      timezone: string
+      currency: string
+      currencySymbol: string
+      enableOnlineBooking: boolean
+      enableSmsNotifications: boolean
+      enableEmailNotifications: boolean
+      enableVoiceNotes: boolean
+      enableDailyDevotionals: boolean
+      welcomeMessage: string | null
+      headerMessage: string | null
+      footerMessage: string | null
+      lastUpdated: Date | null
+      updatedBy: string | null
+      createdAt: Date
+    }, ExtArgs["result"]["app_settings"]>
+    composites: {}
+  }
+
+  type app_settingsGetPayload<S extends boolean | null | undefined | app_settingsDefaultArgs> = $Result.GetResult<Prisma.$app_settingsPayload, S>
+
+  type app_settingsCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> =
+    Omit<app_settingsFindManyArgs, 'select' | 'include' | 'distinct' | 'omit'> & {
+      select?: App_settingsCountAggregateInputType | true
+    }
+
+  export interface app_settingsDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['app_settings'], meta: { name: 'app_settings' } }
+    /**
+     * Find zero or one App_settings that matches the filter.
+     * @param {app_settingsFindUniqueArgs} args - Arguments to find a App_settings
+     * @example
+     * // Get one App_settings
+     * const app_settings = await prisma.app_settings.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends app_settingsFindUniqueArgs>(args: SelectSubset<T, app_settingsFindUniqueArgs<ExtArgs>>): Prisma__app_settingsClient<$Result.GetResult<Prisma.$app_settingsPayload<ExtArgs>, T, "findUnique", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find one App_settings that matches the filter or throw an error with `error.code='P2025'`
+     * if no matches were found.
+     * @param {app_settingsFindUniqueOrThrowArgs} args - Arguments to find a App_settings
+     * @example
+     * // Get one App_settings
+     * const app_settings = await prisma.app_settings.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends app_settingsFindUniqueOrThrowArgs>(args: SelectSubset<T, app_settingsFindUniqueOrThrowArgs<ExtArgs>>): Prisma__app_settingsClient<$Result.GetResult<Prisma.$app_settingsPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first App_settings that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {app_settingsFindFirstArgs} args - Arguments to find a App_settings
+     * @example
+     * // Get one App_settings
+     * const app_settings = await prisma.app_settings.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends app_settingsFindFirstArgs>(args?: SelectSubset<T, app_settingsFindFirstArgs<ExtArgs>>): Prisma__app_settingsClient<$Result.GetResult<Prisma.$app_settingsPayload<ExtArgs>, T, "findFirst", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first App_settings that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {app_settingsFindFirstOrThrowArgs} args - Arguments to find a App_settings
+     * @example
+     * // Get one App_settings
+     * const app_settings = await prisma.app_settings.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends app_settingsFindFirstOrThrowArgs>(args?: SelectSubset<T, app_settingsFindFirstOrThrowArgs<ExtArgs>>): Prisma__app_settingsClient<$Result.GetResult<Prisma.$app_settingsPayload<ExtArgs>, T, "findFirstOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find zero or more App_settings that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {app_settingsFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all App_settings
+     * const app_settings = await prisma.app_settings.findMany()
+     * 
+     * // Get first 10 App_settings
+     * const app_settings = await prisma.app_settings.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const app_settingsWithIdOnly = await prisma.app_settings.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends app_settingsFindManyArgs>(args?: SelectSubset<T, app_settingsFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$app_settingsPayload<ExtArgs>, T, "findMany", GlobalOmitOptions>>
+
+    /**
+     * Create a App_settings.
+     * @param {app_settingsCreateArgs} args - Arguments to create a App_settings.
+     * @example
+     * // Create one App_settings
+     * const App_settings = await prisma.app_settings.create({
+     *   data: {
+     *     // ... data to create a App_settings
+     *   }
+     * })
+     * 
+     */
+    create<T extends app_settingsCreateArgs>(args: SelectSubset<T, app_settingsCreateArgs<ExtArgs>>): Prisma__app_settingsClient<$Result.GetResult<Prisma.$app_settingsPayload<ExtArgs>, T, "create", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Create many App_settings.
+     * @param {app_settingsCreateManyArgs} args - Arguments to create many App_settings.
+     * @example
+     * // Create many App_settings
+     * const app_settings = await prisma.app_settings.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends app_settingsCreateManyArgs>(args?: SelectSubset<T, app_settingsCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many App_settings and returns the data saved in the database.
+     * @param {app_settingsCreateManyAndReturnArgs} args - Arguments to create many App_settings.
+     * @example
+     * // Create many App_settings
+     * const app_settings = await prisma.app_settings.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many App_settings and only return the `id`
+     * const app_settingsWithIdOnly = await prisma.app_settings.createManyAndReturn({
+     *   select: { id: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends app_settingsCreateManyAndReturnArgs>(args?: SelectSubset<T, app_settingsCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$app_settingsPayload<ExtArgs>, T, "createManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Delete a App_settings.
+     * @param {app_settingsDeleteArgs} args - Arguments to delete one App_settings.
+     * @example
+     * // Delete one App_settings
+     * const App_settings = await prisma.app_settings.delete({
+     *   where: {
+     *     // ... filter to delete one App_settings
+     *   }
+     * })
+     * 
+     */
+    delete<T extends app_settingsDeleteArgs>(args: SelectSubset<T, app_settingsDeleteArgs<ExtArgs>>): Prisma__app_settingsClient<$Result.GetResult<Prisma.$app_settingsPayload<ExtArgs>, T, "delete", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Update one App_settings.
+     * @param {app_settingsUpdateArgs} args - Arguments to update one App_settings.
+     * @example
+     * // Update one App_settings
+     * const app_settings = await prisma.app_settings.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends app_settingsUpdateArgs>(args: SelectSubset<T, app_settingsUpdateArgs<ExtArgs>>): Prisma__app_settingsClient<$Result.GetResult<Prisma.$app_settingsPayload<ExtArgs>, T, "update", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Delete zero or more App_settings.
+     * @param {app_settingsDeleteManyArgs} args - Arguments to filter App_settings to delete.
+     * @example
+     * // Delete a few App_settings
+     * const { count } = await prisma.app_settings.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends app_settingsDeleteManyArgs>(args?: SelectSubset<T, app_settingsDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more App_settings.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {app_settingsUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many App_settings
+     * const app_settings = await prisma.app_settings.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends app_settingsUpdateManyArgs>(args: SelectSubset<T, app_settingsUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more App_settings and returns the data updated in the database.
+     * @param {app_settingsUpdateManyAndReturnArgs} args - Arguments to update many App_settings.
+     * @example
+     * // Update many App_settings
+     * const app_settings = await prisma.app_settings.updateManyAndReturn({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Update zero or more App_settings and only return the `id`
+     * const app_settingsWithIdOnly = await prisma.app_settings.updateManyAndReturn({
+     *   select: { id: true },
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    updateManyAndReturn<T extends app_settingsUpdateManyAndReturnArgs>(args: SelectSubset<T, app_settingsUpdateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$app_settingsPayload<ExtArgs>, T, "updateManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Create or update one App_settings.
+     * @param {app_settingsUpsertArgs} args - Arguments to update or create a App_settings.
+     * @example
+     * // Update or create a App_settings
+     * const app_settings = await prisma.app_settings.upsert({
+     *   create: {
+     *     // ... data to create a App_settings
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the App_settings we want to update
+     *   }
+     * })
+     */
+    upsert<T extends app_settingsUpsertArgs>(args: SelectSubset<T, app_settingsUpsertArgs<ExtArgs>>): Prisma__app_settingsClient<$Result.GetResult<Prisma.$app_settingsPayload<ExtArgs>, T, "upsert", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+
+    /**
+     * Count the number of App_settings.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {app_settingsCountArgs} args - Arguments to filter App_settings to count.
+     * @example
+     * // Count the number of App_settings
+     * const count = await prisma.app_settings.count({
+     *   where: {
+     *     // ... the filter for the App_settings we want to count
+     *   }
+     * })
+    **/
+    count<T extends app_settingsCountArgs>(
+      args?: Subset<T, app_settingsCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], App_settingsCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a App_settings.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {App_settingsAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends App_settingsAggregateArgs>(args: Subset<T, App_settingsAggregateArgs>): Prisma.PrismaPromise<GetApp_settingsAggregateType<T>>
+
+    /**
+     * Group by App_settings.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {app_settingsGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends app_settingsGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: app_settingsGroupByArgs['orderBy'] }
+        : { orderBy?: app_settingsGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, app_settingsGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetApp_settingsGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the app_settings model
+   */
+  readonly fields: app_settingsFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for app_settings.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__app_settingsClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the app_settings model
+   */
+  interface app_settingsFieldRefs {
+    readonly id: FieldRef<"app_settings", 'String'>
+    readonly facilityName: FieldRef<"app_settings", 'String'>
+    readonly facilityShortName: FieldRef<"app_settings", 'String'>
+    readonly facilityCode: FieldRef<"app_settings", 'String'>
+    readonly facilityAddress: FieldRef<"app_settings", 'String'>
+    readonly facilityCity: FieldRef<"app_settings", 'String'>
+    readonly facilityState: FieldRef<"app_settings", 'String'>
+    readonly facilityCountry: FieldRef<"app_settings", 'String'>
+    readonly primaryPhone: FieldRef<"app_settings", 'String'>
+    readonly secondaryPhone: FieldRef<"app_settings", 'String'>
+    readonly emergencyPhone: FieldRef<"app_settings", 'String'>
+    readonly emailAddress: FieldRef<"app_settings", 'String'>
+    readonly website: FieldRef<"app_settings", 'String'>
+    readonly logoUrl: FieldRef<"app_settings", 'String'>
+    readonly logoBase64: FieldRef<"app_settings", 'String'>
+    readonly primaryColor: FieldRef<"app_settings", 'String'>
+    readonly secondaryColor: FieldRef<"app_settings", 'String'>
+    readonly accentColor: FieldRef<"app_settings", 'String'>
+    readonly openingTime: FieldRef<"app_settings", 'String'>
+    readonly closingTime: FieldRef<"app_settings", 'String'>
+    readonly workingDays: FieldRef<"app_settings", 'String'>
+    readonly timezone: FieldRef<"app_settings", 'String'>
+    readonly currency: FieldRef<"app_settings", 'String'>
+    readonly currencySymbol: FieldRef<"app_settings", 'String'>
+    readonly enableOnlineBooking: FieldRef<"app_settings", 'Boolean'>
+    readonly enableSmsNotifications: FieldRef<"app_settings", 'Boolean'>
+    readonly enableEmailNotifications: FieldRef<"app_settings", 'Boolean'>
+    readonly enableVoiceNotes: FieldRef<"app_settings", 'Boolean'>
+    readonly enableDailyDevotionals: FieldRef<"app_settings", 'Boolean'>
+    readonly welcomeMessage: FieldRef<"app_settings", 'String'>
+    readonly headerMessage: FieldRef<"app_settings", 'String'>
+    readonly footerMessage: FieldRef<"app_settings", 'String'>
+    readonly lastUpdated: FieldRef<"app_settings", 'DateTime'>
+    readonly updatedBy: FieldRef<"app_settings", 'String'>
+    readonly createdAt: FieldRef<"app_settings", 'DateTime'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * app_settings findUnique
+   */
+  export type app_settingsFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the app_settings
+     */
+    select?: app_settingsSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the app_settings
+     */
+    omit?: app_settingsOmit<ExtArgs> | null
+    /**
+     * Filter, which app_settings to fetch.
+     */
+    where: app_settingsWhereUniqueInput
+  }
+
+  /**
+   * app_settings findUniqueOrThrow
+   */
+  export type app_settingsFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the app_settings
+     */
+    select?: app_settingsSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the app_settings
+     */
+    omit?: app_settingsOmit<ExtArgs> | null
+    /**
+     * Filter, which app_settings to fetch.
+     */
+    where: app_settingsWhereUniqueInput
+  }
+
+  /**
+   * app_settings findFirst
+   */
+  export type app_settingsFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the app_settings
+     */
+    select?: app_settingsSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the app_settings
+     */
+    omit?: app_settingsOmit<ExtArgs> | null
+    /**
+     * Filter, which app_settings to fetch.
+     */
+    where?: app_settingsWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of app_settings to fetch.
+     */
+    orderBy?: app_settingsOrderByWithRelationInput | app_settingsOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for app_settings.
+     */
+    cursor?: app_settingsWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` app_settings from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` app_settings.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of app_settings.
+     */
+    distinct?: App_settingsScalarFieldEnum | App_settingsScalarFieldEnum[]
+  }
+
+  /**
+   * app_settings findFirstOrThrow
+   */
+  export type app_settingsFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the app_settings
+     */
+    select?: app_settingsSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the app_settings
+     */
+    omit?: app_settingsOmit<ExtArgs> | null
+    /**
+     * Filter, which app_settings to fetch.
+     */
+    where?: app_settingsWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of app_settings to fetch.
+     */
+    orderBy?: app_settingsOrderByWithRelationInput | app_settingsOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for app_settings.
+     */
+    cursor?: app_settingsWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` app_settings from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` app_settings.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of app_settings.
+     */
+    distinct?: App_settingsScalarFieldEnum | App_settingsScalarFieldEnum[]
+  }
+
+  /**
+   * app_settings findMany
+   */
+  export type app_settingsFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the app_settings
+     */
+    select?: app_settingsSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the app_settings
+     */
+    omit?: app_settingsOmit<ExtArgs> | null
+    /**
+     * Filter, which app_settings to fetch.
+     */
+    where?: app_settingsWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of app_settings to fetch.
+     */
+    orderBy?: app_settingsOrderByWithRelationInput | app_settingsOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing app_settings.
+     */
+    cursor?: app_settingsWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` app_settings from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` app_settings.
+     */
+    skip?: number
+    distinct?: App_settingsScalarFieldEnum | App_settingsScalarFieldEnum[]
+  }
+
+  /**
+   * app_settings create
+   */
+  export type app_settingsCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the app_settings
+     */
+    select?: app_settingsSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the app_settings
+     */
+    omit?: app_settingsOmit<ExtArgs> | null
+    /**
+     * The data needed to create a app_settings.
+     */
+    data: XOR<app_settingsCreateInput, app_settingsUncheckedCreateInput>
+  }
+
+  /**
+   * app_settings createMany
+   */
+  export type app_settingsCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many app_settings.
+     */
+    data: app_settingsCreateManyInput | app_settingsCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * app_settings createManyAndReturn
+   */
+  export type app_settingsCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the app_settings
+     */
+    select?: app_settingsSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the app_settings
+     */
+    omit?: app_settingsOmit<ExtArgs> | null
+    /**
+     * The data used to create many app_settings.
+     */
+    data: app_settingsCreateManyInput | app_settingsCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * app_settings update
+   */
+  export type app_settingsUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the app_settings
+     */
+    select?: app_settingsSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the app_settings
+     */
+    omit?: app_settingsOmit<ExtArgs> | null
+    /**
+     * The data needed to update a app_settings.
+     */
+    data: XOR<app_settingsUpdateInput, app_settingsUncheckedUpdateInput>
+    /**
+     * Choose, which app_settings to update.
+     */
+    where: app_settingsWhereUniqueInput
+  }
+
+  /**
+   * app_settings updateMany
+   */
+  export type app_settingsUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update app_settings.
+     */
+    data: XOR<app_settingsUpdateManyMutationInput, app_settingsUncheckedUpdateManyInput>
+    /**
+     * Filter which app_settings to update
+     */
+    where?: app_settingsWhereInput
+    /**
+     * Limit how many app_settings to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * app_settings updateManyAndReturn
+   */
+  export type app_settingsUpdateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the app_settings
+     */
+    select?: app_settingsSelectUpdateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the app_settings
+     */
+    omit?: app_settingsOmit<ExtArgs> | null
+    /**
+     * The data used to update app_settings.
+     */
+    data: XOR<app_settingsUpdateManyMutationInput, app_settingsUncheckedUpdateManyInput>
+    /**
+     * Filter which app_settings to update
+     */
+    where?: app_settingsWhereInput
+    /**
+     * Limit how many app_settings to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * app_settings upsert
+   */
+  export type app_settingsUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the app_settings
+     */
+    select?: app_settingsSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the app_settings
+     */
+    omit?: app_settingsOmit<ExtArgs> | null
+    /**
+     * The filter to search for the app_settings to update in case it exists.
+     */
+    where: app_settingsWhereUniqueInput
+    /**
+     * In case the app_settings found by the `where` argument doesn't exist, create a new app_settings with this data.
+     */
+    create: XOR<app_settingsCreateInput, app_settingsUncheckedCreateInput>
+    /**
+     * In case the app_settings was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<app_settingsUpdateInput, app_settingsUncheckedUpdateInput>
+  }
+
+  /**
+   * app_settings delete
+   */
+  export type app_settingsDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the app_settings
+     */
+    select?: app_settingsSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the app_settings
+     */
+    omit?: app_settingsOmit<ExtArgs> | null
+    /**
+     * Filter which app_settings to delete.
+     */
+    where: app_settingsWhereUniqueInput
+  }
+
+  /**
+   * app_settings deleteMany
+   */
+  export type app_settingsDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which app_settings to delete
+     */
+    where?: app_settingsWhereInput
+    /**
+     * Limit how many app_settings to delete.
+     */
+    limit?: number
+  }
+
+  /**
+   * app_settings without action
+   */
+  export type app_settingsDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the app_settings
+     */
+    select?: app_settingsSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the app_settings
+     */
+    omit?: app_settingsOmit<ExtArgs> | null
+  }
+
+
+  /**
    * Enums
    */
 
@@ -22779,6 +24255,47 @@ export namespace Prisma {
   };
 
   export type Audit_logsScalarFieldEnum = (typeof Audit_logsScalarFieldEnum)[keyof typeof Audit_logsScalarFieldEnum]
+
+
+  export const App_settingsScalarFieldEnum: {
+    id: 'id',
+    facilityName: 'facilityName',
+    facilityShortName: 'facilityShortName',
+    facilityCode: 'facilityCode',
+    facilityAddress: 'facilityAddress',
+    facilityCity: 'facilityCity',
+    facilityState: 'facilityState',
+    facilityCountry: 'facilityCountry',
+    primaryPhone: 'primaryPhone',
+    secondaryPhone: 'secondaryPhone',
+    emergencyPhone: 'emergencyPhone',
+    emailAddress: 'emailAddress',
+    website: 'website',
+    logoUrl: 'logoUrl',
+    logoBase64: 'logoBase64',
+    primaryColor: 'primaryColor',
+    secondaryColor: 'secondaryColor',
+    accentColor: 'accentColor',
+    openingTime: 'openingTime',
+    closingTime: 'closingTime',
+    workingDays: 'workingDays',
+    timezone: 'timezone',
+    currency: 'currency',
+    currencySymbol: 'currencySymbol',
+    enableOnlineBooking: 'enableOnlineBooking',
+    enableSmsNotifications: 'enableSmsNotifications',
+    enableEmailNotifications: 'enableEmailNotifications',
+    enableVoiceNotes: 'enableVoiceNotes',
+    enableDailyDevotionals: 'enableDailyDevotionals',
+    welcomeMessage: 'welcomeMessage',
+    headerMessage: 'headerMessage',
+    footerMessage: 'footerMessage',
+    lastUpdated: 'lastUpdated',
+    updatedBy: 'updatedBy',
+    createdAt: 'createdAt'
+  };
+
+  export type App_settingsScalarFieldEnum = (typeof App_settingsScalarFieldEnum)[keyof typeof App_settingsScalarFieldEnum]
 
 
   export const SortOrder: {
@@ -24608,6 +26125,208 @@ export namespace Prisma {
     description?: StringNullableWithAggregatesFilter<"audit_logs"> | string | null
     metadata?: JsonNullableWithAggregatesFilter<"audit_logs">
     timestamp?: DateTimeWithAggregatesFilter<"audit_logs"> | Date | string
+  }
+
+  export type app_settingsWhereInput = {
+    AND?: app_settingsWhereInput | app_settingsWhereInput[]
+    OR?: app_settingsWhereInput[]
+    NOT?: app_settingsWhereInput | app_settingsWhereInput[]
+    id?: StringFilter<"app_settings"> | string
+    facilityName?: StringFilter<"app_settings"> | string
+    facilityShortName?: StringFilter<"app_settings"> | string
+    facilityCode?: StringFilter<"app_settings"> | string
+    facilityAddress?: StringNullableFilter<"app_settings"> | string | null
+    facilityCity?: StringNullableFilter<"app_settings"> | string | null
+    facilityState?: StringNullableFilter<"app_settings"> | string | null
+    facilityCountry?: StringFilter<"app_settings"> | string
+    primaryPhone?: StringNullableFilter<"app_settings"> | string | null
+    secondaryPhone?: StringNullableFilter<"app_settings"> | string | null
+    emergencyPhone?: StringNullableFilter<"app_settings"> | string | null
+    emailAddress?: StringNullableFilter<"app_settings"> | string | null
+    website?: StringNullableFilter<"app_settings"> | string | null
+    logoUrl?: StringNullableFilter<"app_settings"> | string | null
+    logoBase64?: StringNullableFilter<"app_settings"> | string | null
+    primaryColor?: StringFilter<"app_settings"> | string
+    secondaryColor?: StringFilter<"app_settings"> | string
+    accentColor?: StringFilter<"app_settings"> | string
+    openingTime?: StringFilter<"app_settings"> | string
+    closingTime?: StringFilter<"app_settings"> | string
+    workingDays?: StringFilter<"app_settings"> | string
+    timezone?: StringFilter<"app_settings"> | string
+    currency?: StringFilter<"app_settings"> | string
+    currencySymbol?: StringFilter<"app_settings"> | string
+    enableOnlineBooking?: BoolFilter<"app_settings"> | boolean
+    enableSmsNotifications?: BoolFilter<"app_settings"> | boolean
+    enableEmailNotifications?: BoolFilter<"app_settings"> | boolean
+    enableVoiceNotes?: BoolFilter<"app_settings"> | boolean
+    enableDailyDevotionals?: BoolFilter<"app_settings"> | boolean
+    welcomeMessage?: StringNullableFilter<"app_settings"> | string | null
+    headerMessage?: StringNullableFilter<"app_settings"> | string | null
+    footerMessage?: StringNullableFilter<"app_settings"> | string | null
+    lastUpdated?: DateTimeNullableFilter<"app_settings"> | Date | string | null
+    updatedBy?: StringNullableFilter<"app_settings"> | string | null
+    createdAt?: DateTimeFilter<"app_settings"> | Date | string
+  }
+
+  export type app_settingsOrderByWithRelationInput = {
+    id?: SortOrder
+    facilityName?: SortOrder
+    facilityShortName?: SortOrder
+    facilityCode?: SortOrder
+    facilityAddress?: SortOrderInput | SortOrder
+    facilityCity?: SortOrderInput | SortOrder
+    facilityState?: SortOrderInput | SortOrder
+    facilityCountry?: SortOrder
+    primaryPhone?: SortOrderInput | SortOrder
+    secondaryPhone?: SortOrderInput | SortOrder
+    emergencyPhone?: SortOrderInput | SortOrder
+    emailAddress?: SortOrderInput | SortOrder
+    website?: SortOrderInput | SortOrder
+    logoUrl?: SortOrderInput | SortOrder
+    logoBase64?: SortOrderInput | SortOrder
+    primaryColor?: SortOrder
+    secondaryColor?: SortOrder
+    accentColor?: SortOrder
+    openingTime?: SortOrder
+    closingTime?: SortOrder
+    workingDays?: SortOrder
+    timezone?: SortOrder
+    currency?: SortOrder
+    currencySymbol?: SortOrder
+    enableOnlineBooking?: SortOrder
+    enableSmsNotifications?: SortOrder
+    enableEmailNotifications?: SortOrder
+    enableVoiceNotes?: SortOrder
+    enableDailyDevotionals?: SortOrder
+    welcomeMessage?: SortOrderInput | SortOrder
+    headerMessage?: SortOrderInput | SortOrder
+    footerMessage?: SortOrderInput | SortOrder
+    lastUpdated?: SortOrderInput | SortOrder
+    updatedBy?: SortOrderInput | SortOrder
+    createdAt?: SortOrder
+  }
+
+  export type app_settingsWhereUniqueInput = Prisma.AtLeast<{
+    id?: string
+    AND?: app_settingsWhereInput | app_settingsWhereInput[]
+    OR?: app_settingsWhereInput[]
+    NOT?: app_settingsWhereInput | app_settingsWhereInput[]
+    facilityName?: StringFilter<"app_settings"> | string
+    facilityShortName?: StringFilter<"app_settings"> | string
+    facilityCode?: StringFilter<"app_settings"> | string
+    facilityAddress?: StringNullableFilter<"app_settings"> | string | null
+    facilityCity?: StringNullableFilter<"app_settings"> | string | null
+    facilityState?: StringNullableFilter<"app_settings"> | string | null
+    facilityCountry?: StringFilter<"app_settings"> | string
+    primaryPhone?: StringNullableFilter<"app_settings"> | string | null
+    secondaryPhone?: StringNullableFilter<"app_settings"> | string | null
+    emergencyPhone?: StringNullableFilter<"app_settings"> | string | null
+    emailAddress?: StringNullableFilter<"app_settings"> | string | null
+    website?: StringNullableFilter<"app_settings"> | string | null
+    logoUrl?: StringNullableFilter<"app_settings"> | string | null
+    logoBase64?: StringNullableFilter<"app_settings"> | string | null
+    primaryColor?: StringFilter<"app_settings"> | string
+    secondaryColor?: StringFilter<"app_settings"> | string
+    accentColor?: StringFilter<"app_settings"> | string
+    openingTime?: StringFilter<"app_settings"> | string
+    closingTime?: StringFilter<"app_settings"> | string
+    workingDays?: StringFilter<"app_settings"> | string
+    timezone?: StringFilter<"app_settings"> | string
+    currency?: StringFilter<"app_settings"> | string
+    currencySymbol?: StringFilter<"app_settings"> | string
+    enableOnlineBooking?: BoolFilter<"app_settings"> | boolean
+    enableSmsNotifications?: BoolFilter<"app_settings"> | boolean
+    enableEmailNotifications?: BoolFilter<"app_settings"> | boolean
+    enableVoiceNotes?: BoolFilter<"app_settings"> | boolean
+    enableDailyDevotionals?: BoolFilter<"app_settings"> | boolean
+    welcomeMessage?: StringNullableFilter<"app_settings"> | string | null
+    headerMessage?: StringNullableFilter<"app_settings"> | string | null
+    footerMessage?: StringNullableFilter<"app_settings"> | string | null
+    lastUpdated?: DateTimeNullableFilter<"app_settings"> | Date | string | null
+    updatedBy?: StringNullableFilter<"app_settings"> | string | null
+    createdAt?: DateTimeFilter<"app_settings"> | Date | string
+  }, "id">
+
+  export type app_settingsOrderByWithAggregationInput = {
+    id?: SortOrder
+    facilityName?: SortOrder
+    facilityShortName?: SortOrder
+    facilityCode?: SortOrder
+    facilityAddress?: SortOrderInput | SortOrder
+    facilityCity?: SortOrderInput | SortOrder
+    facilityState?: SortOrderInput | SortOrder
+    facilityCountry?: SortOrder
+    primaryPhone?: SortOrderInput | SortOrder
+    secondaryPhone?: SortOrderInput | SortOrder
+    emergencyPhone?: SortOrderInput | SortOrder
+    emailAddress?: SortOrderInput | SortOrder
+    website?: SortOrderInput | SortOrder
+    logoUrl?: SortOrderInput | SortOrder
+    logoBase64?: SortOrderInput | SortOrder
+    primaryColor?: SortOrder
+    secondaryColor?: SortOrder
+    accentColor?: SortOrder
+    openingTime?: SortOrder
+    closingTime?: SortOrder
+    workingDays?: SortOrder
+    timezone?: SortOrder
+    currency?: SortOrder
+    currencySymbol?: SortOrder
+    enableOnlineBooking?: SortOrder
+    enableSmsNotifications?: SortOrder
+    enableEmailNotifications?: SortOrder
+    enableVoiceNotes?: SortOrder
+    enableDailyDevotionals?: SortOrder
+    welcomeMessage?: SortOrderInput | SortOrder
+    headerMessage?: SortOrderInput | SortOrder
+    footerMessage?: SortOrderInput | SortOrder
+    lastUpdated?: SortOrderInput | SortOrder
+    updatedBy?: SortOrderInput | SortOrder
+    createdAt?: SortOrder
+    _count?: app_settingsCountOrderByAggregateInput
+    _max?: app_settingsMaxOrderByAggregateInput
+    _min?: app_settingsMinOrderByAggregateInput
+  }
+
+  export type app_settingsScalarWhereWithAggregatesInput = {
+    AND?: app_settingsScalarWhereWithAggregatesInput | app_settingsScalarWhereWithAggregatesInput[]
+    OR?: app_settingsScalarWhereWithAggregatesInput[]
+    NOT?: app_settingsScalarWhereWithAggregatesInput | app_settingsScalarWhereWithAggregatesInput[]
+    id?: StringWithAggregatesFilter<"app_settings"> | string
+    facilityName?: StringWithAggregatesFilter<"app_settings"> | string
+    facilityShortName?: StringWithAggregatesFilter<"app_settings"> | string
+    facilityCode?: StringWithAggregatesFilter<"app_settings"> | string
+    facilityAddress?: StringNullableWithAggregatesFilter<"app_settings"> | string | null
+    facilityCity?: StringNullableWithAggregatesFilter<"app_settings"> | string | null
+    facilityState?: StringNullableWithAggregatesFilter<"app_settings"> | string | null
+    facilityCountry?: StringWithAggregatesFilter<"app_settings"> | string
+    primaryPhone?: StringNullableWithAggregatesFilter<"app_settings"> | string | null
+    secondaryPhone?: StringNullableWithAggregatesFilter<"app_settings"> | string | null
+    emergencyPhone?: StringNullableWithAggregatesFilter<"app_settings"> | string | null
+    emailAddress?: StringNullableWithAggregatesFilter<"app_settings"> | string | null
+    website?: StringNullableWithAggregatesFilter<"app_settings"> | string | null
+    logoUrl?: StringNullableWithAggregatesFilter<"app_settings"> | string | null
+    logoBase64?: StringNullableWithAggregatesFilter<"app_settings"> | string | null
+    primaryColor?: StringWithAggregatesFilter<"app_settings"> | string
+    secondaryColor?: StringWithAggregatesFilter<"app_settings"> | string
+    accentColor?: StringWithAggregatesFilter<"app_settings"> | string
+    openingTime?: StringWithAggregatesFilter<"app_settings"> | string
+    closingTime?: StringWithAggregatesFilter<"app_settings"> | string
+    workingDays?: StringWithAggregatesFilter<"app_settings"> | string
+    timezone?: StringWithAggregatesFilter<"app_settings"> | string
+    currency?: StringWithAggregatesFilter<"app_settings"> | string
+    currencySymbol?: StringWithAggregatesFilter<"app_settings"> | string
+    enableOnlineBooking?: BoolWithAggregatesFilter<"app_settings"> | boolean
+    enableSmsNotifications?: BoolWithAggregatesFilter<"app_settings"> | boolean
+    enableEmailNotifications?: BoolWithAggregatesFilter<"app_settings"> | boolean
+    enableVoiceNotes?: BoolWithAggregatesFilter<"app_settings"> | boolean
+    enableDailyDevotionals?: BoolWithAggregatesFilter<"app_settings"> | boolean
+    welcomeMessage?: StringNullableWithAggregatesFilter<"app_settings"> | string | null
+    headerMessage?: StringNullableWithAggregatesFilter<"app_settings"> | string | null
+    footerMessage?: StringNullableWithAggregatesFilter<"app_settings"> | string | null
+    lastUpdated?: DateTimeNullableWithAggregatesFilter<"app_settings"> | Date | string | null
+    updatedBy?: StringNullableWithAggregatesFilter<"app_settings"> | string | null
+    createdAt?: DateTimeWithAggregatesFilter<"app_settings"> | Date | string
   }
 
   export type usersCreateInput = {
@@ -26675,6 +28394,272 @@ export namespace Prisma {
     timestamp?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
+  export type app_settingsCreateInput = {
+    id: string
+    facilityName?: string
+    facilityShortName?: string
+    facilityCode?: string
+    facilityAddress?: string | null
+    facilityCity?: string | null
+    facilityState?: string | null
+    facilityCountry?: string
+    primaryPhone?: string | null
+    secondaryPhone?: string | null
+    emergencyPhone?: string | null
+    emailAddress?: string | null
+    website?: string | null
+    logoUrl?: string | null
+    logoBase64?: string | null
+    primaryColor?: string
+    secondaryColor?: string
+    accentColor?: string
+    openingTime?: string
+    closingTime?: string
+    workingDays?: string
+    timezone?: string
+    currency?: string
+    currencySymbol?: string
+    enableOnlineBooking?: boolean
+    enableSmsNotifications?: boolean
+    enableEmailNotifications?: boolean
+    enableVoiceNotes?: boolean
+    enableDailyDevotionals?: boolean
+    welcomeMessage?: string | null
+    headerMessage?: string | null
+    footerMessage?: string | null
+    lastUpdated?: Date | string | null
+    updatedBy?: string | null
+    createdAt?: Date | string
+  }
+
+  export type app_settingsUncheckedCreateInput = {
+    id: string
+    facilityName?: string
+    facilityShortName?: string
+    facilityCode?: string
+    facilityAddress?: string | null
+    facilityCity?: string | null
+    facilityState?: string | null
+    facilityCountry?: string
+    primaryPhone?: string | null
+    secondaryPhone?: string | null
+    emergencyPhone?: string | null
+    emailAddress?: string | null
+    website?: string | null
+    logoUrl?: string | null
+    logoBase64?: string | null
+    primaryColor?: string
+    secondaryColor?: string
+    accentColor?: string
+    openingTime?: string
+    closingTime?: string
+    workingDays?: string
+    timezone?: string
+    currency?: string
+    currencySymbol?: string
+    enableOnlineBooking?: boolean
+    enableSmsNotifications?: boolean
+    enableEmailNotifications?: boolean
+    enableVoiceNotes?: boolean
+    enableDailyDevotionals?: boolean
+    welcomeMessage?: string | null
+    headerMessage?: string | null
+    footerMessage?: string | null
+    lastUpdated?: Date | string | null
+    updatedBy?: string | null
+    createdAt?: Date | string
+  }
+
+  export type app_settingsUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    facilityName?: StringFieldUpdateOperationsInput | string
+    facilityShortName?: StringFieldUpdateOperationsInput | string
+    facilityCode?: StringFieldUpdateOperationsInput | string
+    facilityAddress?: NullableStringFieldUpdateOperationsInput | string | null
+    facilityCity?: NullableStringFieldUpdateOperationsInput | string | null
+    facilityState?: NullableStringFieldUpdateOperationsInput | string | null
+    facilityCountry?: StringFieldUpdateOperationsInput | string
+    primaryPhone?: NullableStringFieldUpdateOperationsInput | string | null
+    secondaryPhone?: NullableStringFieldUpdateOperationsInput | string | null
+    emergencyPhone?: NullableStringFieldUpdateOperationsInput | string | null
+    emailAddress?: NullableStringFieldUpdateOperationsInput | string | null
+    website?: NullableStringFieldUpdateOperationsInput | string | null
+    logoUrl?: NullableStringFieldUpdateOperationsInput | string | null
+    logoBase64?: NullableStringFieldUpdateOperationsInput | string | null
+    primaryColor?: StringFieldUpdateOperationsInput | string
+    secondaryColor?: StringFieldUpdateOperationsInput | string
+    accentColor?: StringFieldUpdateOperationsInput | string
+    openingTime?: StringFieldUpdateOperationsInput | string
+    closingTime?: StringFieldUpdateOperationsInput | string
+    workingDays?: StringFieldUpdateOperationsInput | string
+    timezone?: StringFieldUpdateOperationsInput | string
+    currency?: StringFieldUpdateOperationsInput | string
+    currencySymbol?: StringFieldUpdateOperationsInput | string
+    enableOnlineBooking?: BoolFieldUpdateOperationsInput | boolean
+    enableSmsNotifications?: BoolFieldUpdateOperationsInput | boolean
+    enableEmailNotifications?: BoolFieldUpdateOperationsInput | boolean
+    enableVoiceNotes?: BoolFieldUpdateOperationsInput | boolean
+    enableDailyDevotionals?: BoolFieldUpdateOperationsInput | boolean
+    welcomeMessage?: NullableStringFieldUpdateOperationsInput | string | null
+    headerMessage?: NullableStringFieldUpdateOperationsInput | string | null
+    footerMessage?: NullableStringFieldUpdateOperationsInput | string | null
+    lastUpdated?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    updatedBy?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type app_settingsUncheckedUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    facilityName?: StringFieldUpdateOperationsInput | string
+    facilityShortName?: StringFieldUpdateOperationsInput | string
+    facilityCode?: StringFieldUpdateOperationsInput | string
+    facilityAddress?: NullableStringFieldUpdateOperationsInput | string | null
+    facilityCity?: NullableStringFieldUpdateOperationsInput | string | null
+    facilityState?: NullableStringFieldUpdateOperationsInput | string | null
+    facilityCountry?: StringFieldUpdateOperationsInput | string
+    primaryPhone?: NullableStringFieldUpdateOperationsInput | string | null
+    secondaryPhone?: NullableStringFieldUpdateOperationsInput | string | null
+    emergencyPhone?: NullableStringFieldUpdateOperationsInput | string | null
+    emailAddress?: NullableStringFieldUpdateOperationsInput | string | null
+    website?: NullableStringFieldUpdateOperationsInput | string | null
+    logoUrl?: NullableStringFieldUpdateOperationsInput | string | null
+    logoBase64?: NullableStringFieldUpdateOperationsInput | string | null
+    primaryColor?: StringFieldUpdateOperationsInput | string
+    secondaryColor?: StringFieldUpdateOperationsInput | string
+    accentColor?: StringFieldUpdateOperationsInput | string
+    openingTime?: StringFieldUpdateOperationsInput | string
+    closingTime?: StringFieldUpdateOperationsInput | string
+    workingDays?: StringFieldUpdateOperationsInput | string
+    timezone?: StringFieldUpdateOperationsInput | string
+    currency?: StringFieldUpdateOperationsInput | string
+    currencySymbol?: StringFieldUpdateOperationsInput | string
+    enableOnlineBooking?: BoolFieldUpdateOperationsInput | boolean
+    enableSmsNotifications?: BoolFieldUpdateOperationsInput | boolean
+    enableEmailNotifications?: BoolFieldUpdateOperationsInput | boolean
+    enableVoiceNotes?: BoolFieldUpdateOperationsInput | boolean
+    enableDailyDevotionals?: BoolFieldUpdateOperationsInput | boolean
+    welcomeMessage?: NullableStringFieldUpdateOperationsInput | string | null
+    headerMessage?: NullableStringFieldUpdateOperationsInput | string | null
+    footerMessage?: NullableStringFieldUpdateOperationsInput | string | null
+    lastUpdated?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    updatedBy?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type app_settingsCreateManyInput = {
+    id: string
+    facilityName?: string
+    facilityShortName?: string
+    facilityCode?: string
+    facilityAddress?: string | null
+    facilityCity?: string | null
+    facilityState?: string | null
+    facilityCountry?: string
+    primaryPhone?: string | null
+    secondaryPhone?: string | null
+    emergencyPhone?: string | null
+    emailAddress?: string | null
+    website?: string | null
+    logoUrl?: string | null
+    logoBase64?: string | null
+    primaryColor?: string
+    secondaryColor?: string
+    accentColor?: string
+    openingTime?: string
+    closingTime?: string
+    workingDays?: string
+    timezone?: string
+    currency?: string
+    currencySymbol?: string
+    enableOnlineBooking?: boolean
+    enableSmsNotifications?: boolean
+    enableEmailNotifications?: boolean
+    enableVoiceNotes?: boolean
+    enableDailyDevotionals?: boolean
+    welcomeMessage?: string | null
+    headerMessage?: string | null
+    footerMessage?: string | null
+    lastUpdated?: Date | string | null
+    updatedBy?: string | null
+    createdAt?: Date | string
+  }
+
+  export type app_settingsUpdateManyMutationInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    facilityName?: StringFieldUpdateOperationsInput | string
+    facilityShortName?: StringFieldUpdateOperationsInput | string
+    facilityCode?: StringFieldUpdateOperationsInput | string
+    facilityAddress?: NullableStringFieldUpdateOperationsInput | string | null
+    facilityCity?: NullableStringFieldUpdateOperationsInput | string | null
+    facilityState?: NullableStringFieldUpdateOperationsInput | string | null
+    facilityCountry?: StringFieldUpdateOperationsInput | string
+    primaryPhone?: NullableStringFieldUpdateOperationsInput | string | null
+    secondaryPhone?: NullableStringFieldUpdateOperationsInput | string | null
+    emergencyPhone?: NullableStringFieldUpdateOperationsInput | string | null
+    emailAddress?: NullableStringFieldUpdateOperationsInput | string | null
+    website?: NullableStringFieldUpdateOperationsInput | string | null
+    logoUrl?: NullableStringFieldUpdateOperationsInput | string | null
+    logoBase64?: NullableStringFieldUpdateOperationsInput | string | null
+    primaryColor?: StringFieldUpdateOperationsInput | string
+    secondaryColor?: StringFieldUpdateOperationsInput | string
+    accentColor?: StringFieldUpdateOperationsInput | string
+    openingTime?: StringFieldUpdateOperationsInput | string
+    closingTime?: StringFieldUpdateOperationsInput | string
+    workingDays?: StringFieldUpdateOperationsInput | string
+    timezone?: StringFieldUpdateOperationsInput | string
+    currency?: StringFieldUpdateOperationsInput | string
+    currencySymbol?: StringFieldUpdateOperationsInput | string
+    enableOnlineBooking?: BoolFieldUpdateOperationsInput | boolean
+    enableSmsNotifications?: BoolFieldUpdateOperationsInput | boolean
+    enableEmailNotifications?: BoolFieldUpdateOperationsInput | boolean
+    enableVoiceNotes?: BoolFieldUpdateOperationsInput | boolean
+    enableDailyDevotionals?: BoolFieldUpdateOperationsInput | boolean
+    welcomeMessage?: NullableStringFieldUpdateOperationsInput | string | null
+    headerMessage?: NullableStringFieldUpdateOperationsInput | string | null
+    footerMessage?: NullableStringFieldUpdateOperationsInput | string | null
+    lastUpdated?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    updatedBy?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type app_settingsUncheckedUpdateManyInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    facilityName?: StringFieldUpdateOperationsInput | string
+    facilityShortName?: StringFieldUpdateOperationsInput | string
+    facilityCode?: StringFieldUpdateOperationsInput | string
+    facilityAddress?: NullableStringFieldUpdateOperationsInput | string | null
+    facilityCity?: NullableStringFieldUpdateOperationsInput | string | null
+    facilityState?: NullableStringFieldUpdateOperationsInput | string | null
+    facilityCountry?: StringFieldUpdateOperationsInput | string
+    primaryPhone?: NullableStringFieldUpdateOperationsInput | string | null
+    secondaryPhone?: NullableStringFieldUpdateOperationsInput | string | null
+    emergencyPhone?: NullableStringFieldUpdateOperationsInput | string | null
+    emailAddress?: NullableStringFieldUpdateOperationsInput | string | null
+    website?: NullableStringFieldUpdateOperationsInput | string | null
+    logoUrl?: NullableStringFieldUpdateOperationsInput | string | null
+    logoBase64?: NullableStringFieldUpdateOperationsInput | string | null
+    primaryColor?: StringFieldUpdateOperationsInput | string
+    secondaryColor?: StringFieldUpdateOperationsInput | string
+    accentColor?: StringFieldUpdateOperationsInput | string
+    openingTime?: StringFieldUpdateOperationsInput | string
+    closingTime?: StringFieldUpdateOperationsInput | string
+    workingDays?: StringFieldUpdateOperationsInput | string
+    timezone?: StringFieldUpdateOperationsInput | string
+    currency?: StringFieldUpdateOperationsInput | string
+    currencySymbol?: StringFieldUpdateOperationsInput | string
+    enableOnlineBooking?: BoolFieldUpdateOperationsInput | boolean
+    enableSmsNotifications?: BoolFieldUpdateOperationsInput | boolean
+    enableEmailNotifications?: BoolFieldUpdateOperationsInput | boolean
+    enableVoiceNotes?: BoolFieldUpdateOperationsInput | boolean
+    enableDailyDevotionals?: BoolFieldUpdateOperationsInput | boolean
+    welcomeMessage?: NullableStringFieldUpdateOperationsInput | string | null
+    headerMessage?: NullableStringFieldUpdateOperationsInput | string | null
+    footerMessage?: NullableStringFieldUpdateOperationsInput | string | null
+    lastUpdated?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    updatedBy?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
   export type StringFilter<$PrismaModel = never> = {
     equals?: string | StringFieldRefInput<$PrismaModel>
     in?: string[] | ListStringFieldRefInput<$PrismaModel>
@@ -27836,6 +29821,120 @@ export namespace Prisma {
     action?: SortOrder
     description?: SortOrder
     timestamp?: SortOrder
+  }
+
+  export type app_settingsCountOrderByAggregateInput = {
+    id?: SortOrder
+    facilityName?: SortOrder
+    facilityShortName?: SortOrder
+    facilityCode?: SortOrder
+    facilityAddress?: SortOrder
+    facilityCity?: SortOrder
+    facilityState?: SortOrder
+    facilityCountry?: SortOrder
+    primaryPhone?: SortOrder
+    secondaryPhone?: SortOrder
+    emergencyPhone?: SortOrder
+    emailAddress?: SortOrder
+    website?: SortOrder
+    logoUrl?: SortOrder
+    logoBase64?: SortOrder
+    primaryColor?: SortOrder
+    secondaryColor?: SortOrder
+    accentColor?: SortOrder
+    openingTime?: SortOrder
+    closingTime?: SortOrder
+    workingDays?: SortOrder
+    timezone?: SortOrder
+    currency?: SortOrder
+    currencySymbol?: SortOrder
+    enableOnlineBooking?: SortOrder
+    enableSmsNotifications?: SortOrder
+    enableEmailNotifications?: SortOrder
+    enableVoiceNotes?: SortOrder
+    enableDailyDevotionals?: SortOrder
+    welcomeMessage?: SortOrder
+    headerMessage?: SortOrder
+    footerMessage?: SortOrder
+    lastUpdated?: SortOrder
+    updatedBy?: SortOrder
+    createdAt?: SortOrder
+  }
+
+  export type app_settingsMaxOrderByAggregateInput = {
+    id?: SortOrder
+    facilityName?: SortOrder
+    facilityShortName?: SortOrder
+    facilityCode?: SortOrder
+    facilityAddress?: SortOrder
+    facilityCity?: SortOrder
+    facilityState?: SortOrder
+    facilityCountry?: SortOrder
+    primaryPhone?: SortOrder
+    secondaryPhone?: SortOrder
+    emergencyPhone?: SortOrder
+    emailAddress?: SortOrder
+    website?: SortOrder
+    logoUrl?: SortOrder
+    logoBase64?: SortOrder
+    primaryColor?: SortOrder
+    secondaryColor?: SortOrder
+    accentColor?: SortOrder
+    openingTime?: SortOrder
+    closingTime?: SortOrder
+    workingDays?: SortOrder
+    timezone?: SortOrder
+    currency?: SortOrder
+    currencySymbol?: SortOrder
+    enableOnlineBooking?: SortOrder
+    enableSmsNotifications?: SortOrder
+    enableEmailNotifications?: SortOrder
+    enableVoiceNotes?: SortOrder
+    enableDailyDevotionals?: SortOrder
+    welcomeMessage?: SortOrder
+    headerMessage?: SortOrder
+    footerMessage?: SortOrder
+    lastUpdated?: SortOrder
+    updatedBy?: SortOrder
+    createdAt?: SortOrder
+  }
+
+  export type app_settingsMinOrderByAggregateInput = {
+    id?: SortOrder
+    facilityName?: SortOrder
+    facilityShortName?: SortOrder
+    facilityCode?: SortOrder
+    facilityAddress?: SortOrder
+    facilityCity?: SortOrder
+    facilityState?: SortOrder
+    facilityCountry?: SortOrder
+    primaryPhone?: SortOrder
+    secondaryPhone?: SortOrder
+    emergencyPhone?: SortOrder
+    emailAddress?: SortOrder
+    website?: SortOrder
+    logoUrl?: SortOrder
+    logoBase64?: SortOrder
+    primaryColor?: SortOrder
+    secondaryColor?: SortOrder
+    accentColor?: SortOrder
+    openingTime?: SortOrder
+    closingTime?: SortOrder
+    workingDays?: SortOrder
+    timezone?: SortOrder
+    currency?: SortOrder
+    currencySymbol?: SortOrder
+    enableOnlineBooking?: SortOrder
+    enableSmsNotifications?: SortOrder
+    enableEmailNotifications?: SortOrder
+    enableVoiceNotes?: SortOrder
+    enableDailyDevotionals?: SortOrder
+    welcomeMessage?: SortOrder
+    headerMessage?: SortOrder
+    footerMessage?: SortOrder
+    lastUpdated?: SortOrder
+    updatedBy?: SortOrder
+    createdAt?: SortOrder
   }
 
   export type StringFieldUpdateOperationsInput = {

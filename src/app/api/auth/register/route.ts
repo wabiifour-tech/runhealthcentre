@@ -88,7 +88,7 @@ export async function POST(request: NextRequest) {
     console.log('[Register] Database connected successfully')
 
     // Get Prisma client
-    const prisma = getPrisma()
+    const prisma = await getPrisma()
     
     if (!prisma) {
       console.error('[Register] Failed to get Prisma client')

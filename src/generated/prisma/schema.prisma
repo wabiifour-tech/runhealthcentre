@@ -320,3 +320,56 @@ model audit_logs {
   metadata    Json?
   timestamp   DateTime @default(now())
 }
+
+// App settings model
+model app_settings {
+  id String @id
+
+  // Facility Information
+  facilityName      String  @default("RUN Health Centre")
+  facilityShortName String  @default("RUHC")
+  facilityCode      String  @default("RUHC-2026")
+  facilityAddress   String?
+  facilityCity      String?
+  facilityState     String?
+  facilityCountry   String  @default("Nigeria")
+
+  // Contact Information
+  primaryPhone   String?
+  secondaryPhone String?
+  emergencyPhone String?
+  emailAddress   String?
+  website        String?
+
+  // Branding
+  logoUrl        String?
+  logoBase64     String?
+  primaryColor   String  @default("#1e40af")
+  secondaryColor String  @default("#3b82f6")
+  accentColor    String  @default("#10b981")
+
+  // Operational Settings
+  openingTime    String @default("08:00")
+  closingTime    String @default("18:00")
+  workingDays    String @default("Monday,Friday")
+  timezone       String @default("Africa/Lagos")
+  currency       String @default("NGN")
+  currencySymbol String @default("₦")
+
+  // Feature Flags
+  enableOnlineBooking      Boolean @default(false)
+  enableSmsNotifications   Boolean @default(false)
+  enableEmailNotifications Boolean @default(false)
+  enableVoiceNotes         Boolean @default(true)
+  enableDailyDevotionals   Boolean @default(true)
+
+  // Custom Messages
+  welcomeMessage String?
+  headerMessage  String?
+  footerMessage  String?
+
+  // System
+  lastUpdated DateTime?
+  updatedBy   String?
+  createdAt   DateTime  @default(now())
+}

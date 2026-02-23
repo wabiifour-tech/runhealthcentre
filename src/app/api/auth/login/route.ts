@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
     if (dbTest.success) {
       console.log('[Login] Database connected:', dbTest.details)
       
-      const prisma = getPrisma()
+      const prisma = await getPrisma()
       
       if (prisma) {
         try {
@@ -163,7 +163,7 @@ export async function POST(request: NextRequest) {
 // Get all users (for admin)
 export async function GET() {
   try {
-    const prisma = getPrisma()
+    const prisma = await getPrisma()
     
     if (!prisma) {
       return NextResponse.json({ 

@@ -46,14 +46,14 @@ export async function GET() {
     const p = prisma as any
     
     try {
-      let settings = await p.appSetting.findUnique({
+      let settings = await p.app_settings.findUnique({
         where: { id: 'default' }
       })
 
       // Create default settings if not exists
       if (!settings) {
         console.log('Creating default settings in database')
-        settings = await p.appSetting.create({
+        settings = await p.app_settings.create({
           data: defaultSettings
         })
       }
@@ -126,13 +126,13 @@ export async function PUT(request: NextRequest) {
 
     try {
       // Ensure settings record exists
-      let settings = await p.appSetting.findUnique({
+      let settings = await p.app_settings.findUnique({
         where: { id: 'default' }
       })
 
       if (!settings) {
         console.log('Creating settings record before update')
-        settings = await p.appSetting.create({
+        settings = await p.app_settings.create({
           data: {
             ...defaultSettings,
             facilityName: newSettings.facilityName || 'RUN Health Centre',
@@ -146,7 +146,7 @@ export async function PUT(request: NextRequest) {
 
       // Update settings
       console.log('Updating settings in database')
-      const updatedSettings = await p.appSetting.update({
+      const updatedSettings = await p.app_settings.update({
         where: { id: 'default' },
         data: {
           // Facility Information
