@@ -25,23 +25,30 @@ async function createPrismaClient(): Promise<any | null> {
     console.log('[DB] 🔄 Creating Prisma client with Neon adapter...')
     
     // Dynamic imports for serverless compatibility
-    const { Pool } = await import('@neondatabase/serverless')
+    const { neonConfig } = await import('@neondatabase/serverless')
     const { PrismaNeon } = await import('@prisma/adapter-neon')
     const { PrismaClient } = await import('@/generated/prisma')
+    
+    // Setup WebSocket for Neon (required for serverless)
+    // Only import ws in Node.js environment
+    if (typeof window === 'undefined') {
+      try {
+        const ws = await import('ws')
+        neonConfig.webSocketConstructor = ws.default || ws
+        console.log('[DB] ✅ WebSocket configured for Neon')
+      } catch (wsError) {
+        console.log('[DB] ⚠️ ws package not available, using HTTP')
+      }
+    }
     
     // Extract host for logging (hide credentials)
     const hostMatch = dbUrl.match(/@([^:/]+)/)
     const host = hostMatch ? hostMatch[1] : 'unknown'
     console.log('[DB] 📍 Connecting to host:', host)
 
-    // Create Neon pool
-    const pool = new Pool({ connectionString: dbUrl })
-
-    // Create Prisma client with Neon adapter
-    const adapter = new PrismaNeon(pool)
-    const client = new PrismaClient({ 
-      adapter
-    })
+    // Create Prisma client with Neon adapter using connection string
+    const adapter = new PrismaNeon({ connectionString: dbUrl })
+    const client = new PrismaClient({ adapter })
 
     console.log('[DB] ✅ Prisma client created successfully')
     return client

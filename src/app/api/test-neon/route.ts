@@ -19,7 +19,7 @@ export async function GET() {
     
     // Dynamic imports
     logs.push('Importing @neondatabase/serverless...')
-    const { Pool } = await import('@neondatabase/serverless')
+    const { neonConfig } = await import('@neondatabase/serverless')
     logs.push('Importing @prisma/adapter-neon...')
     const { PrismaNeon } = await import('@prisma/adapter-neon')
     logs.push('Importing @/generated/prisma...')
@@ -34,18 +34,21 @@ export async function GET() {
       })
     }
     
-    // Create pool
-    logs.push('Creating Neon pool...')
-    const pool = new Pool({ connectionString: dbUrl })
+    // Setup WebSocket for Neon
+    logs.push('Setting up WebSocket...')
+    if (typeof window === 'undefined') {
+      try {
+        const ws = await import('ws')
+        neonConfig.webSocketConstructor = ws.default || ws
+        logs.push('WebSocket configured')
+      } catch (wsError: any) {
+        logs.push(`WebSocket setup failed: ${wsError.message}`)
+      }
+    }
     
-    // Test direct query first
-    logs.push('Testing direct query...')
-    const result = await pool.query('SELECT 1 as test')
-    logs.push(`Direct query result: ${JSON.stringify(result.rows)}`)
-    
-    // Create adapter
-    logs.push('Creating PrismaNeon adapter...')
-    const adapter = new PrismaNeon(pool)
+    // Create adapter with connection string
+    logs.push('Creating PrismaNeon adapter with connection string...')
+    const adapter = new PrismaNeon({ connectionString: dbUrl })
     logs.push('Adapter created')
     
     // Create Prisma client
@@ -57,9 +60,6 @@ export async function GET() {
     logs.push('Testing Prisma query...')
     const testResult = await client.$queryRaw`SELECT 1 as test`
     logs.push(`Prisma query result: ${JSON.stringify(testResult)}`)
-    
-    // Close pool
-    await pool.end()
     
     return NextResponse.json({ 
       success: true, 
