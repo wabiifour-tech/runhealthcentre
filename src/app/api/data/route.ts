@@ -668,6 +668,18 @@ export async function DELETE(request: NextRequest) {
         case 'voiceNote':
           await p.voice_notes.delete({ where: { id } })
           break
+        case 'medicalCertificate':
+          await p.medical_certificates.delete({ where: { id } })
+          break
+        case 'referralLetter':
+          await p.referral_letters.delete({ where: { id } })
+          break
+        case 'dischargeSummary':
+          await p.discharge_summaries.delete({ where: { id } })
+          break
+        case 'labResult':
+          await p.lab_results.delete({ where: { id } })
+          break
         default:
           return NextResponse.json({ success: false, error: 'Invalid data type' }, { status: 400 })
       }
