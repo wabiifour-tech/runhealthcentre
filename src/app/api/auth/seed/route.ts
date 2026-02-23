@@ -44,6 +44,7 @@ export async function POST(request: NextRequest) {
         password: SUPERADMIN_PASSWORD_HASH,
         isFirstLogin: false,
         isActive: true,
+        approvalStatus: 'APPROVED',
         createdAt: now
       },
       {
@@ -56,6 +57,7 @@ export async function POST(request: NextRequest) {
         password: ADMIN_PASSWORD_HASH,
         isFirstLogin: false,
         isActive: true,
+        approvalStatus: 'APPROVED',
         createdAt: now
       }
     ]
@@ -74,7 +76,8 @@ export async function POST(request: NextRequest) {
             where: { email: userData.email },
             data: {
               password: userData.password,
-              isActive: true
+              isActive: true,
+              approvalStatus: 'APPROVED'
             }
           })
           updated++
