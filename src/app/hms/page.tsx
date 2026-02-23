@@ -1750,6 +1750,9 @@ export default function HMSApp() {
   // System users - loaded from database via API
   const [systemUsers, setSystemUsers] = useState<SystemUser[]>([])
   const [prevPendingCount, setPrevPendingCount] = useState<number>(0)
+  const [newPendingUsers, setNewPendingUsers] = useState<SystemUser[]>([])
+  const [showApprovalPopup, setShowApprovalPopup] = useState<boolean>(false)
+  const [currentUserForApproval, setCurrentUserForApproval] = useState<SystemUser | null>(null)
   const [payments, setPayments] = useState<Payment[]>([])
   const [expenses, setExpenses] = useState<Expense[]>([])
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([])
@@ -3083,34 +3086,132 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
     loadDataFromDB()
   }, [])
 
-  // Monitor for new pending user approvals - notify admin
+  // Monitor for new pending user approvals - notify admin with popup
   useEffect(() => {
     if (!user || (user.role !== 'SUPER_ADMIN' && user.role !== 'ADMIN')) return
     
-    const currentPendingCount = systemUsers.filter((u: any) => u.approvalStatus === 'PENDING').length
+    const currentPendingUsers = systemUsers.filter((u: any) => u.approvalStatus === 'PENDING')
+    const currentPendingCount = currentPendingUsers.length
     
     // Only notify if count increased (new pending user)
     if (prevPendingCount > 0 && currentPendingCount > prevPendingCount) {
-      const newCount = currentPendingCount - prevPendingCount
-      showToast(`🔔 ${newCount} new user${newCount > 1 ? 's' : ''} awaiting approval!`, 'warning')
-      // Play notification sound using Web Audio API
-      try {
-        const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)()
-        const oscillator = audioContext.createOscillator()
-        const gainNode = audioContext.createGain()
-        oscillator.connect(gainNode)
-        gainNode.connect(audioContext.destination)
-        oscillator.frequency.value = 800
-        oscillator.type = 'sine'
-        gainNode.gain.setValueAtTime(0.3, audioContext.currentTime)
-        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5)
-        oscillator.start(audioContext.currentTime)
-        oscillator.stop(audioContext.currentTime + 0.5)
-      } catch (e) {}
+      // Find the new users (ones that weren't in the previous count)
+      const newUsers = currentPendingUsers.slice(0, currentPendingCount - prevPendingCount)
+      
+      if (newUsers.length > 0) {
+        // Add to new pending users queue
+        setNewPendingUsers(prev => [...prev, ...newUsers])
+        
+        // Show the first new user in popup
+        if (!showApprovalPopup) {
+          setCurrentUserForApproval(newUsers[0])
+          setShowApprovalPopup(true)
+        }
+        
+        // Play notification sound
+        try {
+          const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)()
+          const oscillator = audioContext.createOscillator()
+          const gainNode = audioContext.createGain()
+          oscillator.connect(gainNode)
+          gainNode.connect(audioContext.destination)
+          oscillator.frequency.value = 800
+          oscillator.type = 'sine'
+          gainNode.gain.setValueAtTime(0.3, audioContext.currentTime)
+          gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5)
+          oscillator.start(audioContext.currentTime)
+          oscillator.stop(audioContext.currentTime + 0.5)
+          
+          // Play a second beep
+          setTimeout(() => {
+            try {
+              const ctx2 = new (window.AudioContext || (window as any).webkitAudioContext)()
+              const osc2 = ctx2.createOscillator()
+              const gain2 = ctx2.createGain()
+              osc2.connect(gain2)
+              gain2.connect(ctx2.destination)
+              osc2.frequency.value = 1000
+              osc2.type = 'sine'
+              gain2.gain.setValueAtTime(0.3, ctx2.currentTime)
+              gain2.gain.exponentialRampToValueAtTime(0.01, ctx2.currentTime + 0.3)
+              osc2.start(ctx2.currentTime)
+              osc2.stop(ctx2.currentTime + 0.3)
+            } catch (e) {}
+          }, 200)
+        } catch (e) {}
+      }
     }
     
     setPrevPendingCount(currentPendingCount)
-  }, [systemUsers, user, prevPendingCount])
+  }, [systemUsers, user, prevPendingCount, showApprovalPopup])
+
+  // Handle approve user from popup
+  const handleApproveUser = async (userToApprove: SystemUser) => {
+    try {
+      const response = await fetch('/api/auth/users', {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ userId: userToApprove.id, action: 'approve' })
+      })
+      const data = await response.json()
+      
+      if (data.success) {
+        showToast(`✅ ${userToApprove.name} approved successfully!`, 'success')
+        setSystemUsers(prev => prev.map(u => 
+          u.id === userToApprove.id ? { ...u, approvalStatus: 'APPROVED' } : u
+        ))
+      } else {
+        showToast(data.error || 'Failed to approve user', 'warning')
+      }
+    } catch (error) {
+      showToast('Failed to approve user', 'warning')
+    }
+    
+    // Move to next user or close popup
+    const remainingUsers = newPendingUsers.filter(u => u.id !== userToApprove.id)
+    setNewPendingUsers(remainingUsers)
+    
+    if (remainingUsers.length > 0) {
+      setCurrentUserForApproval(remainingUsers[0])
+    } else {
+      setShowApprovalPopup(false)
+      setCurrentUserForApproval(null)
+    }
+  }
+
+  // Handle reject user from popup
+  const handleRejectUser = async (userToReject: SystemUser) => {
+    try {
+      const response = await fetch('/api/auth/users', {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ userId: userToReject.id, action: 'reject' })
+      })
+      const data = await response.json()
+      
+      if (data.success) {
+        showToast(`❌ ${userToReject.name}'s registration rejected`, 'warning')
+        setSystemUsers(prev => prev.map(u => 
+          u.id === userToReject.id ? { ...u, approvalStatus: 'REJECTED', isActive: false } : u
+        ))
+      } else {
+        showToast(data.error || 'Failed to reject user', 'warning')
+      }
+    } catch (error) {
+      showToast('Failed to reject user', 'warning')
+    }
+    
+    // Move to next user or close popup
+    const remainingUsers = newPendingUsers.filter(u => u.id !== userToReject.id)
+    setNewPendingUsers(remainingUsers)
+    
+    if (remainingUsers.length > 0) {
+      setCurrentUserForApproval(remainingUsers[0])
+    } else {
+      setShowApprovalPopup(false)
+      setCurrentUserForApproval(null)
+    }
+  }
 
   // Save patient to database
   const savePatientToDB = async (patient: Patient) => {
@@ -18344,6 +18445,107 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
           </div>
         ))}
       </div>
+
+      {/* New User Approval Popup Modal */}
+      {showApprovalPopup && currentUserForApproval && (
+        <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/50 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4 overflow-hidden animate-scale-in">
+            {/* Header */}
+            <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-4">
+              <div className="flex items-center gap-3">
+                <div className="bg-white/20 rounded-full p-2">
+                  <UserPlus className="h-6 w-6 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-white">New Registration Request</h3>
+                  <p className="text-blue-100 text-sm">A new user wants to join the system</p>
+                </div>
+              </div>
+            </div>
+            
+            {/* User Details */}
+            <div className="p-6">
+              <div className="bg-gray-50 rounded-xl p-4 mb-4">
+                <div className="flex items-center gap-4 mb-4">
+                  <div className="bg-blue-100 rounded-full p-3">
+                    <User className="h-8 w-8 text-blue-600" />
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-lg text-gray-900">{currentUserForApproval.name}</h4>
+                    <p className="text-gray-500 text-sm">{currentUserForApproval.email}</p>
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div className="bg-white rounded-lg p-3 border">
+                    <p className="text-gray-500 text-xs mb-1">Role</p>
+                    <Badge className="bg-purple-100 text-purple-700 hover:bg-purple-100">
+                      {currentUserForApproval.role}
+                    </Badge>
+                  </div>
+                  <div className="bg-white rounded-lg p-3 border">
+                    <p className="text-gray-500 text-xs mb-1">Department</p>
+                    <p className="font-medium">{currentUserForApproval.department || 'Not specified'}</p>
+                  </div>
+                  {(currentUserForApproval as any).phone && (
+                    <div className="bg-white rounded-lg p-3 border col-span-2">
+                      <p className="text-gray-500 text-xs mb-1">Phone</p>
+                      <p className="font-medium">{(currentUserForApproval as any).phone}</p>
+                    </div>
+                  )}
+                  {(currentUserForApproval as any).createdAt && (
+                    <div className="bg-white rounded-lg p-3 border col-span-2">
+                      <p className="text-gray-500 text-xs mb-1">Registered</p>
+                      <p className="font-medium">{formatDateTime((currentUserForApproval as any).createdAt)}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+              
+              {/* Queue indicator */}
+              {newPendingUsers.length > 1 && (
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg px-3 py-2 mb-4 flex items-center gap-2">
+                  <Clock className="h-4 w-4 text-yellow-600" />
+                  <p className="text-sm text-yellow-700">
+                    <span className="font-semibold">{newPendingUsers.length - 1}</span> more request(s) in queue
+                  </p>
+                </div>
+              )}
+              
+              {/* Action Buttons */}
+              <div className="flex gap-3">
+                <Button
+                  className="flex-1 bg-green-600 hover:bg-green-700 text-white h-12 text-base font-semibold"
+                  onClick={() => handleApproveUser(currentUserForApproval)}
+                >
+                  <CheckCircle className="h-5 w-5 mr-2" />
+                  Approve
+                </Button>
+                <Button
+                  variant="destructive"
+                  className="flex-1 h-12 text-base font-semibold"
+                  onClick={() => handleRejectUser(currentUserForApproval)}
+                >
+                  <XCircle className="h-5 w-5 mr-2" />
+                  Reject
+                </Button>
+              </div>
+              
+              {/* Later button */}
+              <Button
+                variant="ghost"
+                className="w-full mt-3 text-gray-500 hover:text-gray-700"
+                onClick={() => {
+                  setShowApprovalPopup(false)
+                  setCurrentUserForApproval(null)
+                }}
+              >
+                Review Later
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
     </>
