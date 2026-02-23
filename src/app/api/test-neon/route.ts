@@ -50,12 +50,7 @@ export async function GET() {
     
     // Create Prisma client
     logs.push('Creating PrismaClient...')
-    const client = new PrismaClient({ 
-      adapter,
-      log: [
-        { level: 'error', emit: 'console' },
-      ]
-    })
+    const client = new PrismaClient({ adapter })
     logs.push('PrismaClient created')
     
     // Test query

@@ -40,10 +40,7 @@ async function createPrismaClient(): Promise<any | null> {
     // Create Prisma client with Neon adapter
     const adapter = new PrismaNeon(pool)
     const client = new PrismaClient({ 
-      adapter,
-      log: [
-        { level: 'error', emit: 'console' },
-      ]
+      adapter
     })
 
     console.log('[DB] ✅ Prisma client created successfully')
