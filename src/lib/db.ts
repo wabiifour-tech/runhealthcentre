@@ -171,3 +171,4 @@ export const prisma = new Proxy({} as PrismaClient, {
 })
 
 export default prisma
+// Force rebuild Mon Feb 23 21:51:27 UTC 2026
