@@ -5503,10 +5503,10 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
       }
       return c
     }))
-    
+
     // Update consultation in database
     await updateInDB('consultation', consultationForm.consultationId, updatedConsultationData)
-    
+
     // Add file transfer notification
     const patient = patients.find(p => p.id === consultationForm.patientId)
     const patientName = patient ? getFullName(patient.firstName, patient.lastName, patient.middleName) : 'Unknown Patient'
@@ -5519,7 +5519,7 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
         default: return dest
       }
     })
-    
+
     addFileTransferNotification(
       'sent_back',
       'Doctor',
@@ -5529,10 +5529,20 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
       consultationForm.consultationId,
       consultationForm.referralNotes
     )
-    
+
+    // Broadcast real-time update to all clients
+    fetch('/api/realtime', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        event: 'consultation_updated',
+        data: { id: consultationForm.consultationId, status: 'sent_back', patientName }
+      })
+    })
+
     setShowConsultationDialog(false)
     showToast('Consultation completed and file sent!', 'success')
-    
+
     // Dispatch real-time event
     window.dispatchEvent(new CustomEvent('consultationCompleted', {
       detail: {
@@ -19603,13 +19613,20 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                 }
                 setLabResults([newResult, ...labResults])
                 saveLabResultToDB(newResult)
-                setLabRequests(labRequests.map(l => 
-                  l.id === labResultForm.labRequestId 
+                setLabRequests(labRequests.map(l =>
+                  l.id === labResultForm.labRequestId
                     ? { ...l, status: 'completed', results: labResultForm.result, resultsEnteredBy: labResultForm.initials }
                     : l
                 ))
                 updateInDB('labRequest', labResultForm.labRequestId, { status: 'completed', results: labResultForm.result, resultsEnteredBy: labResultForm.initials })
+                // Broadcast real-time update
+                fetch('/api/realtime', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ event: 'labResult_created', data: newResult })
+                })
                 setShowLabResultDialog(false)
+                showToast('Lab results saved successfully!', 'success')
               }}
               className="bg-green-600 hover:bg-green-700"
             >
@@ -20300,7 +20317,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowDispenseDialog(false)}>Cancel</Button>
-            <Button 
+            <Button
               onClick={() => {
                 if (!dispenseForm.patientId || !dispenseForm.drugId || !dispenseForm.initials) {
                   alert('Please fill all required fields')
@@ -20324,14 +20341,21 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                   notes: dispenseForm.notes
                 }
                 setDispensedDrugs([newDispensed, ...dispensedDrugs])
-                setDrugs(drugs.map(d => 
-                  d.id === dispenseForm.drugId 
+                setDrugs(drugs.map(d =>
+                  d.id === dispenseForm.drugId
                     ? { ...d, quantityInStock: d.quantityInStock - dispenseForm.quantity }
                     : d
                 ))
                 // Update drug stock in database
                 updateInDB('drug', dispenseForm.drugId, { quantityInStock: (drug?.quantityInStock || 0) - dispenseForm.quantity })
+                // Broadcast real-time update
+                fetch('/api/realtime', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ event: 'prescription_created', data: newDispensed })
+                })
                 setShowDispenseDialog(false)
+                showToast(`Dispensed ${dispenseForm.quantity} ${drug?.name} to ${patient?.firstName} ${patient?.lastName}`, 'success')
               }}
               className="bg-purple-600 hover:bg-purple-700"
             >
