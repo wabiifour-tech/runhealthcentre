@@ -2030,7 +2030,16 @@ export default function HMSApp() {
   const [unreadMessageCount, setUnreadMessageCount] = useState<number>(0)
   const [showMessageDialog, setShowMessageDialog] = useState<boolean>(false)
   const [selectedMessage, setSelectedMessage] = useState<InternalMessage | null>(null)
-  const [messageForm, setMessageForm] = useState({ recipientId: '', recipientRole: '', subject: '', content: '', priority: 'normal' as 'normal' | 'urgent' | 'critical' })
+  const [messageForm, setMessageForm] = useState({ 
+    recipientId: '', 
+    recipientName: '',
+    recipientRole: '', 
+    subject: '', 
+    content: '', 
+    message: '',
+    priority: 'normal' as 'normal' | 'urgent' | 'critical',
+    isBroadcast: false 
+  })
   
   // Audit Logging
   const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([])
@@ -2932,7 +2941,7 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
   const [appointmentForm, setAppointmentForm] = useState({ patientId: '', doctorId: '', appointmentDate: '', startTime: '', type: 'General Consultation', reason: '', initials: '' })
   const [rosterForm, setRosterForm] = useState({ staffId: '', staffName: '', staffRole: 'NURSE' as UserRole, date: '', shift: 'morning' as 'morning' | 'afternoon' | 'night', department: 'General', notes: '' })
   const [announcementForm, setAnnouncementForm] = useState({ title: '', content: '', type: 'general' as 'general' | 'birthday' | 'urgent' | 'event' })
-  const [voiceNoteForm, setVoiceNoteForm] = useState({ recipientRole: 'DOCTOR' as UserRole, patientId: '', transcription: '', initials: '' })
+  const [voiceNoteForm, setVoiceNoteForm] = useState({ recipientRole: 'DOCTOR' as UserRole, recipientId: '', recipientName: '', patientId: '', transcription: '', initials: '' })
   const [vitalsForm, setVitalsForm] = useState({ patientId: '', bloodPressureSystolic: '', bloodPressureDiastolic: '', temperature: '', pulse: '', respiratoryRate: '', weight: '', height: '', oxygenSaturation: '', painScore: '', notes: '', initials: '' })
   const [medicationForm, setMedicationForm] = useState({ patientId: '', drugName: '', dosage: '', route: 'Oral', notes: '', initials: '' })
   const [passwordForm, setPasswordForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' })
@@ -2945,7 +2954,7 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
   const [passwordChangeRequired, setPasswordChangeRequired] = useState(false)
   const [sessionTimeoutMinutes, setSessionTimeoutMinutes] = useState(30)
   const [loginRateLimited, setLoginRateLimited] = useState<{ isBlocked: boolean; message: string; blockedUntil?: Date } | null>(null)
-  const [sendToDoctorForm, setSendToDoctorForm] = useState({ patientId: '', doctorId: '3', chiefComplaint: '', signsAndSymptoms: '', notes: '', initials: '', patientType: 'outpatient' as 'outpatient' | 'inpatient', wardUnit: '' as '' | 'opd' | 'mmw' | 'fmw' | 'wdu' })
+  const [sendToDoctorForm, setSendToDoctorForm] = useState({ patientId: '', doctorId: '', doctorName: '', chiefComplaint: '', signsAndSymptoms: '', notes: '', initials: '', patientType: 'outpatient' as 'outpatient' | 'inpatient', wardUnit: '' as '' | 'opd' | 'mmw' | 'fmw' | 'wdu' })
   const [sendPatientForm, setSendPatientForm] = useState({ 
     patientId: '', 
     destination: '' as 'nurse' | 'doctor' | 'laboratory' | 'pharmacy' | 'records',
@@ -4819,17 +4828,18 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
   // Nurse sends patient file to doctor
   const sendToDoctor = async () => {
     if (!user) {
-      alert('You must be logged in to perform this action')
+      showToast('You must be logged in to perform this action', 'warning')
       return
     }
     const patient = patients.find(p => p.id === sendToDoctorForm.patientId)
     const senderName = getUserDisplayName(user)
+    const doctorName = sendToDoctorForm.doctorId === 'any' ? 'Any Available Doctor' : `Dr. ${sendToDoctorForm.doctorName}`
     const newConsultation: Consultation = {
       id: `c${Date.now()}`,
       patientId: sendToDoctorForm.patientId,
       patient,
-      doctorId: sendToDoctorForm.doctorId,
-      doctorName: 'Doctor',
+      doctorId: sendToDoctorForm.doctorId === 'any' ? '' : sendToDoctorForm.doctorId,
+      doctorName: doctorName,
       chiefComplaint: sendToDoctorForm.chiefComplaint,
       signsAndSymptoms: sendToDoctorForm.signsAndSymptoms,
       sentByNurseInitials: senderName,
@@ -4840,12 +4850,12 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
     }
     setConsultations([newConsultation, ...consultations])
     setShowSendToDoctorDialog(false)
-    setSendToDoctorForm({ patientId: '', doctorId: '3', chiefComplaint: '', signsAndSymptoms: '', notes: '', initials: '', patientType: 'outpatient', wardUnit: '' })
+    setSendToDoctorForm({ patientId: '', doctorId: '', doctorName: '', chiefComplaint: '', signsAndSymptoms: '', notes: '', initials: '', patientType: 'outpatient', wardUnit: '' })
     
     // Save to database
     const result = await saveConsultationToDB(newConsultation)
     if (result.success) {
-      showToast(`Patient file sent to doctor successfully!`, 'success')
+      showToast(`Patient file sent to ${doctorName} successfully!`, 'success')
     } else {
       showToast('Consultation created locally but failed to save to database.', 'warning')
     }
@@ -4856,7 +4866,8 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
       detail: {
         patientName: patientForNotif ? getFullName(patientForNotif.firstName, patientForNotif.lastName) : 'Patient',
         fromRole: user?.role,
-        toRole: 'DOCTOR'
+        toRole: 'DOCTOR',
+        toStaff: doctorName
       }
     }))
   }
@@ -5728,7 +5739,7 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
   const sendVoiceNote = async () => {
     if (!audioBlob) return
     if (!user) {
-      alert('You must be logged in to send voice notes')
+      showToast('You must be logged in to send voice notes', 'warning')
       return
     }
     
@@ -5739,6 +5750,7 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
       senderRole: user.role,
       senderInitials: getUserDisplayName(user),
       recipientRole: voiceNoteForm.recipientRole,
+      recipientId: voiceNoteForm.recipientId !== 'all' ? voiceNoteForm.recipientId : undefined,
       patientId: voiceNoteForm.patientId || undefined,
       patientName: voiceNoteForm.patientId ? patients.find(p => p.id === voiceNoteForm.patientId)?.firstName + ' ' + patients.find(p => p.id === voiceNoteForm.patientId)?.lastName : undefined,
       audioUrl: URL.createObjectURL(audioBlob),
@@ -5750,12 +5762,13 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
     }
     
     setVoiceNotes([newVoiceNote, ...voiceNotes])
+    showToast(`Voice note sent to ${voiceNoteForm.recipientName || getRoleDisplayName(voiceNoteForm.recipientRole) + 's'}`, 'success')
     setShowVoiceNoteDialog(false)
     setAudioBlob(null)
     setAudioBase64('')
     setTranscriptionError('')
     setRecordingTime(0)
-    setVoiceNoteForm({ recipientRole: 'DOCTOR', patientId: '', transcription: '', initials: '' })
+    setVoiceNoteForm({ recipientRole: 'DOCTOR', recipientId: '', recipientName: '', patientId: '', transcription: '', initials: '' })
     
     // Save to database
     await saveVoiceNoteToDB(newVoiceNote)
@@ -15442,6 +15455,64 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                 </CardContent>
               </Card>
 
+              {/* Role Permissions */}
+              <Card className="shadow-md border-amber-200">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-amber-700">
+                    <ShieldCheck className="h-5 w-5" />
+                    Role Permissions
+                  </CardTitle>
+                  <CardDescription>Configure what each role can access and modify</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {['DOCTOR', 'NURSE', 'PHARMACIST', 'LAB_TECHNICIAN', 'MATRON', 'RECORDS_OFFICER'].map(role => (
+                    <div key={role} className="p-4 bg-gray-50 rounded-lg border">
+                      <h4 className="font-medium mb-3 flex items-center gap-2">
+                        <Badge className={getRoleBadgeColor(role as UserRole)}>
+                          {getRoleDisplayName(role as UserRole)}
+                        </Badge>
+                        Permissions
+                      </h4>
+                      <div className="grid grid-cols-3 gap-3 text-sm">
+                        {[
+                          { key: 'patients', label: 'Patient Records' },
+                          { key: 'consultations', label: 'Consultations' },
+                          { key: 'vitals', label: 'Vital Signs' },
+                          { key: 'prescriptions', label: 'Prescriptions' },
+                          { key: 'labRequests', label: 'Lab Requests' },
+                          { key: 'drugs', label: 'Drug Management' },
+                          { key: 'queue', label: 'Queue Management' },
+                          { key: 'admissions', label: 'Admissions' },
+                          { key: 'reports', label: 'Reports' },
+                        ].map(perm => (
+                          <label key={perm.key} className="flex items-center gap-2 cursor-pointer">
+                            <input 
+                              type="checkbox" 
+                              className="w-4 h-4 rounded"
+                              defaultChecked={true}
+                            />
+                            <span>{perm.label}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                  <div className="p-4 bg-amber-50 rounded-lg border border-amber-200 text-sm">
+                    <p className="text-amber-800">
+                      <strong>Note:</strong> Role permissions determine what modules each user type can access. 
+                      SUPER_ADMIN and ADMIN have full access by default.
+                    </p>
+                  </div>
+                  <Button 
+                    onClick={() => saveAppSettings({})}
+                    disabled={settingsLoading}
+                    className="bg-amber-600 hover:bg-amber-700"
+                  >
+                    {settingsLoading ? 'Saving...' : 'Save Permissions'}
+                  </Button>
+                </CardContent>
+              </Card>
+
               {/* Danger Zone */}
               <Card className="shadow-md border-red-200 bg-red-50">
                 <CardHeader>
@@ -16356,31 +16427,89 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
       </Dialog>
 
       <Dialog open={showVoiceNoteDialog} onOpenChange={setShowVoiceNoteDialog}>
-        <DialogContent>
+        <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>Record Voice Note</DialogTitle>
-            <DialogDescription>Send a voice message to another department</DialogDescription>
+            <DialogTitle className="flex items-center gap-2">
+              <Mic className="h-5 w-5 text-red-600" />
+              Record Voice Note
+            </DialogTitle>
+            <DialogDescription>Send a voice message to a specific staff member or department</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label>Send To</Label>
-              <Select value={voiceNoteForm.recipientRole} onValueChange={v => setVoiceNoteForm({ ...voiceNoteForm, recipientRole: v as UserRole })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="DOCTOR">Doctors</SelectItem>
-                  <SelectItem value="NURSE">Nurses</SelectItem>
-                  <SelectItem value="PHARMACIST">Pharmacy</SelectItem>
-                  <SelectItem value="LAB_TECHNICIAN">Laboratory</SelectItem>
-                  <SelectItem value="ADMIN">Administration</SelectItem>
-                </SelectContent>
-              </Select>
+            {/* Recipient Selection */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Send To (Department/Role)</Label>
+                <Select 
+                  value={voiceNoteForm.recipientRole} 
+                  onValueChange={v => setVoiceNoteForm({ ...voiceNoteForm, recipientRole: v as UserRole, recipientId: '', recipientName: '' })}
+                >
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="DOCTOR">Doctors</SelectItem>
+                    <SelectItem value="NURSE">Nurses</SelectItem>
+                    <SelectItem value="PHARMACIST">Pharmacy</SelectItem>
+                    <SelectItem value="LAB_TECHNICIAN">Laboratory</SelectItem>
+                    <SelectItem value="ADMIN">Administration</SelectItem>
+                    <SelectItem value="MATRON">Matron</SelectItem>
+                    <SelectItem value="RECORDS_OFFICER">Records</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              {/* Select Specific Person */}
+              <div className="space-y-2">
+                <Label>Select Specific Person</Label>
+                <Select 
+                  value={voiceNoteForm.recipientId} 
+                  onValueChange={v => {
+                    const selectedUser = systemUsers.find(u => u.id === v)
+                    setVoiceNoteForm({ 
+                      ...voiceNoteForm, 
+                      recipientId: v, 
+                      recipientName: selectedUser ? selectedUser.name : ''
+                    })
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="All (or select specific)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All {getRoleDisplayName(voiceNoteForm.recipientRole)}s</SelectItem>
+                    {systemUsers
+                      .filter(u => u.role === voiceNoteForm.recipientRole && u.isActive)
+                      .map(u => (
+                        <SelectItem key={u.id} value={u.id}>
+                          {getUserDisplayName(u)}
+                        </SelectItem>
+                      ))
+                    }
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
+            
+            {/* Show selected recipient */}
+            {voiceNoteForm.recipientId && voiceNoteForm.recipientId !== 'all' && (
+              <div className="flex items-center gap-2 p-2 bg-green-50 rounded-lg text-sm text-green-700">
+                <UserCheck className="h-4 w-4" />
+                Sending to: <strong>{voiceNoteForm.recipientName}</strong>
+              </div>
+            )}
+            {voiceNoteForm.recipientId === 'all' && (
+              <div className="flex items-center gap-2 p-2 bg-blue-50 rounded-lg text-sm text-blue-700">
+                <Users className="h-4 w-4" />
+                Sending to all: <strong>{getRoleDisplayName(voiceNoteForm.recipientRole)}s</strong>
+                <span className="text-xs">({systemUsers.filter(u => u.role === voiceNoteForm.recipientRole && u.isActive).length} active)</span>
+              </div>
+            )}
+            
             <div className="space-y-2">
               <Label>Related Patient (Optional)</Label>
               <Select value={voiceNoteForm.patientId} onValueChange={v => setVoiceNoteForm({ ...voiceNoteForm, patientId: v })}>
                 <SelectTrigger><SelectValue placeholder="Select patient" /></SelectTrigger>
                 <SelectContent>
-                  {patients.map(p => (
+                  {patients.filter(p => p.isActive).map(p => (
                     <SelectItem key={p.id} value={p.id}>{p.ruhcCode} - {getFullName(p.firstName, p.lastName, p.middleName)}</SelectItem>
                   ))}
                 </SelectContent>
@@ -16746,6 +16875,57 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
               </Select>
             </div>
 
+            {/* Doctor Selection */}
+            <div className="p-4 bg-green-50 rounded-lg border border-green-200">
+              <h4 className="font-medium mb-3 flex items-center gap-2 text-green-800">
+                <Stethoscope className="h-4 w-4" />
+                Select Doctor *
+              </h4>
+              <div className="space-y-2">
+                <Select 
+                  value={sendToDoctorForm.doctorId} 
+                  onValueChange={v => {
+                    const selectedDoctor = systemUsers.find(u => u.id === v)
+                    setSendToDoctorForm({ 
+                      ...sendToDoctorForm, 
+                      doctorId: v, 
+                      doctorName: selectedDoctor ? selectedDoctor.name : ''
+                    })
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a doctor (or leave for any available)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="any">Any Available Doctor</SelectItem>
+                    {systemUsers
+                      .filter(u => u.role === 'DOCTOR' && u.isActive)
+                      .map(u => (
+                        <SelectItem key={u.id} value={u.id}>
+                          <div className="flex items-center gap-2">
+                            <Badge className="bg-green-100 text-green-800 text-xs">Dr.</Badge>
+                            {u.name}
+                          </div>
+                        </SelectItem>
+                      ))
+                    }
+                  </SelectContent>
+                </Select>
+                {sendToDoctorForm.doctorId && sendToDoctorForm.doctorId !== 'any' && (
+                  <div className="flex items-center gap-2 p-2 bg-white rounded-lg text-sm text-green-700 mt-2">
+                    <UserCheck className="h-4 w-4" />
+                    Will be seen by: <strong>Dr. {sendToDoctorForm.doctorName}</strong>
+                  </div>
+                )}
+                {sendToDoctorForm.doctorId === 'any' && (
+                  <div className="flex items-center gap-2 p-2 bg-white rounded-lg text-sm text-blue-700 mt-2">
+                    <Users className="h-4 w-4" />
+                    Will be seen by the next available doctor
+                  </div>
+                )}
+              </div>
+            </div>
+
             {/* Patient Type & Ward Selection */}
             <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
               <h4 className="font-medium mb-3 flex items-center gap-2">
@@ -16927,7 +17107,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
           <DialogFooter>
             <Button variant="outline" onClick={() => {
               setShowSendToDoctorDialog(false)
-              setSendToDoctorForm({ patientId: '', doctorId: '3', chiefComplaint: '', signsAndSymptoms: '', notes: '', initials: '' })
+              setSendToDoctorForm({ patientId: '', doctorId: '', doctorName: '', chiefComplaint: '', signsAndSymptoms: '', notes: '', initials: '', patientType: 'outpatient', wardUnit: '' })
             }}>
               Cancel
             </Button>
@@ -19329,51 +19509,176 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
 
       {/* Message Dialog */}
       <Dialog open={showMessageDialog} onOpenChange={setShowMessageDialog}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>Send Message</DialogTitle></DialogHeader>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Send className="h-5 w-5 text-blue-600" />
+              Send Message
+            </DialogTitle>
+            <DialogDescription>
+              Send a message to a specific staff member, role, or broadcast to all
+            </DialogDescription>
+          </DialogHeader>
           <div className="space-y-4 py-4">
-            <div className="flex items-center gap-2">
-              <input type="checkbox" id="broadcast" checked={messageForm.isBroadcast} onChange={e => setMessageForm({ ...messageForm, isBroadcast: e.target.checked })} />
-              <Label htmlFor="broadcast">Broadcast to all staff</Label>
+            {/* Broadcast Toggle */}
+            <div className="flex items-center gap-2 p-3 bg-blue-50 rounded-lg">
+              <input 
+                type="checkbox" 
+                id="broadcast" 
+                checked={messageForm.isBroadcast} 
+                onChange={e => setMessageForm({ ...messageForm, isBroadcast: e.target.checked, recipientRole: '', recipientId: '', recipientName: '' })} 
+                className="w-5 h-5 rounded"
+              />
+              <div>
+                <Label htmlFor="broadcast" className="font-medium cursor-pointer">Broadcast to all staff</Label>
+                <p className="text-xs text-gray-500">Everyone will receive this message</p>
+              </div>
             </div>
+            
             {!messageForm.isBroadcast && (
-              <div className="space-y-2">
-                <Label>Send To (Role)</Label>
-                <Select value={messageForm.recipientRole} onValueChange={v => setMessageForm({ ...messageForm, recipientRole: v as UserRole })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="DOCTOR">Doctor</SelectItem>
-                    <SelectItem value="NURSE">Nurse</SelectItem>
-                    <SelectItem value="PHARMACIST">Pharmacist</SelectItem>
-                    <SelectItem value="LAB_TECHNICIAN">Lab Technician</SelectItem>
-                    <SelectItem value="ADMIN">Admin</SelectItem>
-                  </SelectContent>
-                </Select>
+              <>
+                {/* Send By Role or Specific Person */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Send To (Role)</Label>
+                    <Select 
+                      value={messageForm.recipientRole} 
+                      onValueChange={v => {
+                        setMessageForm({ ...messageForm, recipientRole: v as UserRole, recipientId: '', recipientName: '' })
+                      }}
+                    >
+                      <SelectTrigger><SelectValue placeholder="Select role" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="DOCTOR">Doctor</SelectItem>
+                        <SelectItem value="NURSE">Nurse</SelectItem>
+                        <SelectItem value="PHARMACIST">Pharmacist</SelectItem>
+                        <SelectItem value="LAB_TECHNICIAN">Lab Technician</SelectItem>
+                        <SelectItem value="ADMIN">Admin</SelectItem>
+                        <SelectItem value="MATRON">Matron</SelectItem>
+                        <SelectItem value="RECORDS_OFFICER">Records Officer</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  {/* Select Specific Person */}
+                  <div className="space-y-2">
+                    <Label>Select Specific Person</Label>
+                    <Select 
+                      value={messageForm.recipientId} 
+                      onValueChange={v => {
+                        const selectedUser = systemUsers.find(u => u.id === v)
+                        setMessageForm({ 
+                          ...messageForm, 
+                          recipientId: v, 
+                          recipientName: selectedUser ? selectedUser.name : ''
+                        })
+                      }}
+                      disabled={!messageForm.recipientRole}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder={messageForm.recipientRole ? "All (or select specific)" : "Select role first"} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All {messageForm.recipientRole ? getRoleDisplayName(messageForm.recipientRole as UserRole) + 's' : ''}</SelectItem>
+                        {systemUsers
+                          .filter(u => u.role === messageForm.recipientRole && u.isActive)
+                          .map(u => (
+                            <SelectItem key={u.id} value={u.id}>
+                              {getUserDisplayName(u)}
+                            </SelectItem>
+                          ))
+                        }
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                
+                {/* Show selected recipients */}
+                {messageForm.recipientId && messageForm.recipientId !== 'all' && (
+                  <div className="flex items-center gap-2 p-2 bg-green-50 rounded-lg text-sm text-green-700">
+                    <UserCheck className="h-4 w-4" />
+                    Sending to: <strong>{messageForm.recipientName}</strong>
+                  </div>
+                )}
+                {messageForm.recipientId === 'all' && messageForm.recipientRole && (
+                  <div className="flex items-center gap-2 p-2 bg-blue-50 rounded-lg text-sm text-blue-700">
+                    <Users className="h-4 w-4" />
+                    Sending to all: <strong>{getRoleDisplayName(messageForm.recipientRole as UserRole)}s</strong>
+                    <span className="text-xs">({systemUsers.filter(u => u.role === messageForm.recipientRole && u.isActive).length} active)</span>
+                  </div>
+                )}
+              </>
+            )}
+            
+            {messageForm.isBroadcast && (
+              <div className="flex items-center gap-2 p-2 bg-purple-50 rounded-lg text-sm text-purple-700">
+                <Users className="h-4 w-4" />
+                Broadcasting to all staff members
               </div>
             )}
+            
+            {/* Priority */}
+            <div className="space-y-2">
+              <Label>Priority</Label>
+              <Select 
+                value={messageForm.priority} 
+                onValueChange={v => setMessageForm({ ...messageForm, priority: v as 'normal' | 'urgent' | 'critical' })}
+              >
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="normal">Normal</SelectItem>
+                  <SelectItem value="urgent">Urgent</SelectItem>
+                  <SelectItem value="critical">Critical</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            {/* Message */}
             <div className="space-y-2">
               <Label>Message *</Label>
-              <Textarea value={messageForm.message} onChange={e => setMessageForm({ ...messageForm, message: e.target.value })} rows={4} />
+              <Textarea 
+                value={messageForm.message} 
+                onChange={e => setMessageForm({ ...messageForm, message: e.target.value })} 
+                rows={4} 
+                placeholder="Type your message here..."
+              />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowMessageDialog(false)}>Cancel</Button>
+            <Button variant="outline" onClick={() => {
+              setShowMessageDialog(false)
+              setMessageForm({ recipientId: '', recipientName: '', recipientRole: '', subject: '', content: '', message: '', priority: 'normal', isBroadcast: false })
+            }}>Cancel</Button>
             <Button onClick={() => {
-              if (!messageForm.message) { alert('Please enter a message'); return }
+              if (!messageForm.message) { 
+                showToast('Please enter a message', 'warning')
+                return 
+              }
+              if (!messageForm.isBroadcast && !messageForm.recipientRole) {
+                showToast('Please select a recipient role', 'warning')
+                return
+              }
+              
               const newMsg: StaffMessage = {
                 id: `msg${Date.now()}`,
                 senderId: user?.id || '',
                 senderName: user?.name || '',
                 senderRole: user?.role || 'NURSE',
                 message: messageForm.message,
-                recipientRole: messageForm.isBroadcast ? undefined : messageForm.recipientRole,
+                recipientId: messageForm.recipientId !== 'all' ? messageForm.recipientId : undefined,
+                recipientRole: messageForm.isBroadcast ? undefined : messageForm.recipientRole as UserRole,
                 isBroadcast: messageForm.isBroadcast,
                 createdAt: new Date().toISOString(),
                 isRead: false
               }
               setStaffMessages([newMsg, ...staffMessages])
+              showToast(messageForm.isBroadcast ? 'Broadcast sent to all staff' : `Message sent to ${messageForm.recipientName || getRoleDisplayName(messageForm.recipientRole as UserRole) + 's'}`, 'success')
               setShowMessageDialog(false)
-            }} className="bg-blue-600 hover:bg-blue-700">Send</Button>
+              setMessageForm({ recipientId: '', recipientName: '', recipientRole: '', subject: '', content: '', message: '', priority: 'normal', isBroadcast: false })
+            }} className="bg-blue-600 hover:bg-blue-700">
+              <Send className="h-4 w-4 mr-2" />
+              Send Message
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
