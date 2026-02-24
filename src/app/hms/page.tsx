@@ -5254,7 +5254,7 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
     setConsultations([newConsultation, ...consultations])
     setShowSendToDoctorDialog(false)
     setSendToDoctorForm({ patientId: '', doctorId: '', doctorName: '', chiefComplaint: '', signsAndSymptoms: '', notes: '', initials: '', patientType: 'outpatient', wardUnit: '' })
-    
+
     // Save to database
     const result = await saveConsultationToDB(newConsultation)
     if (result.success) {
@@ -5262,7 +5262,14 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
     } else {
       showToast('Consultation created locally but failed to save to database.', 'warning')
     }
-    
+
+    // Broadcast real-time update
+    fetch('/api/realtime', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ event: 'consultation_created', data: newConsultation })
+    })
+
     // Dispatch real-time event for other tabs/users
     const patientForNotif = patients.find(p => p.id === sendToDoctorForm.patientId)
     window.dispatchEvent(new CustomEvent('patientFileSent', {
@@ -6426,7 +6433,7 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
     const height = parseFloat(vitalsForm.height) || 0
     const weight = parseFloat(vitalsForm.weight) || 0
     const bmi = height && weight ? (weight / ((height/100) ** 2)).toFixed(1) : undefined
-    
+
     const newVital: VitalSign = {
       id: `v${Date.now()}`,
       patientId: vitalsForm.patientId,
@@ -6448,9 +6455,18 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
     setVitals([newVital, ...vitals])
     setShowVitalsDialog(false)
     setVitalsForm({ patientId: '', bloodPressureSystolic: '', bloodPressureDiastolic: '', temperature: '', pulse: '', respiratoryRate: '', weight: '', height: '', oxygenSaturation: '', painScore: '', notes: '', initials: '' })
-    
+
     // Save to database
     await saveVitalToDB(newVital)
+
+    // Broadcast real-time update
+    fetch('/api/realtime', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ event: 'vital_created', data: newVital })
+    })
+
+    showToast('Vital signs recorded successfully!', 'success')
   }
 
   // Record medication administration
@@ -6460,7 +6476,7 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
       return
     }
     const patient = patients.find(p => p.id === medicationForm.patientId)
-    
+
     const newMedAdmin: MedicationAdministration = {
       id: `ma${Date.now()}`,
       patientId: medicationForm.patientId,
@@ -6475,6 +6491,15 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
     setMedicationAdmins([newMedAdmin, ...medicationAdmins])
     setShowMedicationDialog(false)
     setMedicationForm({ patientId: '', drugName: '', dosage: '', route: 'Oral', notes: '', initials: '' })
+
+    // Broadcast real-time update
+    fetch('/api/realtime', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ event: 'medication_created', data: newMedAdmin })
+    })
+
+    showToast('Medication administration recorded!', 'success')
   }
 
   // Calculator functions
@@ -9902,12 +9927,21 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                                   <p className="text-xs text-gray-400">{formatDateTime(task.scheduledTime)}</p>
                                 </div>
                                 <div className="flex gap-1">
-                                  <Button 
-                                    size="sm" 
+                                  <Button
+                                    size="sm"
                                     className="bg-green-600 hover:bg-green-700"
-                                    onClick={() => setPatientTasks(prev => prev.map(t => 
-                                      t.id === task.id ? { ...t, status: 'completed' as const, completedAt: new Date().toISOString() } : t
-                                    ))}
+                                    onClick={() => {
+                                      setPatientTasks(prev => prev.map(t =>
+                                        t.id === task.id ? { ...t, status: 'completed' as const, completedAt: new Date().toISOString() } : t
+                                      ))
+                                      // Broadcast real-time update
+                                      fetch('/api/realtime', {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({ event: 'task_updated', data: { id: task.id, status: 'completed' } })
+                                      })
+                                      showToast(`Task "${task.taskName}" completed!`, 'success')
+                                    }}
                                   >
                                     Done
                                   </Button>
@@ -9985,19 +10019,33 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                                 <div className="flex gap-1">
                                   {task.status === 'pending' && (
                                     <>
-                                      <Button 
+                                      <Button
                                         size="sm"
                                         className="bg-green-600 hover:bg-green-700"
-                                        onClick={() => setPatientTasks(prev => prev.map(t => 
-                                          t.id === task.id ? { ...t, status: 'completed' as const, completedAt: new Date().toISOString(), completedBy: user?.name } : t
-                                        ))}
+                                        onClick={() => {
+                                          setPatientTasks(prev => prev.map(t =>
+                                            t.id === task.id ? { ...t, status: 'completed' as const, completedAt: new Date().toISOString(), completedBy: user?.name } : t
+                                          ))
+                                          fetch('/api/realtime', {
+                                            method: 'POST',
+                                            headers: { 'Content-Type': 'application/json' },
+                                            body: JSON.stringify({ event: 'task_updated', data: { id: task.id, status: 'completed' } })
+                                          })
+                                        }}
                                       >
                                         <CheckCircle className="h-4 w-4" />
                                       </Button>
-                                      <Button 
+                                      <Button
                                         size="sm"
                                         variant="outline"
-                                        onClick={() => setPatientTasks(prev => prev.filter(t => t.id !== task.id))}
+                                        onClick={() => {
+                                          setPatientTasks(prev => prev.filter(t => t.id !== task.id))
+                                          fetch('/api/realtime', {
+                                            method: 'POST',
+                                            headers: { 'Content-Type': 'application/json' },
+                                            body: JSON.stringify({ event: 'task_deleted', data: { id: task.id } })
+                                          })
+                                        }}
                                       >
                                         <Trash2 className="h-4 w-4" />
                                       </Button>
