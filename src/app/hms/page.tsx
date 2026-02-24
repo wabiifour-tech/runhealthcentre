@@ -1,4 +1,5 @@
 'use client'
+// HMS v2.5.1 - Fixed duplicate state definitions
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { Button } from '@/components/ui/button'
