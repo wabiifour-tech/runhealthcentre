@@ -28,6 +28,11 @@ import {
   initSyncManager, startBackgroundSync, stopBackgroundSync,
   subscribeToSyncStatus, processSyncQueue, type SyncStatus
 } from '@/lib/sync-manager'
+import { logAudit, getAuditLogs, type AuditLogEntry } from '@/lib/audit-logger'
+import { checkDrugInteractions, checkDrugAllergies, type DrugInteraction, type AllergyCheck, getInteractionSeverityColor, getInteractionSeverityIcon } from '@/lib/drug-interactions'
+import { VITAL_TEMPLATES, getVitalTemplate, getAppropriateTemplate, isVitalAbnormal, getVitalAlerts, calculateBMI, calculateMAP, type VitalTemplate } from '@/lib/vital-templates'
+import { sendMessage, getMessagesForUser, getUnreadCount, markAsRead, broadcastAlert, type InternalMessage, QUICK_MESSAGES, createQuickMessage } from '@/lib/messaging'
+import { sendSMS, sendAppointmentReminder, sendQueueCall, sendPrescriptionReady, sendPaymentReceipt, sendWelcomeMessage, formatPhoneNumber } from '@/lib/notifications'
 import { 
   LogOut, Users, Calendar, Stethoscope, Pill, Microscope, Receipt, 
   Shield, Activity, Search, Plus, Eye, Clock, Menu, Home,
@@ -36,7 +41,8 @@ import {
   Heart, Baby, Weight, Syringe, Settings, User, ChevronRight,
   Smartphone, Monitor, AlertTriangle, CheckCircle, Key, Lock, Building2,
   XCircle, BookOpen, BookMarked, Cross, Bookmark, Sparkles, Sun,
-  Timer, LogIn, Phone, Mail, ShieldCheck, Edit2, Cloud, CloudOff, RefreshCw, Wifi, WifiOff
+  Timer, LogIn, Phone, Mail, ShieldCheck, Edit2, Cloud, CloudOff, RefreshCw, Wifi, WifiOff,
+  MessageSquare, AlertCircle, Zap, UserCheck, Fingerprint
 } from 'lucide-react'
 import { 
   PatientVisitsChart, 
@@ -1277,6 +1283,215 @@ const isMobileDevice = () => {
   return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 768
 }
 
+// ============== NEW HELPER FUNCTIONS FOR EFFICIENCY & SECURITY ==============
+
+// Fuzzy search for patients - finds patients by partial name, matric, phone, RUHC code
+const fuzzySearchPatients = (searchTerm: string, patientList: Patient[]): Patient[] => {
+  if (!searchTerm.trim()) return patientList.filter(p => p.isActive)
+  
+  const term = searchTerm.toLowerCase().trim()
+  
+  return patientList.filter(p => {
+    if (!p.isActive) return false
+    
+    // Check exact matches first (highest priority)
+    if (p.ruhcCode?.toLowerCase() === term) return true
+    if (p.matricNumber?.toLowerCase() === term) return true
+    if (p.phone === term) return true
+    
+    // Check partial matches
+    if (p.ruhcCode?.toLowerCase().includes(term)) return true
+    if (p.matricNumber?.toLowerCase().includes(term)) return true
+    if (p.phone?.includes(term)) return true
+    if (p.firstName?.toLowerCase().includes(term)) return true
+    if (p.lastName?.toLowerCase().includes(term)) return true
+    if (p.middleName?.toLowerCase().includes(term)) return true
+    if (`${p.firstName} ${p.lastName}`.toLowerCase().includes(term)) return true
+    if (`${p.firstName} ${p.middleName} ${p.lastName}`.toLowerCase().includes(term)) return true
+    if (p.email?.toLowerCase().includes(term)) return true
+    
+    // Fuzzy name matching (typo tolerance)
+    const nameWords = `${p.firstName} ${p.lastName}`.toLowerCase().split(' ')
+    const searchWords = term.split(' ')
+    
+    return searchWords.some(sw => 
+      nameWords.some(nw => {
+        // Levenshtein distance for typo tolerance (simple version)
+        if (nw.length < 3 || sw.length < 3) return nw.startsWith(sw) || sw.startsWith(nw)
+        return nw.includes(sw) || sw.includes(nw) || 
+               (nw.length === sw.length && countDifferences(nw, sw) <= 1)
+      })
+    )
+  }).sort((a, b) => {
+    // Sort by relevance
+    const aScore = getMatchScore(term, a)
+    const bScore = getMatchScore(term, b)
+    return bScore - aScore
+  })
+}
+
+// Count character differences (simple Levenshtein approximation)
+const countDifferences = (a: string, b: string): number => {
+  let diff = 0
+  for (let i = 0; i < a.length; i++) {
+    if (a[i] !== b[i]) diff++
+  }
+  return diff
+}
+
+// Get match score for sorting
+const getMatchScore = (term: string, patient: Patient): number => {
+  let score = 0
+  const termLower = term.toLowerCase()
+  
+  if (patient.ruhcCode?.toLowerCase() === termLower) score += 100
+  else if (patient.ruhcCode?.toLowerCase().includes(termLower)) score += 50
+  
+  if (patient.matricNumber?.toLowerCase() === termLower) score += 90
+  else if (patient.matricNumber?.toLowerCase().includes(termLower)) score += 45
+  
+  if (patient.phone === termLower) score += 80
+  
+  if (patient.firstName?.toLowerCase() === termLower) score += 30
+  if (patient.lastName?.toLowerCase() === termLower) score += 30
+  
+  return score
+}
+
+// Log patient file access for confidentiality tracking
+const logPatientAccess = (patientId: string, patientName: string, action: 'VIEW' | 'EDIT' | 'PRINT' | 'EXPORT', isSensitive: boolean = false) => {
+  if (!user) return
+  
+  const entry = logAudit({
+    userId: user.id,
+    userName: user.name,
+    userRole: user.role,
+    action,
+    resourceType: 'patient',
+    resourceId: patientId,
+    resourceIdentifier: patientName,
+    isSensitive
+  })
+  
+  setAuditLogs(prev => [entry, ...prev.slice(0, 999)])
+}
+
+// Check for drug interactions when prescribing
+const checkAndAlertDrugInteractions = (newDrug: string, existingDrugs: string[], patientAllergies: string[]): { interactions: DrugInteraction[], allergyChecks: AllergyCheck[] } => {
+  const allDrugs = [...existingDrugs, newDrug]
+  const interactions = checkDrugInteractions(allDrugs).filter(
+    int => normalizeDrugName(int.drug1) === normalizeDrugName(newDrug) || 
+           normalizeDrugName(int.drug2) === normalizeDrugName(newDrug)
+  )
+  
+  const allergyChecks = checkDrugAllergies(newDrug, patientAllergies)
+  
+  return { interactions, allergyChecks }
+}
+
+// Normalize drug name helper
+const normalizeDrugName = (name: string): string => {
+  return name.toLowerCase().trim()
+    .replace(/hydrochloride|hcl|sodium|potassium/gi, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+// Check if patient file access requires break-the-glass
+const requiresBreakGlass = (patient: Patient): boolean => {
+  // Flag sensitive records (HIV, mental health, VIP, etc.)
+  const sensitiveConditions = ['hiv', 'aids', 'mental health', 'psychiatric', 'substance abuse', 'std', 'sti']
+  const conditions = `${patient.chronicConditions || ''} ${patient.allergies || ''}`.toLowerCase()
+  
+  return sensitiveConditions.some(c => conditions.includes(c)) || (patient as any).isSensitive === true
+}
+
+// Handle break-the-glass access
+const handleBreakGlassAccess = (patientId: string, action: string, reason: string) => {
+  const patient = patients.find(p => p.id === patientId)
+  if (!patient || !user) return
+  
+  logAudit({
+    userId: user.id,
+    userName: user.name,
+    userRole: user.role,
+    action: 'BREAK_GLASS',
+    resourceType: 'patient',
+    resourceId: patientId,
+    resourceIdentifier: `${patient.firstName} ${patient.lastName}`,
+    isSensitive: true,
+    justification: reason
+  })
+  
+  showToast('Emergency access granted and logged', 'warning')
+  setShowBreakGlassDialog(false)
+  setBreakGlassReason('')
+  setPendingPatientAccess(null)
+}
+
+// Calculate patient age
+const calculateAge = (dateOfBirth: string): number => {
+  const today = new Date()
+  const birthDate = new Date(dateOfBirth)
+  let age = today.getFullYear() - birthDate.getFullYear()
+  const monthDiff = today.getMonth() - birthDate.getMonth()
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+    age--
+  }
+  return age
+}
+
+// Send notification helpers
+const sendPatientNotification = async (
+  patient: Patient, 
+  type: 'appointment_reminder' | 'queue_update' | 'prescription_ready' | 'lab_result',
+  data: Record<string, string>
+) => {
+  if (!patient.phone) return { success: false, error: 'No phone number' }
+  
+  try {
+    const formattedPhone = formatPhoneNumber(patient.phone)
+    
+    switch (type) {
+      case 'appointment_reminder':
+        return sendAppointmentReminder(formattedPhone, `${patient.firstName} ${patient.lastName}`, data.date || '', data.time || '')
+      case 'queue_update':
+        return sendQueueCall(formattedPhone, data.department || 'OPD', parseInt(data.position || '0'))
+      case 'prescription_ready':
+        return sendPrescriptionReady(formattedPhone, `${patient.firstName} ${patient.lastName}`, data.expiryDate || '')
+      default:
+        return { success: true }
+    }
+  } catch (error) {
+    console.error('Notification error:', error)
+    return { success: false, error: 'Failed to send notification' }
+  }
+}
+
+// Generate quick message
+const sendQuickMessageToStaff = (
+  templateKey: 'patientReady' | 'labResultReady' | 'prescriptionReady' | 'consultationUrgent' | 'medicationDue' | 'handoffNote',
+  variables: Record<string, string>,
+  recipientId: string,
+  recipientRole: string
+) => {
+  if (!user) return
+  
+  const message = createQuickMessage(templateKey, variables, {
+    senderId: user.id,
+    senderName: user.name,
+    senderRole: user.role,
+    recipientId,
+    recipientRole: recipientRole as any,
+    patientId: variables.patientId,
+    patientName: variables.patientName,
+    priority: templateKey === 'consultationUrgent' ? 'urgent' : 'normal'
+  })
+  
+  setInternalMessages(prev => [message, ...prev])
+  showToast(`Message sent to ${recipientRole}`, 'success')
+}
+
 // ============== REFERENCE DATA ==============
 // Initial system users - DEPRECATED: Users are now stored in database
 // Use /api/auth/seed to create default admin users
@@ -1760,6 +1975,37 @@ export default function HMSApp() {
   const [syncStatus, setSyncStatus] = useState<SyncStatus>('synced')
   const [syncPendingCount, setSyncPendingCount] = useState<number>(0)
   const [offlineReady, setOfflineReady] = useState<boolean>(false)
+  
+  // ============== NEW EFFICIENCY & SECURITY FEATURES ==============
+  // Internal Messaging System
+  const [internalMessages, setInternalMessages] = useState<InternalMessage[]>([])
+  const [unreadMessageCount, setUnreadMessageCount] = useState<number>(0)
+  const [showMessageDialog, setShowMessageDialog] = useState<boolean>(false)
+  const [selectedMessage, setSelectedMessage] = useState<InternalMessage | null>(null)
+  const [messageForm, setMessageForm] = useState({ recipientId: '', recipientRole: '', subject: '', content: '', priority: 'normal' as 'normal' | 'urgent' | 'critical' })
+  
+  // Audit Logging
+  const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([])
+  const [showAuditLogDialog, setShowAuditLogDialog] = useState<boolean>(false)
+  
+  // Drug Interaction Alerts
+  const [drugInteractions, setDrugInteractions] = useState<DrugInteraction[]>([])
+  const [showDrugInteractionDialog, setShowDrugInteractionDialog] = useState<boolean>(false)
+  
+  // Vital Signs Templates
+  const [selectedVitalTemplate, setSelectedVitalTemplate] = useState<VitalTemplate | null>(null)
+  const [vitalAlerts, setVitalAlerts] = useState<Array<{ field: any; value: number; status: string; isCritical: boolean }>>([])
+  
+  // Break-the-Glass Access
+  const [breakGlassReason, setBreakGlassReason] = useState<string>('')
+  const [showBreakGlassDialog, setShowBreakGlassDialog] = useState<boolean>(false)
+  const [pendingPatientAccess, setPendingPatientAccess] = useState<{ patientId: string; action: string } | null>(null)
+  
+  // Session Timeout Warning
+  const [sessionWarningShown, setSessionWarningShown] = useState<boolean>(false)
+  
+  // Critical Lab Value Alerts
+  const [criticalLabAlerts, setCriticalLabAlerts] = useState<Array<{ testId: string; patientId: string; patientName: string; test: string; value: string; isCritical: boolean }>>([])
   
   // System users - loaded from database via API
   const [systemUsers, setSystemUsers] = useState<SystemUser[]>([])

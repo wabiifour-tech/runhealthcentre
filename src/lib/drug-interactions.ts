@@ -1,279 +1,363 @@
-/**
- * Drug Interaction Database
- * Contains known drug-drug interactions for clinical alerts
- */
+// Drug Interaction Checker - Checks for dangerous drug combinations
+// Provides alerts when prescribing or dispensing medications with known interactions
 
 export interface DrugInteraction {
   drug1: string
   drug2: string
-  severity: 'mild' | 'moderate' | 'severe' | 'critical'
+  severity: 'minor' | 'moderate' | 'major' | 'contraindicated'
   description: string
-  recommendation: string
-  mechanism?: string
+  clinicalEffects: string[]
+  management: string
+  reference?: string
 }
 
 // Common drug interactions database
+// This is a simplified database - in production, integrate with a clinical decision support API
 export const DRUG_INTERACTIONS: DrugInteraction[] = [
-  // NSAIDs Interactions
+  // MAJOR INTERACTIONS
   {
-    drug1: 'Ibuprofen',
-    drug2: 'Aspirin',
+    drug1: 'warfarin',
+    drug2: 'aspirin',
+    severity: 'major',
+    description: 'Increased risk of bleeding due to additive effects on hemostasis',
+    clinicalEffects: ['Increased INR', 'Bleeding risk', 'Bruising'],
+    management: 'Monitor INR closely. Avoid combination if possible. Use lowest effective doses.',
+    reference: 'FDA Drug Interactions'
+  },
+  {
+    drug1: 'warfarin',
+    drug2: 'ibuprofen',
+    severity: 'major',
+    description: 'Increased risk of GI bleeding and enhanced anticoagulant effect',
+    clinicalEffects: ['GI bleeding', 'Increased INR', 'Peptic ulcer'],
+    management: 'Avoid combination. Use acetaminophen for pain if needed.',
+    reference: 'FDA Drug Interactions'
+  },
+  {
+    drug1: 'tramadol',
+    drug2: 'sertraline',
+    severity: 'major',
+    description: 'Increased risk of serotonin syndrome',
+    clinicalEffects: ['Serotonin syndrome', 'Seizures', 'Agitation'],
+    management: 'Avoid combination. Monitor for signs of serotonin syndrome if used together.',
+    reference: 'FDA Drug Interactions'
+  },
+  {
+    drug1: 'tramadol',
+    drug2: 'fluoxetine',
+    severity: 'major',
+    description: 'Increased risk of serotonin syndrome and seizures',
+    clinicalEffects: ['Serotonin syndrome', 'Seizures', 'Confusion'],
+    management: 'Avoid combination. Consider alternative pain management.',
+    reference: 'FDA Drug Interactions'
+  },
+  {
+    drug1: 'metformin',
+    drug2: 'furosemide',
     severity: 'moderate',
-    description: 'Increased risk of gastrointestinal bleeding and ulcers. Ibuprofen may reduce the cardioprotective effect of aspirin.',
-    recommendation: 'Avoid concurrent use. If both are necessary, take ibuprofen at least 8 hours after aspirin.',
-    mechanism: 'Pharmacodynamic interaction affecting platelet aggregation'
+    description: 'Furosemide can increase metformin plasma levels',
+    clinicalEffects: ['Lactic acidosis risk', 'Hypoglycemia', 'Renal impairment'],
+    management: 'Monitor renal function and blood glucose. Adjust doses as needed.',
+    reference: 'FDA Drug Interactions'
   },
   {
-    drug1: 'Ibuprofen',
-    drug2: 'Lisinopril',
+    drug1: 'amlodipine',
+    drug2: 'simvastatin',
     severity: 'moderate',
-    description: 'Reduced antihypertensive effect. May cause acute kidney injury in volume-depleted patients.',
-    recommendation: 'Monitor blood pressure and renal function closely. Consider alternative pain management.',
-    mechanism: 'NSAIDs inhibit prostaglandin synthesis'
+    description: 'Increased simvastatin exposure leading to myopathy risk',
+    clinicalEffects: ['Myopathy', 'Rhabdomyolysis', 'Muscle pain'],
+    management: 'Limit simvastatin dose to 20mg daily when used with amlodipine.',
+    reference: 'FDA Drug Interactions'
   },
   {
-    drug1: 'Diclofenac',
-    drug2: 'Enalapril',
+    drug1: 'ciprofloxacin',
+    drug2: 'theophylline',
+    severity: 'major',
+    description: 'Ciprofloxacin inhibits theophylline metabolism',
+    clinicalEffects: ['Theophylline toxicity', 'Arrhythmias', 'Seizures'],
+    management: 'Reduce theophylline dose by 50%. Monitor plasma levels.',
+    reference: 'FDA Drug Interactions'
+  },
+  {
+    drug1: 'enalapril',
+    drug2: 'spironolactone',
+    severity: 'major',
+    description: 'Increased risk of hyperkalemia',
+    clinicalEffects: ['Hyperkalemia', 'Arrhythmias', 'Cardiac arrest'],
+    management: 'Monitor serum potassium frequently. Avoid combination in renal impairment.',
+    reference: 'FDA Drug Interactions'
+  },
+  {
+    drug1: 'lisinopril',
+    drug2: 'spironolactone',
+    severity: 'major',
+    description: 'Increased risk of severe hyperkalemia',
+    clinicalEffects: ['Hyperkalemia', 'Arrhythmias', 'Muscle weakness'],
+    management: 'Monitor potassium levels. Consider alternative diuretic.',
+    reference: 'FDA Drug Interactions'
+  },
+  {
+    drug1: 'metformin',
+    drug2: 'cimetidine',
     severity: 'moderate',
-    description: 'Reduced antihypertensive effect. Increased risk of renal impairment.',
-    recommendation: 'Monitor blood pressure and kidney function.',
+    description: 'Cimetidine increases metformin plasma levels',
+    clinicalEffects: ['Lactic acidosis risk', 'Hypoglycemia'],
+    management: 'Monitor for metformin toxicity. Consider alternative H2 blocker.',
+    reference: 'FDA Drug Interactions'
   },
-
-  // Antibiotic Interactions
   {
-    drug1: 'Metronidazole',
-    drug2: 'Alcohol',
+    drug1: 'digoxin',
+    drug2: 'amiodarone',
+    severity: 'major',
+    description: 'Amiodarone increases digoxin levels by 70-100%',
+    clinicalEffects: ['Digoxin toxicity', 'Bradycardia', 'AV block'],
+    management: 'Reduce digoxin dose by 50%. Monitor digoxin levels.',
+    reference: 'FDA Drug Interactions'
+  },
+  {
+    drug1: 'digoxin',
+    drug2: 'furosemide',
     severity: 'moderate',
-    description: 'Disulfiram-like reaction: severe nausea, vomiting, headache, flushing.',
-    recommendation: 'Avoid alcohol during treatment and for 48 hours after completion.',
-    mechanism: 'Inhibition of aldehyde dehydrogenase'
+    description: 'Furosemide-induced hypokalemia increases digoxin toxicity',
+    clinicalEffects: ['Digoxin toxicity', 'Arrhythmias', 'Hypokalemia'],
+    management: 'Monitor potassium and digoxin levels. Supplement potassium if needed.',
+    reference: 'FDA Drug Interactions'
   },
   {
-    drug1: 'Ciprofloxacin',
-    drug2: 'Theophylline',
-    severity: 'severe',
-    description: 'Increased theophylline levels leading to toxicity (nausea, vomiting, seizures, arrhythmias).',
-    recommendation: 'Reduce theophylline dose by 50% and monitor serum levels.',
-    mechanism: 'CYP1A2 inhibition'
+    drug1: 'nifedipine',
+    drug2: 'magnesium sulfate',
+    severity: 'major',
+    description: 'Severe hypotension and neuromuscular blockade',
+    clinicalEffects: ['Severe hypotension', 'Muscle weakness', 'Respiratory paralysis'],
+    management: 'Avoid combination. Monitor BP closely if both needed.',
+    reference: 'FDA Drug Interactions'
   },
   {
-    drug1: 'Erythromycin',
-    drug2: 'Simvastatin',
-    severity: 'severe',
-    description: 'Significantly increased simvastatin levels. High risk of rhabdomyolysis.',
-    recommendation: 'Avoid combination. Use alternative antibiotic or statin.',
-    mechanism: 'CYP3A4 inhibition'
+    drug1: 'omeprazole',
+    drug2: 'clopidogrel',
+    severity: 'major',
+    description: 'Omeprazole reduces clopidogrel effectiveness',
+    clinicalEffects: ['Reduced antiplatelet effect', 'Increased CV events'],
+    management: 'Use pantoprazole instead, or separate dosing by 12 hours.',
+    reference: 'FDA Drug Interactions'
   },
   {
-    drug1: 'Tetracycline',
-    drug2: 'Antacids',
-    severity: 'mild',
-    description: 'Reduced absorption of tetracycline.',
-    recommendation: 'Take tetracycline 1-2 hours before or after antacids.',
-    mechanism: 'Chelation'
+    drug1: 'tramadol',
+    drug2: 'carbamazepine',
+    severity: 'major',
+    description: 'Carbamazepine reduces tramadol effectiveness',
+    clinicalEffects: ['Reduced analgesia', 'Seizure risk'],
+    management: 'Avoid combination. Use alternative pain medication.',
+    reference: 'FDA Drug Interactions'
   },
-
-  // Anticoagulant Interactions
+  // CONTRAINDICATED
   {
-    drug1: 'Warfarin',
-    drug2: 'Amoxicillin',
+    drug1: 'metronidazole',
+    drug2: 'alcohol',
+    severity: 'contraindicated',
+    description: 'Disulfiram-like reaction with alcohol',
+    clinicalEffects: ['Severe nausea', 'Vomiting', 'Flushing', 'Palpitations'],
+    management: 'Avoid alcohol during and 48 hours after metronidazole therapy.',
+    reference: 'FDA Drug Interactions'
+  },
+  {
+    drug1: 'linezolid',
+    drug2: 'sertraline',
+    severity: 'contraindicated',
+    description: 'Life-threatening serotonin syndrome',
+    clinicalEffects: ['Serotonin syndrome', 'Hypertensive crisis', 'Death'],
+    management: 'Contraindicated. Wait 2 weeks after stopping SSRI before starting linezolid.',
+    reference: 'FDA Drug Interactions'
+  },
+  {
+    drug1: 'pethidine',
+    drug2: 'phenelzine',
+    severity: 'contraindicated',
+    description: 'Life-threatening serotonin syndrome with MAOIs',
+    clinicalEffects: ['Serotonin syndrome', 'Hyperthermia', 'Seizures', 'Death'],
+    management: 'Contraindicated. Wait 2 weeks after stopping MAOI.',
+    reference: 'FDA Drug Interactions'
+  },
+  // MODERATE INTERACTIONS
+  {
+    drug1: 'amoxicillin',
+    drug2: 'methotrexate',
     severity: 'moderate',
-    description: 'Increased anticoagulant effect and bleeding risk.',
-    recommendation: 'Monitor INR closely. May need to reduce warfarin dose.',
-    mechanism: 'Reduced vitamin K production by gut flora'
+    description: 'Reduced renal clearance of methotrexate',
+    clinicalEffects: ['Methotrexate toxicity', 'Bone marrow suppression', 'Hepatotoxicity'],
+    management: 'Monitor for methotrexate toxicity. Adjust dose if needed.',
+    reference: 'FDA Drug Interactions'
   },
   {
-    drug1: 'Warfarin',
-    drug2: 'Fluconazole',
-    severity: 'severe',
-    description: 'Significantly increased warfarin levels. High bleeding risk.',
-    recommendation: 'Reduce warfarin dose by 50% and monitor INR frequently.',
-    mechanism: 'CYP2C9 inhibition'
-  },
-  {
-    drug1: 'Aspirin',
-    drug2: 'Warfarin',
-    severity: 'severe',
-    description: 'Increased bleeding risk. Combined effect on platelets and clotting factors.',
-    recommendation: 'Avoid combination if possible. Monitor closely if essential.',
-  },
-
-  // Antidiabetic Interactions
-  {
-    drug1: 'Metformin',
-    drug2: 'Cimetidine',
+    drug1: 'doxycycline',
+    drug2: 'warfarin',
     severity: 'moderate',
-    description: 'Increased metformin levels. Risk of lactic acidosis.',
-    recommendation: 'Monitor renal function and metformin side effects. Consider alternative H2 blocker.',
-    mechanism: 'Reduced renal clearance'
+    description: 'Enhanced anticoagulant effect',
+    clinicalEffects: ['Increased INR', 'Bleeding'],
+    management: 'Monitor INR closely during and after antibiotic course.',
+    reference: 'FDA Drug Interactions'
   },
   {
-    drug1: 'Glibenclamide',
-    drug2: 'Fluconazole',
+    drug1: 'prednisolone',
+    drug2: 'warfarin',
     severity: 'moderate',
-    description: 'Increased hypoglycemic effect.',
-    recommendation: 'Monitor blood glucose. May need dose reduction.',
-    mechanism: 'CYP2C9 inhibition'
+    description: 'Unpredictable effect on anticoagulation',
+    clinicalEffects: ['Increased or decreased INR', 'Bleeding or clotting'],
+    management: 'Monitor INR frequently. Adjust warfarin dose as needed.',
+    reference: 'FDA Drug Interactions'
   },
-
-  // Cardiovascular Interactions
   {
-    drug1: 'Amlodipine',
-    drug2: 'Simvastatin',
+    drug1: 'paracetamol',
+    drug2: 'warfarin',
+    severity: 'minor',
+    description: 'Possible increased INR with prolonged high-dose paracetamol',
+    clinicalEffects: ['Increased INR with chronic use >2g/day'],
+    management: 'Monitor INR if using >2g paracetamol daily for extended period.',
+    reference: 'FDA Drug Interactions'
+  },
+  {
+    drug1: 'glibenclamide',
+    drug2: 'fluconazole',
     severity: 'moderate',
-    description: 'Increased simvastatin levels. Risk of myopathy.',
-    recommendation: 'Limit simvastatin dose to 20mg daily when used with amlodipine.',
-    mechanism: 'CYP3A4 inhibition'
+    description: 'Fluconazole inhibits glibenclamide metabolism',
+    clinicalEffects: ['Hypoglycemia', 'Dizziness', 'Sweating'],
+    management: 'Monitor blood glucose. Reduce glibenclamide dose if needed.',
+    reference: 'FDA Drug Interactions'
   },
   {
-    drug1: 'Atenolol',
-    drug2: 'Verapamil',
-    severity: 'severe',
-    description: 'Risk of severe bradycardia, heart block, and heart failure.',
-    recommendation: 'Avoid combination. Consider alternative therapy.',
-    mechanism: 'Additive effects on cardiac conduction'
-  },
-  {
-    drug1: 'Digoxin',
-    drug2: 'Amiodarone',
-    severity: 'severe',
-    description: 'Increased digoxin levels. Risk of digoxin toxicity.',
-    recommendation: 'Reduce digoxin dose by 50% and monitor serum levels.',
-    mechanism: 'Reduced renal and non-renal clearance'
-  },
-  {
-    drug1: 'Digoxin',
-    drug2: 'Furosemide',
+    drug1: 'metformin',
+    drug2: 'alcohol',
     severity: 'moderate',
-    description: 'Hypokalemia from furosemide increases digoxin toxicity risk.',
-    recommendation: 'Monitor potassium levels. Consider potassium supplementation.',
-    mechanism: 'Electrolyte imbalance'
+    description: 'Increased risk of lactic acidosis with excessive alcohol',
+    clinicalEffects: ['Lactic acidosis', 'Hypoglycemia'],
+    management: 'Avoid excessive alcohol consumption. Warn patient about symptoms.',
+    reference: 'FDA Drug Interactions'
   },
-
-  // CNS Interactions
+  // MINOR INTERACTIONS
   {
-    drug1: 'Fluoxetine',
-    drug2: 'Tramadol',
-    severity: 'severe',
-    description: 'Increased risk of serotonin syndrome (confusion, agitation, seizures).',
-    recommendation: 'Avoid combination. Use alternative pain management.',
-    mechanism: 'Serotonergic effects'
-  },
-  {
-    drug1: 'Diazepam',
-    drug2: 'Omeprazole',
-    severity: 'mild',
-    description: 'Increased diazepam levels and prolonged sedation.',
-    recommendation: 'Monitor for increased sedation. May need dose adjustment.',
-    mechanism: 'CYP2C19 inhibition'
-  },
-  {
-    drug1: 'Carbamazepine',
-    drug2: 'Erythromycin',
-    severity: 'severe',
-    description: 'Significantly increased carbamazepine levels. Risk of toxicity.',
-    recommendation: 'Avoid combination. Use alternative antibiotic.',
-    mechanism: 'CYP3A4 inhibition'
-  },
-
-  // Diuretic Interactions
-  {
-    drug1: 'Furosemide',
-    drug2: 'Gentamicin',
-    severity: 'severe',
-    description: 'Increased risk of ototoxicity and nephrotoxicity.',
-    recommendation: 'Avoid if possible. Monitor renal function and hearing.',
-  },
-  {
-    drug1: 'Hydrochlorothiazide',
-    drug2: 'Lithium',
-    severity: 'severe',
-    description: 'Increased lithium levels. Risk of lithium toxicity.',
-    recommendation: 'Monitor lithium levels closely. Consider alternative diuretic.',
-    mechanism: 'Reduced renal clearance'
-  },
-
-  // Anti-malarial
-  {
-    drug1: 'Artemether',
-    drug2: 'Mefloquine',
-    severity: 'moderate',
-    description: 'Potential for QT prolongation and cardiac effects.',
-    recommendation: 'Monitor ECG. Avoid in patients with cardiac conditions.',
-  },
+    drug1: 'paracetamol',
+    drug2: 'codeine',
+    severity: 'minor',
+    description: 'Enhanced analgesic effect (beneficial interaction)',
+    clinicalEffects: ['Increased pain relief', 'Possible sedation'],
+    management: 'No special precautions. This is a therapeutic combination.',
+    reference: 'FDA Drug Interactions'
+  }
 ]
 
-/**
- * Check for drug interactions
- */
-export function checkDrugInteraction(drug1Name: string, drug2Name: string): DrugInteraction | null {
-  const name1 = drug1Name.toLowerCase().trim()
-  const name2 = drug2Name.toLowerCase().trim()
-  
-  return DRUG_INTERACTIONS.find(interaction => {
-    const i1 = interaction.drug1.toLowerCase()
-    const i2 = interaction.drug2.toLowerCase()
-    
-    return (
-      (name1.includes(i1) || i1.includes(name1)) && 
-      (name2.includes(i2) || i2.includes(name2))
-    ) || (
-      (name1.includes(i2) || i2.includes(name1)) && 
-      (name2.includes(i1) || i1.includes(name2))
-    )
-  }) || null
+// Normalize drug name for comparison
+function normalizeDrugName(name: string): string {
+  return name.toLowerCase().trim()
+    .replace(/hydrochloride|hcl|sodium|potassium|mesylate|sulfate/gi, '')
+    .replace(/\s+/g, ' ')
+    .trim()
 }
 
-/**
- * Check all drugs in a list for interactions
- */
-export function checkAllInteractions(drugs: string[]): DrugInteraction[] {
+// Check for interactions between drugs
+export function checkDrugInteractions(drugs: string[]): DrugInteraction[] {
   const interactions: DrugInteraction[] = []
+  const normalizedDrugs = drugs.map(normalizeDrugName)
   
-  for (let i = 0; i < drugs.length; i++) {
-    for (let j = i + 1; j < drugs.length; j++) {
-      const interaction = checkDrugInteraction(drugs[i], drugs[j])
+  for (let i = 0; i < normalizedDrugs.length; i++) {
+    for (let j = i + 1; j < normalizedDrugs.length; j++) {
+      const drug1 = normalizedDrugs[i]
+      const drug2 = normalizedDrugs[j]
+      
+      // Check both directions
+      const interaction = DRUG_INTERACTIONS.find(
+        int => (normalizeDrugName(int.drug1) === drug1 && normalizeDrugName(int.drug2) === drug2) ||
+               (normalizeDrugName(int.drug1) === drug2 && normalizeDrugName(int.drug2) === drug1)
+      )
+      
       if (interaction) {
         interactions.push(interaction)
       }
     }
   }
   
-  return interactions
+  // Sort by severity
+  const severityOrder = { contraindicated: 0, major: 1, moderate: 2, minor: 3 }
+  return interactions.sort((a, b) => severityOrder[a.severity] - severityOrder[b.severity])
 }
 
-/**
- * Get severity color
- */
-export function getSeverityColor(severity: DrugInteraction['severity']): string {
+// Check a single drug against a list of existing drugs
+export function checkNewDrugInteractions(newDrug: string, existingDrugs: string[]): DrugInteraction[] {
+  const allDrugs = [...existingDrugs, newDrug]
+  return checkDrugInteractions(allDrugs).filter(
+    int => normalizeDrugName(int.drug1) === normalizeDrugName(newDrug) ||
+           normalizeDrugName(int.drug2) === normalizeDrugName(newDrug)
+  )
+}
+
+// Get severity badge color
+export function getInteractionSeverityColor(severity: DrugInteraction['severity']): string {
   switch (severity) {
-    case 'critical':
-      return 'bg-red-100 text-red-800 border-red-300'
-    case 'severe':
-      return 'bg-red-50 text-red-700 border-red-200'
-    case 'moderate':
-      return 'bg-orange-50 text-orange-700 border-orange-200'
-    case 'mild':
-      return 'bg-yellow-50 text-yellow-700 border-yellow-200'
-    default:
-      return 'bg-gray-50 text-gray-700 border-gray-200'
+    case 'contraindicated': return 'bg-red-100 text-red-800 border-red-300'
+    case 'major': return 'bg-orange-100 text-orange-800 border-orange-300'
+    case 'moderate': return 'bg-yellow-100 text-yellow-800 border-yellow-300'
+    case 'minor': return 'bg-blue-100 text-blue-800 border-blue-300'
+    default: return 'bg-gray-100 text-gray-800 border-gray-300'
   }
 }
 
-/**
- * Get severity icon
- */
-export function getSeverityIcon(severity: DrugInteraction['severity']): string {
+// Get severity icon
+export function getInteractionSeverityIcon(severity: DrugInteraction['severity']): string {
   switch (severity) {
-    case 'critical':
-      return '🚨'
-    case 'severe':
-      return '⚠️'
-    case 'moderate':
-      return '⚡'
-    case 'mild':
-      return 'ℹ️'
-    default:
-      return '•'
+    case 'contraindicated': return '🚫'
+    case 'major': return '⚠️'
+    case 'moderate': return '⚡'
+    case 'minor': return 'ℹ️'
+    default: return '📋'
   }
+}
+
+// Check if patient has allergies that contraindicate a drug
+export interface AllergyCheck {
+  drug: string
+  allergen: string
+  severity: 'mild' | 'moderate' | 'severe'
+  reaction: string
+}
+
+// Common drug-allergy cross-reactivity
+const DRUG_ALLERGY_CROSS_REACTIVITY: Record<string, string[]> = {
+  'penicillin': ['amoxicillin', 'ampicillin', 'penicillin', 'flucloxacillin', 'co-amoxiclav'],
+  'sulfa': ['sulfamethoxazole', 'cotrimoxazole', 'sulfonamide', 'furosemide', 'hydrochlorothiazide'],
+  'aspirin': ['aspirin', 'ibuprofen', 'naproxen', 'diclofenac', 'mefenamic acid'],
+  'latex': ['latex gloves', 'condoms', 'catheters'],
+}
+
+export function checkDrugAllergies(drug: string, allergies: string[]): AllergyCheck[] {
+  const checks: AllergyCheck[] = []
+  const normalizedDrug = normalizeDrugName(drug)
+  
+  allergies.forEach(allergy => {
+    const normalizedAllergy = normalizeDrugName(allergy)
+    
+    // Direct match
+    if (normalizedDrug.includes(normalizedAllergy) || normalizedAllergy.includes(normalizedDrug)) {
+      checks.push({
+        drug,
+        allergen: allergy,
+        severity: 'severe',
+        reaction: 'Direct allergen match - avoid this drug'
+      })
+    }
+    
+    // Cross-reactivity check
+    Object.entries(DRUG_ALLERGY_CROSS_REACTIVITY).forEach(([allergen, crossDrugs]) => {
+      if (normalizedAllergy.includes(allergen) || allergen.includes(normalizedAllergy)) {
+        if (crossDrugs.some(cd => normalizedDrug.includes(cd) || cd.includes(normalizedDrug))) {
+          checks.push({
+            drug,
+            allergen: allergy,
+            severity: 'moderate',
+            reaction: `Cross-reactivity with ${allergy} - use with caution`
+          })
+        }
+      }
+    })
+  })
+  
+  return checks
 }
