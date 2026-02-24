@@ -2996,11 +2996,11 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
     window.addEventListener('newAdmission', handleNewAdmission as EventListener)
     window.addEventListener('patientDischarged', handlePatientDischarged as EventListener)
 
-    // Poll for new data every 15 seconds
+    // REAL-TIME polling for all data changes (every 2 seconds) - reflects changes instantly across all dashboards
     const pollInterval = setInterval(() => {
       clearCache()
       loadDataFromDB(true)
-    }, 15000)
+    }, 2000)
 
     // INSTANT polling for pending approvals (every 2 seconds) - Admin only
     let approvalPollInterval: NodeJS.Timeout | null = null
