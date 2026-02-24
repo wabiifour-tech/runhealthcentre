@@ -3274,9 +3274,32 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ type: 'patient', data: patient })
       })
-      return await response.json()
+      const result = await response.json()
+      if (!result.success) {
+        console.error('Failed to save patient to database:', result.error)
+      }
+      return result
     } catch (error) {
       console.error('Failed to save patient:', error)
+      return { success: false }
+    }
+  }
+
+  // Update patient in database
+  const updatePatientToDB = async (id: string, data: Partial<Patient>) => {
+    try {
+      const response = await fetch('/api/data', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'patient', id, data })
+      })
+      const result = await response.json()
+      if (!result.success) {
+        console.error('Failed to update patient in database:', result.error)
+      }
+      return result
+    } catch (error) {
+      console.error('Failed to update patient:', error)
       return { success: false }
     }
   }
@@ -4423,68 +4446,77 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
     }))
   }
 
-  const createPatient = () => {
+  const createPatient = async () => {
     if (!user) {
       alert('You must be logged in to register patients')
       return
     }
-    
+
     // If editing an existing patient
     if (editingPatientId) {
+      const updatedPatientData = {
+        matricNumber: patientForm.matricNumber,
+        firstName: patientForm.firstName,
+        lastName: patientForm.lastName,
+        middleName: patientForm.middleName,
+        title: patientForm.title,
+        dateOfBirth: patientForm.dateOfBirth,
+        gender: patientForm.gender,
+        bloodGroup: patientForm.bloodGroup,
+        genotype: patientForm.genotype,
+        phone: patientForm.phone,
+        email: patientForm.email,
+        address: patientForm.address,
+        city: patientForm.city,
+        state: patientForm.state,
+        lga: patientForm.lga,
+        nationality: patientForm.nationality || 'Nigerian',
+        religion: patientForm.religion,
+        occupation: patientForm.occupation,
+        maritalStatus: patientForm.maritalStatus,
+        nokName: patientForm.nokName,
+        nokRelationship: patientForm.nokRelationship,
+        nokPhone: patientForm.nokPhone,
+        nokAddress: patientForm.nokAddress,
+        emergencyContactName: patientForm.emergencyContactName,
+        emergencyContactPhone: patientForm.emergencyContactPhone,
+        emergencyContactRelationship: patientForm.emergencyContactRelationship,
+        insuranceNumber: patientForm.insuranceNumber,
+        insuranceProvider: patientForm.insuranceProvider,
+        allergies: patientForm.allergies,
+        chronicConditions: patientForm.chronicConditions,
+        currentMedications: patientForm.currentMedications,
+        currentUnit: patientForm.currentUnit,
+        lastEditedBy: getUserDisplayName(user),
+        lastEditedAt: new Date().toISOString(),
+      }
+
+      // Update local state
       setPatients(patients.map(p => {
         if (p.id === editingPatientId) {
-          return {
-            ...p,
-            matricNumber: patientForm.matricNumber,
-            firstName: patientForm.firstName || p.firstName,
-            lastName: patientForm.lastName || p.lastName,
-            middleName: patientForm.middleName,
-            title: patientForm.title,
-            dateOfBirth: patientForm.dateOfBirth || p.dateOfBirth,
-            gender: patientForm.gender || p.gender,
-            bloodGroup: patientForm.bloodGroup,
-            genotype: patientForm.genotype,
-            phone: patientForm.phone,
-            email: patientForm.email,
-            address: patientForm.address,
-            city: patientForm.city,
-            state: patientForm.state,
-            lga: patientForm.lga,
-            nationality: patientForm.nationality || 'Nigerian',
-            religion: patientForm.religion,
-            occupation: patientForm.occupation,
-            maritalStatus: patientForm.maritalStatus,
-            nokName: patientForm.nokName,
-            nokRelationship: patientForm.nokRelationship,
-            nokPhone: patientForm.nokPhone,
-            nokAddress: patientForm.nokAddress,
-            emergencyContactName: patientForm.emergencyContactName,
-            emergencyContactPhone: patientForm.emergencyContactPhone,
-            emergencyContactRelationship: patientForm.emergencyContactRelationship,
-            insuranceNumber: patientForm.insuranceNumber,
-            insuranceProvider: patientForm.insuranceProvider,
-            allergies: patientForm.allergies,
-            chronicConditions: patientForm.chronicConditions,
-            currentMedications: patientForm.currentMedications,
-            currentUnit: patientForm.currentUnit || p.currentUnit,
-            // Track edit metadata
-            lastEditedBy: getUserDisplayName(user),
-            lastEditedAt: new Date().toISOString(),
-          }
+          return { ...p, ...updatedPatientData }
         }
         return p
       }))
+
+      // Save to database
+      const result = await updatePatientToDB(editingPatientId, updatedPatientData)
+      if (result.success) {
+        showToast('Patient record updated successfully!', 'success')
+      } else {
+        showToast('Patient updated locally but failed to save to database. Please check connection.', 'warning')
+      }
+
       setShowPatientDialog(false)
       setPatientForm({ gender: 'Male', nationality: 'Nigerian', currentUnit: 'opd' })
       setEditingPatientId(null)
-      showToast('Patient record updated successfully!', 'success')
       return
     }
-    
+
     // ===== DUPLICATE CHECK FOR NEW PATIENTS =====
     // Check for duplicate by matric number (if provided)
     if (patientForm.matricNumber && patientForm.matricNumber.trim()) {
-      const existingByMatric = patients.find(p => 
+      const existingByMatric = patients.find(p =>
         p.matricNumber?.toLowerCase().trim() === patientForm.matricNumber?.toLowerCase().trim() && p.isActive
       )
       if (existingByMatric) {
@@ -4492,7 +4524,7 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
         return
       }
     }
-    
+
     // Check for duplicate by name and date of birth
     const existingByName = patients.find(p => {
       const nameMatch = p.firstName.toLowerCase().trim() === patientForm.firstName?.toLowerCase().trim() &&
@@ -4504,10 +4536,10 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
       showToast(`Patient "${patientForm.firstName} ${patientForm.lastName}" with same date of birth already exists! (RUHC: ${existingByName.ruhcCode})`, 'warning')
       return
     }
-    
+
     // Check for duplicate by phone (if provided)
     if (patientForm.phone && patientForm.phone.trim()) {
-      const existingByPhone = patients.find(p => 
+      const existingByPhone = patients.find(p =>
         p.phone === patientForm.phone && p.isActive
       )
       if (existingByPhone) {
@@ -4515,7 +4547,7 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
         return
       }
     }
-    
+
     // Creating a new patient
     const newPatient: Patient = {
       id: `p${Date.now()}`,
@@ -4557,10 +4589,19 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
       registeredBy: getUserDisplayName(user),
       currentUnit: patientForm.currentUnit || 'opd'
     }
+
+    // Update local state immediately for responsive UI
     setPatients([...patients, newPatient])
     setShowPatientDialog(false)
     setPatientForm({ gender: 'Male', nationality: 'Nigerian', currentUnit: 'opd' })
-    showToast('Patient registered successfully!', 'success')
+
+    // Save to database
+    const result = await savePatientToDB(newPatient)
+    if (result.success) {
+      showToast('Patient registered successfully!', 'success')
+    } else {
+      showToast('Patient added locally but failed to save to database. Please check connection.', 'warning')
+    }
   }
 
   const createAppointment = () => {
