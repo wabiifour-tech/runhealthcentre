@@ -104,6 +104,16 @@ export type discharge_summaries = $Result.DefaultSelection<Prisma.$discharge_sum
  */
 export type audit_logs = $Result.DefaultSelection<Prisma.$audit_logsPayload>
 /**
+ * Model rosters
+ * 
+ */
+export type rosters = $Result.DefaultSelection<Prisma.$rostersPayload>
+/**
+ * Model attendance
+ * 
+ */
+export type attendance = $Result.DefaultSelection<Prisma.$attendancePayload>
+/**
  * Model app_settings
  * 
  */
@@ -405,6 +415,26 @@ export class PrismaClient<
     * ```
     */
   get audit_logs(): Prisma.audit_logsDelegate<ExtArgs, ClientOptions>;
+
+  /**
+   * `prisma.rosters`: Exposes CRUD operations for the **rosters** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more Rosters
+    * const rosters = await prisma.rosters.findMany()
+    * ```
+    */
+  get rosters(): Prisma.rostersDelegate<ExtArgs, ClientOptions>;
+
+  /**
+   * `prisma.attendance`: Exposes CRUD operations for the **attendance** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more Attendances
+    * const attendances = await prisma.attendance.findMany()
+    * ```
+    */
+  get attendance(): Prisma.attendanceDelegate<ExtArgs, ClientOptions>;
 
   /**
    * `prisma.app_settings`: Exposes CRUD operations for the **app_settings** model.
@@ -867,6 +897,8 @@ export namespace Prisma {
     referral_letters: 'referral_letters',
     discharge_summaries: 'discharge_summaries',
     audit_logs: 'audit_logs',
+    rosters: 'rosters',
+    attendance: 'attendance',
     app_settings: 'app_settings'
   };
 
@@ -883,7 +915,7 @@ export namespace Prisma {
       omit: GlobalOmitOptions
     }
     meta: {
-      modelProps: "users" | "patients" | "consultations" | "vital_signs" | "lab_requests" | "lab_results" | "prescriptions" | "queue_entries" | "appointments" | "admissions" | "drugs" | "lab_tests" | "announcements" | "voice_notes" | "medical_certificates" | "referral_letters" | "discharge_summaries" | "audit_logs" | "app_settings"
+      modelProps: "users" | "patients" | "consultations" | "vital_signs" | "lab_requests" | "lab_results" | "prescriptions" | "queue_entries" | "appointments" | "admissions" | "drugs" | "lab_tests" | "announcements" | "voice_notes" | "medical_certificates" | "referral_letters" | "discharge_summaries" | "audit_logs" | "rosters" | "attendance" | "app_settings"
       txIsolationLevel: Prisma.TransactionIsolationLevel
     }
     model: {
@@ -2219,6 +2251,154 @@ export namespace Prisma {
           }
         }
       }
+      rosters: {
+        payload: Prisma.$rostersPayload<ExtArgs>
+        fields: Prisma.rostersFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.rostersFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$rostersPayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.rostersFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$rostersPayload>
+          }
+          findFirst: {
+            args: Prisma.rostersFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$rostersPayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.rostersFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$rostersPayload>
+          }
+          findMany: {
+            args: Prisma.rostersFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$rostersPayload>[]
+          }
+          create: {
+            args: Prisma.rostersCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$rostersPayload>
+          }
+          createMany: {
+            args: Prisma.rostersCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.rostersCreateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$rostersPayload>[]
+          }
+          delete: {
+            args: Prisma.rostersDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$rostersPayload>
+          }
+          update: {
+            args: Prisma.rostersUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$rostersPayload>
+          }
+          deleteMany: {
+            args: Prisma.rostersDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.rostersUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateManyAndReturn: {
+            args: Prisma.rostersUpdateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$rostersPayload>[]
+          }
+          upsert: {
+            args: Prisma.rostersUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$rostersPayload>
+          }
+          aggregate: {
+            args: Prisma.RostersAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregateRosters>
+          }
+          groupBy: {
+            args: Prisma.rostersGroupByArgs<ExtArgs>
+            result: $Utils.Optional<RostersGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.rostersCountArgs<ExtArgs>
+            result: $Utils.Optional<RostersCountAggregateOutputType> | number
+          }
+        }
+      }
+      attendance: {
+        payload: Prisma.$attendancePayload<ExtArgs>
+        fields: Prisma.attendanceFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.attendanceFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$attendancePayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.attendanceFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$attendancePayload>
+          }
+          findFirst: {
+            args: Prisma.attendanceFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$attendancePayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.attendanceFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$attendancePayload>
+          }
+          findMany: {
+            args: Prisma.attendanceFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$attendancePayload>[]
+          }
+          create: {
+            args: Prisma.attendanceCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$attendancePayload>
+          }
+          createMany: {
+            args: Prisma.attendanceCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.attendanceCreateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$attendancePayload>[]
+          }
+          delete: {
+            args: Prisma.attendanceDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$attendancePayload>
+          }
+          update: {
+            args: Prisma.attendanceUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$attendancePayload>
+          }
+          deleteMany: {
+            args: Prisma.attendanceDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.attendanceUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateManyAndReturn: {
+            args: Prisma.attendanceUpdateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$attendancePayload>[]
+          }
+          upsert: {
+            args: Prisma.attendanceUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$attendancePayload>
+          }
+          aggregate: {
+            args: Prisma.AttendanceAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregateAttendance>
+          }
+          groupBy: {
+            args: Prisma.attendanceGroupByArgs<ExtArgs>
+            result: $Utils.Optional<AttendanceGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.attendanceCountArgs<ExtArgs>
+            result: $Utils.Optional<AttendanceCountAggregateOutputType> | number
+          }
+        }
+      }
       app_settings: {
         payload: Prisma.$app_settingsPayload<ExtArgs>
         fields: Prisma.app_settingsFieldRefs
@@ -2419,6 +2599,8 @@ export namespace Prisma {
     referral_letters?: referral_lettersOmit
     discharge_summaries?: discharge_summariesOmit
     audit_logs?: audit_logsOmit
+    rosters?: rostersOmit
+    attendance?: attendanceOmit
     app_settings?: app_settingsOmit
   }
 
@@ -2520,6 +2702,7 @@ export namespace Prisma {
     initials: string | null
     phone: string | null
     dateOfBirth: Date | null
+    profilePhoto: string | null
     isActive: boolean | null
     isFirstLogin: boolean | null
     approvalStatus: string | null
@@ -2538,6 +2721,7 @@ export namespace Prisma {
     initials: string | null
     phone: string | null
     dateOfBirth: Date | null
+    profilePhoto: string | null
     isActive: boolean | null
     isFirstLogin: boolean | null
     approvalStatus: string | null
@@ -2556,6 +2740,7 @@ export namespace Prisma {
     initials: number
     phone: number
     dateOfBirth: number
+    profilePhoto: number
     isActive: number
     isFirstLogin: number
     approvalStatus: number
@@ -2576,6 +2761,7 @@ export namespace Prisma {
     initials?: true
     phone?: true
     dateOfBirth?: true
+    profilePhoto?: true
     isActive?: true
     isFirstLogin?: true
     approvalStatus?: true
@@ -2594,6 +2780,7 @@ export namespace Prisma {
     initials?: true
     phone?: true
     dateOfBirth?: true
+    profilePhoto?: true
     isActive?: true
     isFirstLogin?: true
     approvalStatus?: true
@@ -2612,6 +2799,7 @@ export namespace Prisma {
     initials?: true
     phone?: true
     dateOfBirth?: true
+    profilePhoto?: true
     isActive?: true
     isFirstLogin?: true
     approvalStatus?: true
@@ -2703,6 +2891,7 @@ export namespace Prisma {
     initials: string | null
     phone: string | null
     dateOfBirth: Date | null
+    profilePhoto: string | null
     isActive: boolean
     isFirstLogin: boolean
     approvalStatus: string
@@ -2738,6 +2927,7 @@ export namespace Prisma {
     initials?: boolean
     phone?: boolean
     dateOfBirth?: boolean
+    profilePhoto?: boolean
     isActive?: boolean
     isFirstLogin?: boolean
     approvalStatus?: boolean
@@ -2756,6 +2946,7 @@ export namespace Prisma {
     initials?: boolean
     phone?: boolean
     dateOfBirth?: boolean
+    profilePhoto?: boolean
     isActive?: boolean
     isFirstLogin?: boolean
     approvalStatus?: boolean
@@ -2774,6 +2965,7 @@ export namespace Prisma {
     initials?: boolean
     phone?: boolean
     dateOfBirth?: boolean
+    profilePhoto?: boolean
     isActive?: boolean
     isFirstLogin?: boolean
     approvalStatus?: boolean
@@ -2792,6 +2984,7 @@ export namespace Prisma {
     initials?: boolean
     phone?: boolean
     dateOfBirth?: boolean
+    profilePhoto?: boolean
     isActive?: boolean
     isFirstLogin?: boolean
     approvalStatus?: boolean
@@ -2800,7 +2993,7 @@ export namespace Prisma {
     updatedAt?: boolean
   }
 
-  export type usersOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "email" | "name" | "password" | "role" | "department" | "initials" | "phone" | "dateOfBirth" | "isActive" | "isFirstLogin" | "approvalStatus" | "lastLogin" | "createdAt" | "updatedAt", ExtArgs["result"]["users"]>
+  export type usersOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "email" | "name" | "password" | "role" | "department" | "initials" | "phone" | "dateOfBirth" | "profilePhoto" | "isActive" | "isFirstLogin" | "approvalStatus" | "lastLogin" | "createdAt" | "updatedAt", ExtArgs["result"]["users"]>
 
   export type $usersPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     name: "users"
@@ -2815,6 +3008,7 @@ export namespace Prisma {
       initials: string | null
       phone: string | null
       dateOfBirth: Date | null
+      profilePhoto: string | null
       isActive: boolean
       isFirstLogin: boolean
       approvalStatus: string
@@ -3253,6 +3447,7 @@ export namespace Prisma {
     readonly initials: FieldRef<"users", 'String'>
     readonly phone: FieldRef<"users", 'String'>
     readonly dateOfBirth: FieldRef<"users", 'DateTime'>
+    readonly profilePhoto: FieldRef<"users", 'String'>
     readonly isActive: FieldRef<"users", 'Boolean'>
     readonly isFirstLogin: FieldRef<"users", 'Boolean'>
     readonly approvalStatus: FieldRef<"users", 'String'>
@@ -22510,13 +22705,2224 @@ export namespace Prisma {
 
 
   /**
+   * Model rosters
+   */
+
+  export type AggregateRosters = {
+    _count: RostersCountAggregateOutputType | null
+    _min: RostersMinAggregateOutputType | null
+    _max: RostersMaxAggregateOutputType | null
+  }
+
+  export type RostersMinAggregateOutputType = {
+    id: string | null
+    staffId: string | null
+    staffName: string | null
+    staffRole: string | null
+    date: string | null
+    shift: string | null
+    notes: string | null
+    createdBy: string | null
+    createdAt: Date | null
+    updatedAt: Date | null
+  }
+
+  export type RostersMaxAggregateOutputType = {
+    id: string | null
+    staffId: string | null
+    staffName: string | null
+    staffRole: string | null
+    date: string | null
+    shift: string | null
+    notes: string | null
+    createdBy: string | null
+    createdAt: Date | null
+    updatedAt: Date | null
+  }
+
+  export type RostersCountAggregateOutputType = {
+    id: number
+    staffId: number
+    staffName: number
+    staffRole: number
+    date: number
+    shift: number
+    notes: number
+    createdBy: number
+    createdAt: number
+    updatedAt: number
+    _all: number
+  }
+
+
+  export type RostersMinAggregateInputType = {
+    id?: true
+    staffId?: true
+    staffName?: true
+    staffRole?: true
+    date?: true
+    shift?: true
+    notes?: true
+    createdBy?: true
+    createdAt?: true
+    updatedAt?: true
+  }
+
+  export type RostersMaxAggregateInputType = {
+    id?: true
+    staffId?: true
+    staffName?: true
+    staffRole?: true
+    date?: true
+    shift?: true
+    notes?: true
+    createdBy?: true
+    createdAt?: true
+    updatedAt?: true
+  }
+
+  export type RostersCountAggregateInputType = {
+    id?: true
+    staffId?: true
+    staffName?: true
+    staffRole?: true
+    date?: true
+    shift?: true
+    notes?: true
+    createdBy?: true
+    createdAt?: true
+    updatedAt?: true
+    _all?: true
+  }
+
+  export type RostersAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which rosters to aggregate.
+     */
+    where?: rostersWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of rosters to fetch.
+     */
+    orderBy?: rostersOrderByWithRelationInput | rostersOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: rostersWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` rosters from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` rosters.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned rosters
+    **/
+    _count?: true | RostersCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: RostersMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: RostersMaxAggregateInputType
+  }
+
+  export type GetRostersAggregateType<T extends RostersAggregateArgs> = {
+        [P in keyof T & keyof AggregateRosters]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateRosters[P]>
+      : GetScalarType<T[P], AggregateRosters[P]>
+  }
+
+
+
+
+  export type rostersGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: rostersWhereInput
+    orderBy?: rostersOrderByWithAggregationInput | rostersOrderByWithAggregationInput[]
+    by: RostersScalarFieldEnum[] | RostersScalarFieldEnum
+    having?: rostersScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: RostersCountAggregateInputType | true
+    _min?: RostersMinAggregateInputType
+    _max?: RostersMaxAggregateInputType
+  }
+
+  export type RostersGroupByOutputType = {
+    id: string
+    staffId: string | null
+    staffName: string | null
+    staffRole: string | null
+    date: string
+    shift: string
+    notes: string | null
+    createdBy: string | null
+    createdAt: Date
+    updatedAt: Date
+    _count: RostersCountAggregateOutputType | null
+    _min: RostersMinAggregateOutputType | null
+    _max: RostersMaxAggregateOutputType | null
+  }
+
+  type GetRostersGroupByPayload<T extends rostersGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<RostersGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof RostersGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], RostersGroupByOutputType[P]>
+            : GetScalarType<T[P], RostersGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type rostersSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    staffId?: boolean
+    staffName?: boolean
+    staffRole?: boolean
+    date?: boolean
+    shift?: boolean
+    notes?: boolean
+    createdBy?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+  }, ExtArgs["result"]["rosters"]>
+
+  export type rostersSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    staffId?: boolean
+    staffName?: boolean
+    staffRole?: boolean
+    date?: boolean
+    shift?: boolean
+    notes?: boolean
+    createdBy?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+  }, ExtArgs["result"]["rosters"]>
+
+  export type rostersSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    staffId?: boolean
+    staffName?: boolean
+    staffRole?: boolean
+    date?: boolean
+    shift?: boolean
+    notes?: boolean
+    createdBy?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+  }, ExtArgs["result"]["rosters"]>
+
+  export type rostersSelectScalar = {
+    id?: boolean
+    staffId?: boolean
+    staffName?: boolean
+    staffRole?: boolean
+    date?: boolean
+    shift?: boolean
+    notes?: boolean
+    createdBy?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+  }
+
+  export type rostersOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "staffId" | "staffName" | "staffRole" | "date" | "shift" | "notes" | "createdBy" | "createdAt" | "updatedAt", ExtArgs["result"]["rosters"]>
+
+  export type $rostersPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "rosters"
+    objects: {}
+    scalars: $Extensions.GetPayloadResult<{
+      id: string
+      staffId: string | null
+      staffName: string | null
+      staffRole: string | null
+      date: string
+      shift: string
+      notes: string | null
+      createdBy: string | null
+      createdAt: Date
+      updatedAt: Date
+    }, ExtArgs["result"]["rosters"]>
+    composites: {}
+  }
+
+  type rostersGetPayload<S extends boolean | null | undefined | rostersDefaultArgs> = $Result.GetResult<Prisma.$rostersPayload, S>
+
+  type rostersCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> =
+    Omit<rostersFindManyArgs, 'select' | 'include' | 'distinct' | 'omit'> & {
+      select?: RostersCountAggregateInputType | true
+    }
+
+  export interface rostersDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['rosters'], meta: { name: 'rosters' } }
+    /**
+     * Find zero or one Rosters that matches the filter.
+     * @param {rostersFindUniqueArgs} args - Arguments to find a Rosters
+     * @example
+     * // Get one Rosters
+     * const rosters = await prisma.rosters.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends rostersFindUniqueArgs>(args: SelectSubset<T, rostersFindUniqueArgs<ExtArgs>>): Prisma__rostersClient<$Result.GetResult<Prisma.$rostersPayload<ExtArgs>, T, "findUnique", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find one Rosters that matches the filter or throw an error with `error.code='P2025'`
+     * if no matches were found.
+     * @param {rostersFindUniqueOrThrowArgs} args - Arguments to find a Rosters
+     * @example
+     * // Get one Rosters
+     * const rosters = await prisma.rosters.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends rostersFindUniqueOrThrowArgs>(args: SelectSubset<T, rostersFindUniqueOrThrowArgs<ExtArgs>>): Prisma__rostersClient<$Result.GetResult<Prisma.$rostersPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first Rosters that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {rostersFindFirstArgs} args - Arguments to find a Rosters
+     * @example
+     * // Get one Rosters
+     * const rosters = await prisma.rosters.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends rostersFindFirstArgs>(args?: SelectSubset<T, rostersFindFirstArgs<ExtArgs>>): Prisma__rostersClient<$Result.GetResult<Prisma.$rostersPayload<ExtArgs>, T, "findFirst", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first Rosters that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {rostersFindFirstOrThrowArgs} args - Arguments to find a Rosters
+     * @example
+     * // Get one Rosters
+     * const rosters = await prisma.rosters.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends rostersFindFirstOrThrowArgs>(args?: SelectSubset<T, rostersFindFirstOrThrowArgs<ExtArgs>>): Prisma__rostersClient<$Result.GetResult<Prisma.$rostersPayload<ExtArgs>, T, "findFirstOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find zero or more Rosters that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {rostersFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all Rosters
+     * const rosters = await prisma.rosters.findMany()
+     * 
+     * // Get first 10 Rosters
+     * const rosters = await prisma.rosters.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const rostersWithIdOnly = await prisma.rosters.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends rostersFindManyArgs>(args?: SelectSubset<T, rostersFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$rostersPayload<ExtArgs>, T, "findMany", GlobalOmitOptions>>
+
+    /**
+     * Create a Rosters.
+     * @param {rostersCreateArgs} args - Arguments to create a Rosters.
+     * @example
+     * // Create one Rosters
+     * const Rosters = await prisma.rosters.create({
+     *   data: {
+     *     // ... data to create a Rosters
+     *   }
+     * })
+     * 
+     */
+    create<T extends rostersCreateArgs>(args: SelectSubset<T, rostersCreateArgs<ExtArgs>>): Prisma__rostersClient<$Result.GetResult<Prisma.$rostersPayload<ExtArgs>, T, "create", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Create many Rosters.
+     * @param {rostersCreateManyArgs} args - Arguments to create many Rosters.
+     * @example
+     * // Create many Rosters
+     * const rosters = await prisma.rosters.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends rostersCreateManyArgs>(args?: SelectSubset<T, rostersCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many Rosters and returns the data saved in the database.
+     * @param {rostersCreateManyAndReturnArgs} args - Arguments to create many Rosters.
+     * @example
+     * // Create many Rosters
+     * const rosters = await prisma.rosters.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many Rosters and only return the `id`
+     * const rostersWithIdOnly = await prisma.rosters.createManyAndReturn({
+     *   select: { id: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends rostersCreateManyAndReturnArgs>(args?: SelectSubset<T, rostersCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$rostersPayload<ExtArgs>, T, "createManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Delete a Rosters.
+     * @param {rostersDeleteArgs} args - Arguments to delete one Rosters.
+     * @example
+     * // Delete one Rosters
+     * const Rosters = await prisma.rosters.delete({
+     *   where: {
+     *     // ... filter to delete one Rosters
+     *   }
+     * })
+     * 
+     */
+    delete<T extends rostersDeleteArgs>(args: SelectSubset<T, rostersDeleteArgs<ExtArgs>>): Prisma__rostersClient<$Result.GetResult<Prisma.$rostersPayload<ExtArgs>, T, "delete", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Update one Rosters.
+     * @param {rostersUpdateArgs} args - Arguments to update one Rosters.
+     * @example
+     * // Update one Rosters
+     * const rosters = await prisma.rosters.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends rostersUpdateArgs>(args: SelectSubset<T, rostersUpdateArgs<ExtArgs>>): Prisma__rostersClient<$Result.GetResult<Prisma.$rostersPayload<ExtArgs>, T, "update", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Delete zero or more Rosters.
+     * @param {rostersDeleteManyArgs} args - Arguments to filter Rosters to delete.
+     * @example
+     * // Delete a few Rosters
+     * const { count } = await prisma.rosters.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends rostersDeleteManyArgs>(args?: SelectSubset<T, rostersDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more Rosters.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {rostersUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many Rosters
+     * const rosters = await prisma.rosters.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends rostersUpdateManyArgs>(args: SelectSubset<T, rostersUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more Rosters and returns the data updated in the database.
+     * @param {rostersUpdateManyAndReturnArgs} args - Arguments to update many Rosters.
+     * @example
+     * // Update many Rosters
+     * const rosters = await prisma.rosters.updateManyAndReturn({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Update zero or more Rosters and only return the `id`
+     * const rostersWithIdOnly = await prisma.rosters.updateManyAndReturn({
+     *   select: { id: true },
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    updateManyAndReturn<T extends rostersUpdateManyAndReturnArgs>(args: SelectSubset<T, rostersUpdateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$rostersPayload<ExtArgs>, T, "updateManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Create or update one Rosters.
+     * @param {rostersUpsertArgs} args - Arguments to update or create a Rosters.
+     * @example
+     * // Update or create a Rosters
+     * const rosters = await prisma.rosters.upsert({
+     *   create: {
+     *     // ... data to create a Rosters
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the Rosters we want to update
+     *   }
+     * })
+     */
+    upsert<T extends rostersUpsertArgs>(args: SelectSubset<T, rostersUpsertArgs<ExtArgs>>): Prisma__rostersClient<$Result.GetResult<Prisma.$rostersPayload<ExtArgs>, T, "upsert", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+
+    /**
+     * Count the number of Rosters.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {rostersCountArgs} args - Arguments to filter Rosters to count.
+     * @example
+     * // Count the number of Rosters
+     * const count = await prisma.rosters.count({
+     *   where: {
+     *     // ... the filter for the Rosters we want to count
+     *   }
+     * })
+    **/
+    count<T extends rostersCountArgs>(
+      args?: Subset<T, rostersCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], RostersCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a Rosters.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {RostersAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends RostersAggregateArgs>(args: Subset<T, RostersAggregateArgs>): Prisma.PrismaPromise<GetRostersAggregateType<T>>
+
+    /**
+     * Group by Rosters.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {rostersGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends rostersGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: rostersGroupByArgs['orderBy'] }
+        : { orderBy?: rostersGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, rostersGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetRostersGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the rosters model
+   */
+  readonly fields: rostersFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for rosters.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__rostersClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the rosters model
+   */
+  interface rostersFieldRefs {
+    readonly id: FieldRef<"rosters", 'String'>
+    readonly staffId: FieldRef<"rosters", 'String'>
+    readonly staffName: FieldRef<"rosters", 'String'>
+    readonly staffRole: FieldRef<"rosters", 'String'>
+    readonly date: FieldRef<"rosters", 'String'>
+    readonly shift: FieldRef<"rosters", 'String'>
+    readonly notes: FieldRef<"rosters", 'String'>
+    readonly createdBy: FieldRef<"rosters", 'String'>
+    readonly createdAt: FieldRef<"rosters", 'DateTime'>
+    readonly updatedAt: FieldRef<"rosters", 'DateTime'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * rosters findUnique
+   */
+  export type rostersFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the rosters
+     */
+    select?: rostersSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the rosters
+     */
+    omit?: rostersOmit<ExtArgs> | null
+    /**
+     * Filter, which rosters to fetch.
+     */
+    where: rostersWhereUniqueInput
+  }
+
+  /**
+   * rosters findUniqueOrThrow
+   */
+  export type rostersFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the rosters
+     */
+    select?: rostersSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the rosters
+     */
+    omit?: rostersOmit<ExtArgs> | null
+    /**
+     * Filter, which rosters to fetch.
+     */
+    where: rostersWhereUniqueInput
+  }
+
+  /**
+   * rosters findFirst
+   */
+  export type rostersFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the rosters
+     */
+    select?: rostersSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the rosters
+     */
+    omit?: rostersOmit<ExtArgs> | null
+    /**
+     * Filter, which rosters to fetch.
+     */
+    where?: rostersWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of rosters to fetch.
+     */
+    orderBy?: rostersOrderByWithRelationInput | rostersOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for rosters.
+     */
+    cursor?: rostersWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` rosters from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` rosters.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of rosters.
+     */
+    distinct?: RostersScalarFieldEnum | RostersScalarFieldEnum[]
+  }
+
+  /**
+   * rosters findFirstOrThrow
+   */
+  export type rostersFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the rosters
+     */
+    select?: rostersSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the rosters
+     */
+    omit?: rostersOmit<ExtArgs> | null
+    /**
+     * Filter, which rosters to fetch.
+     */
+    where?: rostersWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of rosters to fetch.
+     */
+    orderBy?: rostersOrderByWithRelationInput | rostersOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for rosters.
+     */
+    cursor?: rostersWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` rosters from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` rosters.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of rosters.
+     */
+    distinct?: RostersScalarFieldEnum | RostersScalarFieldEnum[]
+  }
+
+  /**
+   * rosters findMany
+   */
+  export type rostersFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the rosters
+     */
+    select?: rostersSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the rosters
+     */
+    omit?: rostersOmit<ExtArgs> | null
+    /**
+     * Filter, which rosters to fetch.
+     */
+    where?: rostersWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of rosters to fetch.
+     */
+    orderBy?: rostersOrderByWithRelationInput | rostersOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing rosters.
+     */
+    cursor?: rostersWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` rosters from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` rosters.
+     */
+    skip?: number
+    distinct?: RostersScalarFieldEnum | RostersScalarFieldEnum[]
+  }
+
+  /**
+   * rosters create
+   */
+  export type rostersCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the rosters
+     */
+    select?: rostersSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the rosters
+     */
+    omit?: rostersOmit<ExtArgs> | null
+    /**
+     * The data needed to create a rosters.
+     */
+    data: XOR<rostersCreateInput, rostersUncheckedCreateInput>
+  }
+
+  /**
+   * rosters createMany
+   */
+  export type rostersCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many rosters.
+     */
+    data: rostersCreateManyInput | rostersCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * rosters createManyAndReturn
+   */
+  export type rostersCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the rosters
+     */
+    select?: rostersSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the rosters
+     */
+    omit?: rostersOmit<ExtArgs> | null
+    /**
+     * The data used to create many rosters.
+     */
+    data: rostersCreateManyInput | rostersCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * rosters update
+   */
+  export type rostersUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the rosters
+     */
+    select?: rostersSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the rosters
+     */
+    omit?: rostersOmit<ExtArgs> | null
+    /**
+     * The data needed to update a rosters.
+     */
+    data: XOR<rostersUpdateInput, rostersUncheckedUpdateInput>
+    /**
+     * Choose, which rosters to update.
+     */
+    where: rostersWhereUniqueInput
+  }
+
+  /**
+   * rosters updateMany
+   */
+  export type rostersUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update rosters.
+     */
+    data: XOR<rostersUpdateManyMutationInput, rostersUncheckedUpdateManyInput>
+    /**
+     * Filter which rosters to update
+     */
+    where?: rostersWhereInput
+    /**
+     * Limit how many rosters to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * rosters updateManyAndReturn
+   */
+  export type rostersUpdateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the rosters
+     */
+    select?: rostersSelectUpdateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the rosters
+     */
+    omit?: rostersOmit<ExtArgs> | null
+    /**
+     * The data used to update rosters.
+     */
+    data: XOR<rostersUpdateManyMutationInput, rostersUncheckedUpdateManyInput>
+    /**
+     * Filter which rosters to update
+     */
+    where?: rostersWhereInput
+    /**
+     * Limit how many rosters to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * rosters upsert
+   */
+  export type rostersUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the rosters
+     */
+    select?: rostersSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the rosters
+     */
+    omit?: rostersOmit<ExtArgs> | null
+    /**
+     * The filter to search for the rosters to update in case it exists.
+     */
+    where: rostersWhereUniqueInput
+    /**
+     * In case the rosters found by the `where` argument doesn't exist, create a new rosters with this data.
+     */
+    create: XOR<rostersCreateInput, rostersUncheckedCreateInput>
+    /**
+     * In case the rosters was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<rostersUpdateInput, rostersUncheckedUpdateInput>
+  }
+
+  /**
+   * rosters delete
+   */
+  export type rostersDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the rosters
+     */
+    select?: rostersSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the rosters
+     */
+    omit?: rostersOmit<ExtArgs> | null
+    /**
+     * Filter which rosters to delete.
+     */
+    where: rostersWhereUniqueInput
+  }
+
+  /**
+   * rosters deleteMany
+   */
+  export type rostersDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which rosters to delete
+     */
+    where?: rostersWhereInput
+    /**
+     * Limit how many rosters to delete.
+     */
+    limit?: number
+  }
+
+  /**
+   * rosters without action
+   */
+  export type rostersDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the rosters
+     */
+    select?: rostersSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the rosters
+     */
+    omit?: rostersOmit<ExtArgs> | null
+  }
+
+
+  /**
+   * Model attendance
+   */
+
+  export type AggregateAttendance = {
+    _count: AttendanceCountAggregateOutputType | null
+    _min: AttendanceMinAggregateOutputType | null
+    _max: AttendanceMaxAggregateOutputType | null
+  }
+
+  export type AttendanceMinAggregateOutputType = {
+    id: string | null
+    staffId: string | null
+    staffName: string | null
+    staffRole: string | null
+    date: string | null
+    signInTime: string | null
+    signInPhoto: string | null
+    signOutTime: string | null
+    signOutPhoto: string | null
+    shift: string | null
+    status: string | null
+    deviceId: string | null
+    notes: string | null
+    createdAt: Date | null
+    updatedAt: Date | null
+  }
+
+  export type AttendanceMaxAggregateOutputType = {
+    id: string | null
+    staffId: string | null
+    staffName: string | null
+    staffRole: string | null
+    date: string | null
+    signInTime: string | null
+    signInPhoto: string | null
+    signOutTime: string | null
+    signOutPhoto: string | null
+    shift: string | null
+    status: string | null
+    deviceId: string | null
+    notes: string | null
+    createdAt: Date | null
+    updatedAt: Date | null
+  }
+
+  export type AttendanceCountAggregateOutputType = {
+    id: number
+    staffId: number
+    staffName: number
+    staffRole: number
+    date: number
+    signInTime: number
+    signInPhoto: number
+    signOutTime: number
+    signOutPhoto: number
+    shift: number
+    status: number
+    deviceId: number
+    notes: number
+    createdAt: number
+    updatedAt: number
+    _all: number
+  }
+
+
+  export type AttendanceMinAggregateInputType = {
+    id?: true
+    staffId?: true
+    staffName?: true
+    staffRole?: true
+    date?: true
+    signInTime?: true
+    signInPhoto?: true
+    signOutTime?: true
+    signOutPhoto?: true
+    shift?: true
+    status?: true
+    deviceId?: true
+    notes?: true
+    createdAt?: true
+    updatedAt?: true
+  }
+
+  export type AttendanceMaxAggregateInputType = {
+    id?: true
+    staffId?: true
+    staffName?: true
+    staffRole?: true
+    date?: true
+    signInTime?: true
+    signInPhoto?: true
+    signOutTime?: true
+    signOutPhoto?: true
+    shift?: true
+    status?: true
+    deviceId?: true
+    notes?: true
+    createdAt?: true
+    updatedAt?: true
+  }
+
+  export type AttendanceCountAggregateInputType = {
+    id?: true
+    staffId?: true
+    staffName?: true
+    staffRole?: true
+    date?: true
+    signInTime?: true
+    signInPhoto?: true
+    signOutTime?: true
+    signOutPhoto?: true
+    shift?: true
+    status?: true
+    deviceId?: true
+    notes?: true
+    createdAt?: true
+    updatedAt?: true
+    _all?: true
+  }
+
+  export type AttendanceAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which attendance to aggregate.
+     */
+    where?: attendanceWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of attendances to fetch.
+     */
+    orderBy?: attendanceOrderByWithRelationInput | attendanceOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: attendanceWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` attendances from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` attendances.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned attendances
+    **/
+    _count?: true | AttendanceCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: AttendanceMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: AttendanceMaxAggregateInputType
+  }
+
+  export type GetAttendanceAggregateType<T extends AttendanceAggregateArgs> = {
+        [P in keyof T & keyof AggregateAttendance]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateAttendance[P]>
+      : GetScalarType<T[P], AggregateAttendance[P]>
+  }
+
+
+
+
+  export type attendanceGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: attendanceWhereInput
+    orderBy?: attendanceOrderByWithAggregationInput | attendanceOrderByWithAggregationInput[]
+    by: AttendanceScalarFieldEnum[] | AttendanceScalarFieldEnum
+    having?: attendanceScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: AttendanceCountAggregateInputType | true
+    _min?: AttendanceMinAggregateInputType
+    _max?: AttendanceMaxAggregateInputType
+  }
+
+  export type AttendanceGroupByOutputType = {
+    id: string
+    staffId: string | null
+    staffName: string | null
+    staffRole: string | null
+    date: string
+    signInTime: string | null
+    signInPhoto: string | null
+    signOutTime: string | null
+    signOutPhoto: string | null
+    shift: string
+    status: string
+    deviceId: string | null
+    notes: string | null
+    createdAt: Date
+    updatedAt: Date
+    _count: AttendanceCountAggregateOutputType | null
+    _min: AttendanceMinAggregateOutputType | null
+    _max: AttendanceMaxAggregateOutputType | null
+  }
+
+  type GetAttendanceGroupByPayload<T extends attendanceGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<AttendanceGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof AttendanceGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], AttendanceGroupByOutputType[P]>
+            : GetScalarType<T[P], AttendanceGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type attendanceSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    staffId?: boolean
+    staffName?: boolean
+    staffRole?: boolean
+    date?: boolean
+    signInTime?: boolean
+    signInPhoto?: boolean
+    signOutTime?: boolean
+    signOutPhoto?: boolean
+    shift?: boolean
+    status?: boolean
+    deviceId?: boolean
+    notes?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+  }, ExtArgs["result"]["attendance"]>
+
+  export type attendanceSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    staffId?: boolean
+    staffName?: boolean
+    staffRole?: boolean
+    date?: boolean
+    signInTime?: boolean
+    signInPhoto?: boolean
+    signOutTime?: boolean
+    signOutPhoto?: boolean
+    shift?: boolean
+    status?: boolean
+    deviceId?: boolean
+    notes?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+  }, ExtArgs["result"]["attendance"]>
+
+  export type attendanceSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    staffId?: boolean
+    staffName?: boolean
+    staffRole?: boolean
+    date?: boolean
+    signInTime?: boolean
+    signInPhoto?: boolean
+    signOutTime?: boolean
+    signOutPhoto?: boolean
+    shift?: boolean
+    status?: boolean
+    deviceId?: boolean
+    notes?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+  }, ExtArgs["result"]["attendance"]>
+
+  export type attendanceSelectScalar = {
+    id?: boolean
+    staffId?: boolean
+    staffName?: boolean
+    staffRole?: boolean
+    date?: boolean
+    signInTime?: boolean
+    signInPhoto?: boolean
+    signOutTime?: boolean
+    signOutPhoto?: boolean
+    shift?: boolean
+    status?: boolean
+    deviceId?: boolean
+    notes?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+  }
+
+  export type attendanceOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "staffId" | "staffName" | "staffRole" | "date" | "signInTime" | "signInPhoto" | "signOutTime" | "signOutPhoto" | "shift" | "status" | "deviceId" | "notes" | "createdAt" | "updatedAt", ExtArgs["result"]["attendance"]>
+
+  export type $attendancePayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "attendance"
+    objects: {}
+    scalars: $Extensions.GetPayloadResult<{
+      id: string
+      staffId: string | null
+      staffName: string | null
+      staffRole: string | null
+      date: string
+      signInTime: string | null
+      signInPhoto: string | null
+      signOutTime: string | null
+      signOutPhoto: string | null
+      shift: string
+      status: string
+      deviceId: string | null
+      notes: string | null
+      createdAt: Date
+      updatedAt: Date
+    }, ExtArgs["result"]["attendance"]>
+    composites: {}
+  }
+
+  type attendanceGetPayload<S extends boolean | null | undefined | attendanceDefaultArgs> = $Result.GetResult<Prisma.$attendancePayload, S>
+
+  type attendanceCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> =
+    Omit<attendanceFindManyArgs, 'select' | 'include' | 'distinct' | 'omit'> & {
+      select?: AttendanceCountAggregateInputType | true
+    }
+
+  export interface attendanceDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['attendance'], meta: { name: 'attendance' } }
+    /**
+     * Find zero or one Attendance that matches the filter.
+     * @param {attendanceFindUniqueArgs} args - Arguments to find a Attendance
+     * @example
+     * // Get one Attendance
+     * const attendance = await prisma.attendance.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends attendanceFindUniqueArgs>(args: SelectSubset<T, attendanceFindUniqueArgs<ExtArgs>>): Prisma__attendanceClient<$Result.GetResult<Prisma.$attendancePayload<ExtArgs>, T, "findUnique", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find one Attendance that matches the filter or throw an error with `error.code='P2025'`
+     * if no matches were found.
+     * @param {attendanceFindUniqueOrThrowArgs} args - Arguments to find a Attendance
+     * @example
+     * // Get one Attendance
+     * const attendance = await prisma.attendance.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends attendanceFindUniqueOrThrowArgs>(args: SelectSubset<T, attendanceFindUniqueOrThrowArgs<ExtArgs>>): Prisma__attendanceClient<$Result.GetResult<Prisma.$attendancePayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first Attendance that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {attendanceFindFirstArgs} args - Arguments to find a Attendance
+     * @example
+     * // Get one Attendance
+     * const attendance = await prisma.attendance.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends attendanceFindFirstArgs>(args?: SelectSubset<T, attendanceFindFirstArgs<ExtArgs>>): Prisma__attendanceClient<$Result.GetResult<Prisma.$attendancePayload<ExtArgs>, T, "findFirst", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first Attendance that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {attendanceFindFirstOrThrowArgs} args - Arguments to find a Attendance
+     * @example
+     * // Get one Attendance
+     * const attendance = await prisma.attendance.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends attendanceFindFirstOrThrowArgs>(args?: SelectSubset<T, attendanceFindFirstOrThrowArgs<ExtArgs>>): Prisma__attendanceClient<$Result.GetResult<Prisma.$attendancePayload<ExtArgs>, T, "findFirstOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find zero or more Attendances that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {attendanceFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all Attendances
+     * const attendances = await prisma.attendance.findMany()
+     * 
+     * // Get first 10 Attendances
+     * const attendances = await prisma.attendance.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const attendanceWithIdOnly = await prisma.attendance.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends attendanceFindManyArgs>(args?: SelectSubset<T, attendanceFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$attendancePayload<ExtArgs>, T, "findMany", GlobalOmitOptions>>
+
+    /**
+     * Create a Attendance.
+     * @param {attendanceCreateArgs} args - Arguments to create a Attendance.
+     * @example
+     * // Create one Attendance
+     * const Attendance = await prisma.attendance.create({
+     *   data: {
+     *     // ... data to create a Attendance
+     *   }
+     * })
+     * 
+     */
+    create<T extends attendanceCreateArgs>(args: SelectSubset<T, attendanceCreateArgs<ExtArgs>>): Prisma__attendanceClient<$Result.GetResult<Prisma.$attendancePayload<ExtArgs>, T, "create", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Create many Attendances.
+     * @param {attendanceCreateManyArgs} args - Arguments to create many Attendances.
+     * @example
+     * // Create many Attendances
+     * const attendance = await prisma.attendance.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends attendanceCreateManyArgs>(args?: SelectSubset<T, attendanceCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many Attendances and returns the data saved in the database.
+     * @param {attendanceCreateManyAndReturnArgs} args - Arguments to create many Attendances.
+     * @example
+     * // Create many Attendances
+     * const attendance = await prisma.attendance.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many Attendances and only return the `id`
+     * const attendanceWithIdOnly = await prisma.attendance.createManyAndReturn({
+     *   select: { id: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends attendanceCreateManyAndReturnArgs>(args?: SelectSubset<T, attendanceCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$attendancePayload<ExtArgs>, T, "createManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Delete a Attendance.
+     * @param {attendanceDeleteArgs} args - Arguments to delete one Attendance.
+     * @example
+     * // Delete one Attendance
+     * const Attendance = await prisma.attendance.delete({
+     *   where: {
+     *     // ... filter to delete one Attendance
+     *   }
+     * })
+     * 
+     */
+    delete<T extends attendanceDeleteArgs>(args: SelectSubset<T, attendanceDeleteArgs<ExtArgs>>): Prisma__attendanceClient<$Result.GetResult<Prisma.$attendancePayload<ExtArgs>, T, "delete", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Update one Attendance.
+     * @param {attendanceUpdateArgs} args - Arguments to update one Attendance.
+     * @example
+     * // Update one Attendance
+     * const attendance = await prisma.attendance.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends attendanceUpdateArgs>(args: SelectSubset<T, attendanceUpdateArgs<ExtArgs>>): Prisma__attendanceClient<$Result.GetResult<Prisma.$attendancePayload<ExtArgs>, T, "update", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Delete zero or more Attendances.
+     * @param {attendanceDeleteManyArgs} args - Arguments to filter Attendances to delete.
+     * @example
+     * // Delete a few Attendances
+     * const { count } = await prisma.attendance.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends attendanceDeleteManyArgs>(args?: SelectSubset<T, attendanceDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more Attendances.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {attendanceUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many Attendances
+     * const attendance = await prisma.attendance.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends attendanceUpdateManyArgs>(args: SelectSubset<T, attendanceUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more Attendances and returns the data updated in the database.
+     * @param {attendanceUpdateManyAndReturnArgs} args - Arguments to update many Attendances.
+     * @example
+     * // Update many Attendances
+     * const attendance = await prisma.attendance.updateManyAndReturn({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Update zero or more Attendances and only return the `id`
+     * const attendanceWithIdOnly = await prisma.attendance.updateManyAndReturn({
+     *   select: { id: true },
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    updateManyAndReturn<T extends attendanceUpdateManyAndReturnArgs>(args: SelectSubset<T, attendanceUpdateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$attendancePayload<ExtArgs>, T, "updateManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Create or update one Attendance.
+     * @param {attendanceUpsertArgs} args - Arguments to update or create a Attendance.
+     * @example
+     * // Update or create a Attendance
+     * const attendance = await prisma.attendance.upsert({
+     *   create: {
+     *     // ... data to create a Attendance
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the Attendance we want to update
+     *   }
+     * })
+     */
+    upsert<T extends attendanceUpsertArgs>(args: SelectSubset<T, attendanceUpsertArgs<ExtArgs>>): Prisma__attendanceClient<$Result.GetResult<Prisma.$attendancePayload<ExtArgs>, T, "upsert", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+
+    /**
+     * Count the number of Attendances.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {attendanceCountArgs} args - Arguments to filter Attendances to count.
+     * @example
+     * // Count the number of Attendances
+     * const count = await prisma.attendance.count({
+     *   where: {
+     *     // ... the filter for the Attendances we want to count
+     *   }
+     * })
+    **/
+    count<T extends attendanceCountArgs>(
+      args?: Subset<T, attendanceCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], AttendanceCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a Attendance.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {AttendanceAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends AttendanceAggregateArgs>(args: Subset<T, AttendanceAggregateArgs>): Prisma.PrismaPromise<GetAttendanceAggregateType<T>>
+
+    /**
+     * Group by Attendance.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {attendanceGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends attendanceGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: attendanceGroupByArgs['orderBy'] }
+        : { orderBy?: attendanceGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, attendanceGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetAttendanceGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the attendance model
+   */
+  readonly fields: attendanceFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for attendance.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__attendanceClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the attendance model
+   */
+  interface attendanceFieldRefs {
+    readonly id: FieldRef<"attendance", 'String'>
+    readonly staffId: FieldRef<"attendance", 'String'>
+    readonly staffName: FieldRef<"attendance", 'String'>
+    readonly staffRole: FieldRef<"attendance", 'String'>
+    readonly date: FieldRef<"attendance", 'String'>
+    readonly signInTime: FieldRef<"attendance", 'String'>
+    readonly signInPhoto: FieldRef<"attendance", 'String'>
+    readonly signOutTime: FieldRef<"attendance", 'String'>
+    readonly signOutPhoto: FieldRef<"attendance", 'String'>
+    readonly shift: FieldRef<"attendance", 'String'>
+    readonly status: FieldRef<"attendance", 'String'>
+    readonly deviceId: FieldRef<"attendance", 'String'>
+    readonly notes: FieldRef<"attendance", 'String'>
+    readonly createdAt: FieldRef<"attendance", 'DateTime'>
+    readonly updatedAt: FieldRef<"attendance", 'DateTime'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * attendance findUnique
+   */
+  export type attendanceFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the attendance
+     */
+    select?: attendanceSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the attendance
+     */
+    omit?: attendanceOmit<ExtArgs> | null
+    /**
+     * Filter, which attendance to fetch.
+     */
+    where: attendanceWhereUniqueInput
+  }
+
+  /**
+   * attendance findUniqueOrThrow
+   */
+  export type attendanceFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the attendance
+     */
+    select?: attendanceSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the attendance
+     */
+    omit?: attendanceOmit<ExtArgs> | null
+    /**
+     * Filter, which attendance to fetch.
+     */
+    where: attendanceWhereUniqueInput
+  }
+
+  /**
+   * attendance findFirst
+   */
+  export type attendanceFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the attendance
+     */
+    select?: attendanceSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the attendance
+     */
+    omit?: attendanceOmit<ExtArgs> | null
+    /**
+     * Filter, which attendance to fetch.
+     */
+    where?: attendanceWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of attendances to fetch.
+     */
+    orderBy?: attendanceOrderByWithRelationInput | attendanceOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for attendances.
+     */
+    cursor?: attendanceWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` attendances from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` attendances.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of attendances.
+     */
+    distinct?: AttendanceScalarFieldEnum | AttendanceScalarFieldEnum[]
+  }
+
+  /**
+   * attendance findFirstOrThrow
+   */
+  export type attendanceFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the attendance
+     */
+    select?: attendanceSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the attendance
+     */
+    omit?: attendanceOmit<ExtArgs> | null
+    /**
+     * Filter, which attendance to fetch.
+     */
+    where?: attendanceWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of attendances to fetch.
+     */
+    orderBy?: attendanceOrderByWithRelationInput | attendanceOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for attendances.
+     */
+    cursor?: attendanceWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` attendances from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` attendances.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of attendances.
+     */
+    distinct?: AttendanceScalarFieldEnum | AttendanceScalarFieldEnum[]
+  }
+
+  /**
+   * attendance findMany
+   */
+  export type attendanceFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the attendance
+     */
+    select?: attendanceSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the attendance
+     */
+    omit?: attendanceOmit<ExtArgs> | null
+    /**
+     * Filter, which attendances to fetch.
+     */
+    where?: attendanceWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of attendances to fetch.
+     */
+    orderBy?: attendanceOrderByWithRelationInput | attendanceOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing attendances.
+     */
+    cursor?: attendanceWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` attendances from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` attendances.
+     */
+    skip?: number
+    distinct?: AttendanceScalarFieldEnum | AttendanceScalarFieldEnum[]
+  }
+
+  /**
+   * attendance create
+   */
+  export type attendanceCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the attendance
+     */
+    select?: attendanceSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the attendance
+     */
+    omit?: attendanceOmit<ExtArgs> | null
+    /**
+     * The data needed to create a attendance.
+     */
+    data: XOR<attendanceCreateInput, attendanceUncheckedCreateInput>
+  }
+
+  /**
+   * attendance createMany
+   */
+  export type attendanceCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many attendances.
+     */
+    data: attendanceCreateManyInput | attendanceCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * attendance createManyAndReturn
+   */
+  export type attendanceCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the attendance
+     */
+    select?: attendanceSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the attendance
+     */
+    omit?: attendanceOmit<ExtArgs> | null
+    /**
+     * The data used to create many attendances.
+     */
+    data: attendanceCreateManyInput | attendanceCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * attendance update
+   */
+  export type attendanceUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the attendance
+     */
+    select?: attendanceSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the attendance
+     */
+    omit?: attendanceOmit<ExtArgs> | null
+    /**
+     * The data needed to update a attendance.
+     */
+    data: XOR<attendanceUpdateInput, attendanceUncheckedUpdateInput>
+    /**
+     * Choose, which attendance to update.
+     */
+    where: attendanceWhereUniqueInput
+  }
+
+  /**
+   * attendance updateMany
+   */
+  export type attendanceUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update attendances.
+     */
+    data: XOR<attendanceUpdateManyMutationInput, attendanceUncheckedUpdateManyInput>
+    /**
+     * Filter which attendances to update
+     */
+    where?: attendanceWhereInput
+    /**
+     * Limit how many attendances to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * attendance updateManyAndReturn
+   */
+  export type attendanceUpdateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the attendance
+     */
+    select?: attendanceSelectUpdateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the attendance
+     */
+    omit?: attendanceOmit<ExtArgs> | null
+    /**
+     * The data used to update attendances.
+     */
+    data: XOR<attendanceUpdateManyMutationInput, attendanceUncheckedUpdateManyInput>
+    /**
+     * Filter which attendances to update
+     */
+    where?: attendanceWhereInput
+    /**
+     * Limit how many attendances to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * attendance upsert
+   */
+  export type attendanceUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the attendance
+     */
+    select?: attendanceSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the attendance
+     */
+    omit?: attendanceOmit<ExtArgs> | null
+    /**
+     * The filter to search for the attendance to update in case it exists.
+     */
+    where: attendanceWhereUniqueInput
+    /**
+     * In case the attendance found by the `where` argument doesn't exist, create a new attendance with this data.
+     */
+    create: XOR<attendanceCreateInput, attendanceUncheckedCreateInput>
+    /**
+     * In case the attendance was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<attendanceUpdateInput, attendanceUncheckedUpdateInput>
+  }
+
+  /**
+   * attendance delete
+   */
+  export type attendanceDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the attendance
+     */
+    select?: attendanceSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the attendance
+     */
+    omit?: attendanceOmit<ExtArgs> | null
+    /**
+     * Filter which attendance to delete.
+     */
+    where: attendanceWhereUniqueInput
+  }
+
+  /**
+   * attendance deleteMany
+   */
+  export type attendanceDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which attendances to delete
+     */
+    where?: attendanceWhereInput
+    /**
+     * Limit how many attendances to delete.
+     */
+    limit?: number
+  }
+
+  /**
+   * attendance without action
+   */
+  export type attendanceDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the attendance
+     */
+    select?: attendanceSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the attendance
+     */
+    omit?: attendanceOmit<ExtArgs> | null
+  }
+
+
+  /**
    * Model app_settings
    */
 
   export type AggregateApp_settings = {
     _count: App_settingsCountAggregateOutputType | null
+    _avg: App_settingsAvgAggregateOutputType | null
+    _sum: App_settingsSumAggregateOutputType | null
     _min: App_settingsMinAggregateOutputType | null
     _max: App_settingsMaxAggregateOutputType | null
+  }
+
+  export type App_settingsAvgAggregateOutputType = {
+    sessionTimeoutMinutes: number | null
+    maxLoginAttempts: number | null
+    lockoutDurationMinutes: number | null
+    passwordMinLength: number | null
+    passwordExpiryDays: number | null
+    auditLogRetentionDays: number | null
+    smtpPort: number | null
+    queueStartNumber: number | null
+    backupRetentionDays: number | null
+  }
+
+  export type App_settingsSumAggregateOutputType = {
+    sessionTimeoutMinutes: number | null
+    maxLoginAttempts: number | null
+    lockoutDurationMinutes: number | null
+    passwordMinLength: number | null
+    passwordExpiryDays: number | null
+    auditLogRetentionDays: number | null
+    smtpPort: number | null
+    queueStartNumber: number | null
+    backupRetentionDays: number | null
   }
 
   export type App_settingsMinAggregateOutputType = {
@@ -22549,9 +24955,45 @@ export namespace Prisma {
     enableEmailNotifications: boolean | null
     enableVoiceNotes: boolean | null
     enableDailyDevotionals: boolean | null
+    enableDrugInteractionCheck: boolean | null
+    enableVitalAlerts: boolean | null
+    enableAuditLogging: boolean | null
+    enableBreakGlass: boolean | null
+    enableTwoFactor: boolean | null
     welcomeMessage: string | null
     headerMessage: string | null
     footerMessage: string | null
+    sessionTimeoutMinutes: number | null
+    maxLoginAttempts: number | null
+    lockoutDurationMinutes: number | null
+    passwordMinLength: number | null
+    passwordRequireUppercase: boolean | null
+    passwordRequireLowercase: boolean | null
+    passwordRequireNumber: boolean | null
+    passwordRequireSpecial: boolean | null
+    passwordExpiryDays: number | null
+    auditLogRetentionDays: number | null
+    logPatientAccess: boolean | null
+    logDataModifications: boolean | null
+    logLoginAttempts: boolean | null
+    smsProvider: string | null
+    smsApiKey: string | null
+    smsApiSecret: string | null
+    smsSenderId: string | null
+    emailProvider: string | null
+    emailApiKey: string | null
+    smtpHost: string | null
+    smtpPort: number | null
+    smtpUser: string | null
+    smtpPassword: string | null
+    rolePermissions: string | null
+    queuePrefix: string | null
+    queueStartNumber: number | null
+    queueResetDaily: boolean | null
+    autoBackupEnabled: boolean | null
+    backupFrequency: string | null
+    backupRetentionDays: number | null
+    lastBackupAt: Date | null
     lastUpdated: Date | null
     updatedBy: string | null
     createdAt: Date | null
@@ -22587,9 +25029,45 @@ export namespace Prisma {
     enableEmailNotifications: boolean | null
     enableVoiceNotes: boolean | null
     enableDailyDevotionals: boolean | null
+    enableDrugInteractionCheck: boolean | null
+    enableVitalAlerts: boolean | null
+    enableAuditLogging: boolean | null
+    enableBreakGlass: boolean | null
+    enableTwoFactor: boolean | null
     welcomeMessage: string | null
     headerMessage: string | null
     footerMessage: string | null
+    sessionTimeoutMinutes: number | null
+    maxLoginAttempts: number | null
+    lockoutDurationMinutes: number | null
+    passwordMinLength: number | null
+    passwordRequireUppercase: boolean | null
+    passwordRequireLowercase: boolean | null
+    passwordRequireNumber: boolean | null
+    passwordRequireSpecial: boolean | null
+    passwordExpiryDays: number | null
+    auditLogRetentionDays: number | null
+    logPatientAccess: boolean | null
+    logDataModifications: boolean | null
+    logLoginAttempts: boolean | null
+    smsProvider: string | null
+    smsApiKey: string | null
+    smsApiSecret: string | null
+    smsSenderId: string | null
+    emailProvider: string | null
+    emailApiKey: string | null
+    smtpHost: string | null
+    smtpPort: number | null
+    smtpUser: string | null
+    smtpPassword: string | null
+    rolePermissions: string | null
+    queuePrefix: string | null
+    queueStartNumber: number | null
+    queueResetDaily: boolean | null
+    autoBackupEnabled: boolean | null
+    backupFrequency: string | null
+    backupRetentionDays: number | null
+    lastBackupAt: Date | null
     lastUpdated: Date | null
     updatedBy: string | null
     createdAt: Date | null
@@ -22625,15 +25103,75 @@ export namespace Prisma {
     enableEmailNotifications: number
     enableVoiceNotes: number
     enableDailyDevotionals: number
+    enableDrugInteractionCheck: number
+    enableVitalAlerts: number
+    enableAuditLogging: number
+    enableBreakGlass: number
+    enableTwoFactor: number
     welcomeMessage: number
     headerMessage: number
     footerMessage: number
+    sessionTimeoutMinutes: number
+    maxLoginAttempts: number
+    lockoutDurationMinutes: number
+    passwordMinLength: number
+    passwordRequireUppercase: number
+    passwordRequireLowercase: number
+    passwordRequireNumber: number
+    passwordRequireSpecial: number
+    passwordExpiryDays: number
+    auditLogRetentionDays: number
+    logPatientAccess: number
+    logDataModifications: number
+    logLoginAttempts: number
+    smsProvider: number
+    smsApiKey: number
+    smsApiSecret: number
+    smsSenderId: number
+    emailProvider: number
+    emailApiKey: number
+    smtpHost: number
+    smtpPort: number
+    smtpUser: number
+    smtpPassword: number
+    rolePermissions: number
+    queuePrefix: number
+    queueStartNumber: number
+    queueResetDaily: number
+    autoBackupEnabled: number
+    backupFrequency: number
+    backupRetentionDays: number
+    lastBackupAt: number
     lastUpdated: number
     updatedBy: number
     createdAt: number
     _all: number
   }
 
+
+  export type App_settingsAvgAggregateInputType = {
+    sessionTimeoutMinutes?: true
+    maxLoginAttempts?: true
+    lockoutDurationMinutes?: true
+    passwordMinLength?: true
+    passwordExpiryDays?: true
+    auditLogRetentionDays?: true
+    smtpPort?: true
+    queueStartNumber?: true
+    backupRetentionDays?: true
+  }
+
+  export type App_settingsSumAggregateInputType = {
+    sessionTimeoutMinutes?: true
+    maxLoginAttempts?: true
+    lockoutDurationMinutes?: true
+    passwordMinLength?: true
+    passwordExpiryDays?: true
+    auditLogRetentionDays?: true
+    smtpPort?: true
+    queueStartNumber?: true
+    backupRetentionDays?: true
+  }
 
   export type App_settingsMinAggregateInputType = {
     id?: true
@@ -22665,9 +25203,45 @@ export namespace Prisma {
     enableEmailNotifications?: true
     enableVoiceNotes?: true
     enableDailyDevotionals?: true
+    enableDrugInteractionCheck?: true
+    enableVitalAlerts?: true
+    enableAuditLogging?: true
+    enableBreakGlass?: true
+    enableTwoFactor?: true
     welcomeMessage?: true
     headerMessage?: true
     footerMessage?: true
+    sessionTimeoutMinutes?: true
+    maxLoginAttempts?: true
+    lockoutDurationMinutes?: true
+    passwordMinLength?: true
+    passwordRequireUppercase?: true
+    passwordRequireLowercase?: true
+    passwordRequireNumber?: true
+    passwordRequireSpecial?: true
+    passwordExpiryDays?: true
+    auditLogRetentionDays?: true
+    logPatientAccess?: true
+    logDataModifications?: true
+    logLoginAttempts?: true
+    smsProvider?: true
+    smsApiKey?: true
+    smsApiSecret?: true
+    smsSenderId?: true
+    emailProvider?: true
+    emailApiKey?: true
+    smtpHost?: true
+    smtpPort?: true
+    smtpUser?: true
+    smtpPassword?: true
+    rolePermissions?: true
+    queuePrefix?: true
+    queueStartNumber?: true
+    queueResetDaily?: true
+    autoBackupEnabled?: true
+    backupFrequency?: true
+    backupRetentionDays?: true
+    lastBackupAt?: true
     lastUpdated?: true
     updatedBy?: true
     createdAt?: true
@@ -22703,9 +25277,45 @@ export namespace Prisma {
     enableEmailNotifications?: true
     enableVoiceNotes?: true
     enableDailyDevotionals?: true
+    enableDrugInteractionCheck?: true
+    enableVitalAlerts?: true
+    enableAuditLogging?: true
+    enableBreakGlass?: true
+    enableTwoFactor?: true
     welcomeMessage?: true
     headerMessage?: true
     footerMessage?: true
+    sessionTimeoutMinutes?: true
+    maxLoginAttempts?: true
+    lockoutDurationMinutes?: true
+    passwordMinLength?: true
+    passwordRequireUppercase?: true
+    passwordRequireLowercase?: true
+    passwordRequireNumber?: true
+    passwordRequireSpecial?: true
+    passwordExpiryDays?: true
+    auditLogRetentionDays?: true
+    logPatientAccess?: true
+    logDataModifications?: true
+    logLoginAttempts?: true
+    smsProvider?: true
+    smsApiKey?: true
+    smsApiSecret?: true
+    smsSenderId?: true
+    emailProvider?: true
+    emailApiKey?: true
+    smtpHost?: true
+    smtpPort?: true
+    smtpUser?: true
+    smtpPassword?: true
+    rolePermissions?: true
+    queuePrefix?: true
+    queueStartNumber?: true
+    queueResetDaily?: true
+    autoBackupEnabled?: true
+    backupFrequency?: true
+    backupRetentionDays?: true
+    lastBackupAt?: true
     lastUpdated?: true
     updatedBy?: true
     createdAt?: true
@@ -22741,9 +25351,45 @@ export namespace Prisma {
     enableEmailNotifications?: true
     enableVoiceNotes?: true
     enableDailyDevotionals?: true
+    enableDrugInteractionCheck?: true
+    enableVitalAlerts?: true
+    enableAuditLogging?: true
+    enableBreakGlass?: true
+    enableTwoFactor?: true
     welcomeMessage?: true
     headerMessage?: true
     footerMessage?: true
+    sessionTimeoutMinutes?: true
+    maxLoginAttempts?: true
+    lockoutDurationMinutes?: true
+    passwordMinLength?: true
+    passwordRequireUppercase?: true
+    passwordRequireLowercase?: true
+    passwordRequireNumber?: true
+    passwordRequireSpecial?: true
+    passwordExpiryDays?: true
+    auditLogRetentionDays?: true
+    logPatientAccess?: true
+    logDataModifications?: true
+    logLoginAttempts?: true
+    smsProvider?: true
+    smsApiKey?: true
+    smsApiSecret?: true
+    smsSenderId?: true
+    emailProvider?: true
+    emailApiKey?: true
+    smtpHost?: true
+    smtpPort?: true
+    smtpUser?: true
+    smtpPassword?: true
+    rolePermissions?: true
+    queuePrefix?: true
+    queueStartNumber?: true
+    queueResetDaily?: true
+    autoBackupEnabled?: true
+    backupFrequency?: true
+    backupRetentionDays?: true
+    lastBackupAt?: true
     lastUpdated?: true
     updatedBy?: true
     createdAt?: true
@@ -22788,6 +25434,18 @@ export namespace Prisma {
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
      * 
+     * Select which fields to average
+    **/
+    _avg?: App_settingsAvgAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to sum
+    **/
+    _sum?: App_settingsSumAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
      * Select which fields to find the minimum value
     **/
     _min?: App_settingsMinAggregateInputType
@@ -22818,6 +25476,8 @@ export namespace Prisma {
     take?: number
     skip?: number
     _count?: App_settingsCountAggregateInputType | true
+    _avg?: App_settingsAvgAggregateInputType
+    _sum?: App_settingsSumAggregateInputType
     _min?: App_settingsMinAggregateInputType
     _max?: App_settingsMaxAggregateInputType
   }
@@ -22852,13 +25512,51 @@ export namespace Prisma {
     enableEmailNotifications: boolean
     enableVoiceNotes: boolean
     enableDailyDevotionals: boolean
+    enableDrugInteractionCheck: boolean
+    enableVitalAlerts: boolean
+    enableAuditLogging: boolean
+    enableBreakGlass: boolean
+    enableTwoFactor: boolean
     welcomeMessage: string | null
     headerMessage: string | null
     footerMessage: string | null
+    sessionTimeoutMinutes: number
+    maxLoginAttempts: number
+    lockoutDurationMinutes: number
+    passwordMinLength: number
+    passwordRequireUppercase: boolean
+    passwordRequireLowercase: boolean
+    passwordRequireNumber: boolean
+    passwordRequireSpecial: boolean
+    passwordExpiryDays: number
+    auditLogRetentionDays: number
+    logPatientAccess: boolean
+    logDataModifications: boolean
+    logLoginAttempts: boolean
+    smsProvider: string | null
+    smsApiKey: string | null
+    smsApiSecret: string | null
+    smsSenderId: string | null
+    emailProvider: string | null
+    emailApiKey: string | null
+    smtpHost: string | null
+    smtpPort: number | null
+    smtpUser: string | null
+    smtpPassword: string | null
+    rolePermissions: string | null
+    queuePrefix: string
+    queueStartNumber: number
+    queueResetDaily: boolean
+    autoBackupEnabled: boolean
+    backupFrequency: string | null
+    backupRetentionDays: number
+    lastBackupAt: Date | null
     lastUpdated: Date | null
     updatedBy: string | null
     createdAt: Date
     _count: App_settingsCountAggregateOutputType | null
+    _avg: App_settingsAvgAggregateOutputType | null
+    _sum: App_settingsSumAggregateOutputType | null
     _min: App_settingsMinAggregateOutputType | null
     _max: App_settingsMaxAggregateOutputType | null
   }
@@ -22907,9 +25605,45 @@ export namespace Prisma {
     enableEmailNotifications?: boolean
     enableVoiceNotes?: boolean
     enableDailyDevotionals?: boolean
+    enableDrugInteractionCheck?: boolean
+    enableVitalAlerts?: boolean
+    enableAuditLogging?: boolean
+    enableBreakGlass?: boolean
+    enableTwoFactor?: boolean
     welcomeMessage?: boolean
     headerMessage?: boolean
     footerMessage?: boolean
+    sessionTimeoutMinutes?: boolean
+    maxLoginAttempts?: boolean
+    lockoutDurationMinutes?: boolean
+    passwordMinLength?: boolean
+    passwordRequireUppercase?: boolean
+    passwordRequireLowercase?: boolean
+    passwordRequireNumber?: boolean
+    passwordRequireSpecial?: boolean
+    passwordExpiryDays?: boolean
+    auditLogRetentionDays?: boolean
+    logPatientAccess?: boolean
+    logDataModifications?: boolean
+    logLoginAttempts?: boolean
+    smsProvider?: boolean
+    smsApiKey?: boolean
+    smsApiSecret?: boolean
+    smsSenderId?: boolean
+    emailProvider?: boolean
+    emailApiKey?: boolean
+    smtpHost?: boolean
+    smtpPort?: boolean
+    smtpUser?: boolean
+    smtpPassword?: boolean
+    rolePermissions?: boolean
+    queuePrefix?: boolean
+    queueStartNumber?: boolean
+    queueResetDaily?: boolean
+    autoBackupEnabled?: boolean
+    backupFrequency?: boolean
+    backupRetentionDays?: boolean
+    lastBackupAt?: boolean
     lastUpdated?: boolean
     updatedBy?: boolean
     createdAt?: boolean
@@ -22945,9 +25679,45 @@ export namespace Prisma {
     enableEmailNotifications?: boolean
     enableVoiceNotes?: boolean
     enableDailyDevotionals?: boolean
+    enableDrugInteractionCheck?: boolean
+    enableVitalAlerts?: boolean
+    enableAuditLogging?: boolean
+    enableBreakGlass?: boolean
+    enableTwoFactor?: boolean
     welcomeMessage?: boolean
     headerMessage?: boolean
     footerMessage?: boolean
+    sessionTimeoutMinutes?: boolean
+    maxLoginAttempts?: boolean
+    lockoutDurationMinutes?: boolean
+    passwordMinLength?: boolean
+    passwordRequireUppercase?: boolean
+    passwordRequireLowercase?: boolean
+    passwordRequireNumber?: boolean
+    passwordRequireSpecial?: boolean
+    passwordExpiryDays?: boolean
+    auditLogRetentionDays?: boolean
+    logPatientAccess?: boolean
+    logDataModifications?: boolean
+    logLoginAttempts?: boolean
+    smsProvider?: boolean
+    smsApiKey?: boolean
+    smsApiSecret?: boolean
+    smsSenderId?: boolean
+    emailProvider?: boolean
+    emailApiKey?: boolean
+    smtpHost?: boolean
+    smtpPort?: boolean
+    smtpUser?: boolean
+    smtpPassword?: boolean
+    rolePermissions?: boolean
+    queuePrefix?: boolean
+    queueStartNumber?: boolean
+    queueResetDaily?: boolean
+    autoBackupEnabled?: boolean
+    backupFrequency?: boolean
+    backupRetentionDays?: boolean
+    lastBackupAt?: boolean
     lastUpdated?: boolean
     updatedBy?: boolean
     createdAt?: boolean
@@ -22983,9 +25753,45 @@ export namespace Prisma {
     enableEmailNotifications?: boolean
     enableVoiceNotes?: boolean
     enableDailyDevotionals?: boolean
+    enableDrugInteractionCheck?: boolean
+    enableVitalAlerts?: boolean
+    enableAuditLogging?: boolean
+    enableBreakGlass?: boolean
+    enableTwoFactor?: boolean
     welcomeMessage?: boolean
     headerMessage?: boolean
     footerMessage?: boolean
+    sessionTimeoutMinutes?: boolean
+    maxLoginAttempts?: boolean
+    lockoutDurationMinutes?: boolean
+    passwordMinLength?: boolean
+    passwordRequireUppercase?: boolean
+    passwordRequireLowercase?: boolean
+    passwordRequireNumber?: boolean
+    passwordRequireSpecial?: boolean
+    passwordExpiryDays?: boolean
+    auditLogRetentionDays?: boolean
+    logPatientAccess?: boolean
+    logDataModifications?: boolean
+    logLoginAttempts?: boolean
+    smsProvider?: boolean
+    smsApiKey?: boolean
+    smsApiSecret?: boolean
+    smsSenderId?: boolean
+    emailProvider?: boolean
+    emailApiKey?: boolean
+    smtpHost?: boolean
+    smtpPort?: boolean
+    smtpUser?: boolean
+    smtpPassword?: boolean
+    rolePermissions?: boolean
+    queuePrefix?: boolean
+    queueStartNumber?: boolean
+    queueResetDaily?: boolean
+    autoBackupEnabled?: boolean
+    backupFrequency?: boolean
+    backupRetentionDays?: boolean
+    lastBackupAt?: boolean
     lastUpdated?: boolean
     updatedBy?: boolean
     createdAt?: boolean
@@ -23021,15 +25827,51 @@ export namespace Prisma {
     enableEmailNotifications?: boolean
     enableVoiceNotes?: boolean
     enableDailyDevotionals?: boolean
+    enableDrugInteractionCheck?: boolean
+    enableVitalAlerts?: boolean
+    enableAuditLogging?: boolean
+    enableBreakGlass?: boolean
+    enableTwoFactor?: boolean
     welcomeMessage?: boolean
     headerMessage?: boolean
     footerMessage?: boolean
+    sessionTimeoutMinutes?: boolean
+    maxLoginAttempts?: boolean
+    lockoutDurationMinutes?: boolean
+    passwordMinLength?: boolean
+    passwordRequireUppercase?: boolean
+    passwordRequireLowercase?: boolean
+    passwordRequireNumber?: boolean
+    passwordRequireSpecial?: boolean
+    passwordExpiryDays?: boolean
+    auditLogRetentionDays?: boolean
+    logPatientAccess?: boolean
+    logDataModifications?: boolean
+    logLoginAttempts?: boolean
+    smsProvider?: boolean
+    smsApiKey?: boolean
+    smsApiSecret?: boolean
+    smsSenderId?: boolean
+    emailProvider?: boolean
+    emailApiKey?: boolean
+    smtpHost?: boolean
+    smtpPort?: boolean
+    smtpUser?: boolean
+    smtpPassword?: boolean
+    rolePermissions?: boolean
+    queuePrefix?: boolean
+    queueStartNumber?: boolean
+    queueResetDaily?: boolean
+    autoBackupEnabled?: boolean
+    backupFrequency?: boolean
+    backupRetentionDays?: boolean
+    lastBackupAt?: boolean
     lastUpdated?: boolean
     updatedBy?: boolean
     createdAt?: boolean
   }
 
-  export type app_settingsOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "facilityName" | "facilityShortName" | "facilityCode" | "facilityAddress" | "facilityCity" | "facilityState" | "facilityCountry" | "primaryPhone" | "secondaryPhone" | "emergencyPhone" | "emailAddress" | "website" | "logoUrl" | "logoBase64" | "primaryColor" | "secondaryColor" | "accentColor" | "openingTime" | "closingTime" | "workingDays" | "timezone" | "currency" | "currencySymbol" | "enableOnlineBooking" | "enableSmsNotifications" | "enableEmailNotifications" | "enableVoiceNotes" | "enableDailyDevotionals" | "welcomeMessage" | "headerMessage" | "footerMessage" | "lastUpdated" | "updatedBy" | "createdAt", ExtArgs["result"]["app_settings"]>
+  export type app_settingsOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "facilityName" | "facilityShortName" | "facilityCode" | "facilityAddress" | "facilityCity" | "facilityState" | "facilityCountry" | "primaryPhone" | "secondaryPhone" | "emergencyPhone" | "emailAddress" | "website" | "logoUrl" | "logoBase64" | "primaryColor" | "secondaryColor" | "accentColor" | "openingTime" | "closingTime" | "workingDays" | "timezone" | "currency" | "currencySymbol" | "enableOnlineBooking" | "enableSmsNotifications" | "enableEmailNotifications" | "enableVoiceNotes" | "enableDailyDevotionals" | "enableDrugInteractionCheck" | "enableVitalAlerts" | "enableAuditLogging" | "enableBreakGlass" | "enableTwoFactor" | "welcomeMessage" | "headerMessage" | "footerMessage" | "sessionTimeoutMinutes" | "maxLoginAttempts" | "lockoutDurationMinutes" | "passwordMinLength" | "passwordRequireUppercase" | "passwordRequireLowercase" | "passwordRequireNumber" | "passwordRequireSpecial" | "passwordExpiryDays" | "auditLogRetentionDays" | "logPatientAccess" | "logDataModifications" | "logLoginAttempts" | "smsProvider" | "smsApiKey" | "smsApiSecret" | "smsSenderId" | "emailProvider" | "emailApiKey" | "smtpHost" | "smtpPort" | "smtpUser" | "smtpPassword" | "rolePermissions" | "queuePrefix" | "queueStartNumber" | "queueResetDaily" | "autoBackupEnabled" | "backupFrequency" | "backupRetentionDays" | "lastBackupAt" | "lastUpdated" | "updatedBy" | "createdAt", ExtArgs["result"]["app_settings"]>
 
   export type $app_settingsPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     name: "app_settings"
@@ -23064,9 +25906,45 @@ export namespace Prisma {
       enableEmailNotifications: boolean
       enableVoiceNotes: boolean
       enableDailyDevotionals: boolean
+      enableDrugInteractionCheck: boolean
+      enableVitalAlerts: boolean
+      enableAuditLogging: boolean
+      enableBreakGlass: boolean
+      enableTwoFactor: boolean
       welcomeMessage: string | null
       headerMessage: string | null
       footerMessage: string | null
+      sessionTimeoutMinutes: number
+      maxLoginAttempts: number
+      lockoutDurationMinutes: number
+      passwordMinLength: number
+      passwordRequireUppercase: boolean
+      passwordRequireLowercase: boolean
+      passwordRequireNumber: boolean
+      passwordRequireSpecial: boolean
+      passwordExpiryDays: number
+      auditLogRetentionDays: number
+      logPatientAccess: boolean
+      logDataModifications: boolean
+      logLoginAttempts: boolean
+      smsProvider: string | null
+      smsApiKey: string | null
+      smsApiSecret: string | null
+      smsSenderId: string | null
+      emailProvider: string | null
+      emailApiKey: string | null
+      smtpHost: string | null
+      smtpPort: number | null
+      smtpUser: string | null
+      smtpPassword: string | null
+      rolePermissions: string | null
+      queuePrefix: string
+      queueStartNumber: number
+      queueResetDaily: boolean
+      autoBackupEnabled: boolean
+      backupFrequency: string | null
+      backupRetentionDays: number
+      lastBackupAt: Date | null
       lastUpdated: Date | null
       updatedBy: string | null
       createdAt: Date
@@ -23522,9 +26400,45 @@ export namespace Prisma {
     readonly enableEmailNotifications: FieldRef<"app_settings", 'Boolean'>
     readonly enableVoiceNotes: FieldRef<"app_settings", 'Boolean'>
     readonly enableDailyDevotionals: FieldRef<"app_settings", 'Boolean'>
+    readonly enableDrugInteractionCheck: FieldRef<"app_settings", 'Boolean'>
+    readonly enableVitalAlerts: FieldRef<"app_settings", 'Boolean'>
+    readonly enableAuditLogging: FieldRef<"app_settings", 'Boolean'>
+    readonly enableBreakGlass: FieldRef<"app_settings", 'Boolean'>
+    readonly enableTwoFactor: FieldRef<"app_settings", 'Boolean'>
     readonly welcomeMessage: FieldRef<"app_settings", 'String'>
     readonly headerMessage: FieldRef<"app_settings", 'String'>
     readonly footerMessage: FieldRef<"app_settings", 'String'>
+    readonly sessionTimeoutMinutes: FieldRef<"app_settings", 'Int'>
+    readonly maxLoginAttempts: FieldRef<"app_settings", 'Int'>
+    readonly lockoutDurationMinutes: FieldRef<"app_settings", 'Int'>
+    readonly passwordMinLength: FieldRef<"app_settings", 'Int'>
+    readonly passwordRequireUppercase: FieldRef<"app_settings", 'Boolean'>
+    readonly passwordRequireLowercase: FieldRef<"app_settings", 'Boolean'>
+    readonly passwordRequireNumber: FieldRef<"app_settings", 'Boolean'>
+    readonly passwordRequireSpecial: FieldRef<"app_settings", 'Boolean'>
+    readonly passwordExpiryDays: FieldRef<"app_settings", 'Int'>
+    readonly auditLogRetentionDays: FieldRef<"app_settings", 'Int'>
+    readonly logPatientAccess: FieldRef<"app_settings", 'Boolean'>
+    readonly logDataModifications: FieldRef<"app_settings", 'Boolean'>
+    readonly logLoginAttempts: FieldRef<"app_settings", 'Boolean'>
+    readonly smsProvider: FieldRef<"app_settings", 'String'>
+    readonly smsApiKey: FieldRef<"app_settings", 'String'>
+    readonly smsApiSecret: FieldRef<"app_settings", 'String'>
+    readonly smsSenderId: FieldRef<"app_settings", 'String'>
+    readonly emailProvider: FieldRef<"app_settings", 'String'>
+    readonly emailApiKey: FieldRef<"app_settings", 'String'>
+    readonly smtpHost: FieldRef<"app_settings", 'String'>
+    readonly smtpPort: FieldRef<"app_settings", 'Int'>
+    readonly smtpUser: FieldRef<"app_settings", 'String'>
+    readonly smtpPassword: FieldRef<"app_settings", 'String'>
+    readonly rolePermissions: FieldRef<"app_settings", 'String'>
+    readonly queuePrefix: FieldRef<"app_settings", 'String'>
+    readonly queueStartNumber: FieldRef<"app_settings", 'Int'>
+    readonly queueResetDaily: FieldRef<"app_settings", 'Boolean'>
+    readonly autoBackupEnabled: FieldRef<"app_settings", 'Boolean'>
+    readonly backupFrequency: FieldRef<"app_settings", 'String'>
+    readonly backupRetentionDays: FieldRef<"app_settings", 'Int'>
+    readonly lastBackupAt: FieldRef<"app_settings", 'DateTime'>
     readonly lastUpdated: FieldRef<"app_settings", 'DateTime'>
     readonly updatedBy: FieldRef<"app_settings", 'String'>
     readonly createdAt: FieldRef<"app_settings", 'DateTime'>
@@ -23918,6 +26832,7 @@ export namespace Prisma {
     initials: 'initials',
     phone: 'phone',
     dateOfBirth: 'dateOfBirth',
+    profilePhoto: 'profilePhoto',
     isActive: 'isActive',
     isFirstLogin: 'isFirstLogin',
     approvalStatus: 'approvalStatus',
@@ -24257,6 +27172,43 @@ export namespace Prisma {
   export type Audit_logsScalarFieldEnum = (typeof Audit_logsScalarFieldEnum)[keyof typeof Audit_logsScalarFieldEnum]
 
 
+  export const RostersScalarFieldEnum: {
+    id: 'id',
+    staffId: 'staffId',
+    staffName: 'staffName',
+    staffRole: 'staffRole',
+    date: 'date',
+    shift: 'shift',
+    notes: 'notes',
+    createdBy: 'createdBy',
+    createdAt: 'createdAt',
+    updatedAt: 'updatedAt'
+  };
+
+  export type RostersScalarFieldEnum = (typeof RostersScalarFieldEnum)[keyof typeof RostersScalarFieldEnum]
+
+
+  export const AttendanceScalarFieldEnum: {
+    id: 'id',
+    staffId: 'staffId',
+    staffName: 'staffName',
+    staffRole: 'staffRole',
+    date: 'date',
+    signInTime: 'signInTime',
+    signInPhoto: 'signInPhoto',
+    signOutTime: 'signOutTime',
+    signOutPhoto: 'signOutPhoto',
+    shift: 'shift',
+    status: 'status',
+    deviceId: 'deviceId',
+    notes: 'notes',
+    createdAt: 'createdAt',
+    updatedAt: 'updatedAt'
+  };
+
+  export type AttendanceScalarFieldEnum = (typeof AttendanceScalarFieldEnum)[keyof typeof AttendanceScalarFieldEnum]
+
+
   export const App_settingsScalarFieldEnum: {
     id: 'id',
     facilityName: 'facilityName',
@@ -24287,9 +27239,45 @@ export namespace Prisma {
     enableEmailNotifications: 'enableEmailNotifications',
     enableVoiceNotes: 'enableVoiceNotes',
     enableDailyDevotionals: 'enableDailyDevotionals',
+    enableDrugInteractionCheck: 'enableDrugInteractionCheck',
+    enableVitalAlerts: 'enableVitalAlerts',
+    enableAuditLogging: 'enableAuditLogging',
+    enableBreakGlass: 'enableBreakGlass',
+    enableTwoFactor: 'enableTwoFactor',
     welcomeMessage: 'welcomeMessage',
     headerMessage: 'headerMessage',
     footerMessage: 'footerMessage',
+    sessionTimeoutMinutes: 'sessionTimeoutMinutes',
+    maxLoginAttempts: 'maxLoginAttempts',
+    lockoutDurationMinutes: 'lockoutDurationMinutes',
+    passwordMinLength: 'passwordMinLength',
+    passwordRequireUppercase: 'passwordRequireUppercase',
+    passwordRequireLowercase: 'passwordRequireLowercase',
+    passwordRequireNumber: 'passwordRequireNumber',
+    passwordRequireSpecial: 'passwordRequireSpecial',
+    passwordExpiryDays: 'passwordExpiryDays',
+    auditLogRetentionDays: 'auditLogRetentionDays',
+    logPatientAccess: 'logPatientAccess',
+    logDataModifications: 'logDataModifications',
+    logLoginAttempts: 'logLoginAttempts',
+    smsProvider: 'smsProvider',
+    smsApiKey: 'smsApiKey',
+    smsApiSecret: 'smsApiSecret',
+    smsSenderId: 'smsSenderId',
+    emailProvider: 'emailProvider',
+    emailApiKey: 'emailApiKey',
+    smtpHost: 'smtpHost',
+    smtpPort: 'smtpPort',
+    smtpUser: 'smtpUser',
+    smtpPassword: 'smtpPassword',
+    rolePermissions: 'rolePermissions',
+    queuePrefix: 'queuePrefix',
+    queueStartNumber: 'queueStartNumber',
+    queueResetDaily: 'queueResetDaily',
+    autoBackupEnabled: 'autoBackupEnabled',
+    backupFrequency: 'backupFrequency',
+    backupRetentionDays: 'backupRetentionDays',
+    lastBackupAt: 'lastBackupAt',
     lastUpdated: 'lastUpdated',
     updatedBy: 'updatedBy',
     createdAt: 'createdAt'
@@ -24437,6 +27425,7 @@ export namespace Prisma {
     initials?: StringNullableFilter<"users"> | string | null
     phone?: StringNullableFilter<"users"> | string | null
     dateOfBirth?: DateTimeNullableFilter<"users"> | Date | string | null
+    profilePhoto?: StringNullableFilter<"users"> | string | null
     isActive?: BoolFilter<"users"> | boolean
     isFirstLogin?: BoolFilter<"users"> | boolean
     approvalStatus?: StringFilter<"users"> | string
@@ -24455,6 +27444,7 @@ export namespace Prisma {
     initials?: SortOrderInput | SortOrder
     phone?: SortOrderInput | SortOrder
     dateOfBirth?: SortOrderInput | SortOrder
+    profilePhoto?: SortOrderInput | SortOrder
     isActive?: SortOrder
     isFirstLogin?: SortOrder
     approvalStatus?: SortOrder
@@ -24476,6 +27466,7 @@ export namespace Prisma {
     initials?: StringNullableFilter<"users"> | string | null
     phone?: StringNullableFilter<"users"> | string | null
     dateOfBirth?: DateTimeNullableFilter<"users"> | Date | string | null
+    profilePhoto?: StringNullableFilter<"users"> | string | null
     isActive?: BoolFilter<"users"> | boolean
     isFirstLogin?: BoolFilter<"users"> | boolean
     approvalStatus?: StringFilter<"users"> | string
@@ -24494,6 +27485,7 @@ export namespace Prisma {
     initials?: SortOrderInput | SortOrder
     phone?: SortOrderInput | SortOrder
     dateOfBirth?: SortOrderInput | SortOrder
+    profilePhoto?: SortOrderInput | SortOrder
     isActive?: SortOrder
     isFirstLogin?: SortOrder
     approvalStatus?: SortOrder
@@ -24518,6 +27510,7 @@ export namespace Prisma {
     initials?: StringNullableWithAggregatesFilter<"users"> | string | null
     phone?: StringNullableWithAggregatesFilter<"users"> | string | null
     dateOfBirth?: DateTimeNullableWithAggregatesFilter<"users"> | Date | string | null
+    profilePhoto?: StringNullableWithAggregatesFilter<"users"> | string | null
     isActive?: BoolWithAggregatesFilter<"users"> | boolean
     isFirstLogin?: BoolWithAggregatesFilter<"users"> | boolean
     approvalStatus?: StringWithAggregatesFilter<"users"> | string
@@ -26127,6 +29120,185 @@ export namespace Prisma {
     timestamp?: DateTimeWithAggregatesFilter<"audit_logs"> | Date | string
   }
 
+  export type rostersWhereInput = {
+    AND?: rostersWhereInput | rostersWhereInput[]
+    OR?: rostersWhereInput[]
+    NOT?: rostersWhereInput | rostersWhereInput[]
+    id?: StringFilter<"rosters"> | string
+    staffId?: StringNullableFilter<"rosters"> | string | null
+    staffName?: StringNullableFilter<"rosters"> | string | null
+    staffRole?: StringNullableFilter<"rosters"> | string | null
+    date?: StringFilter<"rosters"> | string
+    shift?: StringFilter<"rosters"> | string
+    notes?: StringNullableFilter<"rosters"> | string | null
+    createdBy?: StringNullableFilter<"rosters"> | string | null
+    createdAt?: DateTimeFilter<"rosters"> | Date | string
+    updatedAt?: DateTimeFilter<"rosters"> | Date | string
+  }
+
+  export type rostersOrderByWithRelationInput = {
+    id?: SortOrder
+    staffId?: SortOrderInput | SortOrder
+    staffName?: SortOrderInput | SortOrder
+    staffRole?: SortOrderInput | SortOrder
+    date?: SortOrder
+    shift?: SortOrder
+    notes?: SortOrderInput | SortOrder
+    createdBy?: SortOrderInput | SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type rostersWhereUniqueInput = Prisma.AtLeast<{
+    id?: string
+    AND?: rostersWhereInput | rostersWhereInput[]
+    OR?: rostersWhereInput[]
+    NOT?: rostersWhereInput | rostersWhereInput[]
+    staffId?: StringNullableFilter<"rosters"> | string | null
+    staffName?: StringNullableFilter<"rosters"> | string | null
+    staffRole?: StringNullableFilter<"rosters"> | string | null
+    date?: StringFilter<"rosters"> | string
+    shift?: StringFilter<"rosters"> | string
+    notes?: StringNullableFilter<"rosters"> | string | null
+    createdBy?: StringNullableFilter<"rosters"> | string | null
+    createdAt?: DateTimeFilter<"rosters"> | Date | string
+    updatedAt?: DateTimeFilter<"rosters"> | Date | string
+  }, "id">
+
+  export type rostersOrderByWithAggregationInput = {
+    id?: SortOrder
+    staffId?: SortOrderInput | SortOrder
+    staffName?: SortOrderInput | SortOrder
+    staffRole?: SortOrderInput | SortOrder
+    date?: SortOrder
+    shift?: SortOrder
+    notes?: SortOrderInput | SortOrder
+    createdBy?: SortOrderInput | SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    _count?: rostersCountOrderByAggregateInput
+    _max?: rostersMaxOrderByAggregateInput
+    _min?: rostersMinOrderByAggregateInput
+  }
+
+  export type rostersScalarWhereWithAggregatesInput = {
+    AND?: rostersScalarWhereWithAggregatesInput | rostersScalarWhereWithAggregatesInput[]
+    OR?: rostersScalarWhereWithAggregatesInput[]
+    NOT?: rostersScalarWhereWithAggregatesInput | rostersScalarWhereWithAggregatesInput[]
+    id?: StringWithAggregatesFilter<"rosters"> | string
+    staffId?: StringNullableWithAggregatesFilter<"rosters"> | string | null
+    staffName?: StringNullableWithAggregatesFilter<"rosters"> | string | null
+    staffRole?: StringNullableWithAggregatesFilter<"rosters"> | string | null
+    date?: StringWithAggregatesFilter<"rosters"> | string
+    shift?: StringWithAggregatesFilter<"rosters"> | string
+    notes?: StringNullableWithAggregatesFilter<"rosters"> | string | null
+    createdBy?: StringNullableWithAggregatesFilter<"rosters"> | string | null
+    createdAt?: DateTimeWithAggregatesFilter<"rosters"> | Date | string
+    updatedAt?: DateTimeWithAggregatesFilter<"rosters"> | Date | string
+  }
+
+  export type attendanceWhereInput = {
+    AND?: attendanceWhereInput | attendanceWhereInput[]
+    OR?: attendanceWhereInput[]
+    NOT?: attendanceWhereInput | attendanceWhereInput[]
+    id?: StringFilter<"attendance"> | string
+    staffId?: StringNullableFilter<"attendance"> | string | null
+    staffName?: StringNullableFilter<"attendance"> | string | null
+    staffRole?: StringNullableFilter<"attendance"> | string | null
+    date?: StringFilter<"attendance"> | string
+    signInTime?: StringNullableFilter<"attendance"> | string | null
+    signInPhoto?: StringNullableFilter<"attendance"> | string | null
+    signOutTime?: StringNullableFilter<"attendance"> | string | null
+    signOutPhoto?: StringNullableFilter<"attendance"> | string | null
+    shift?: StringFilter<"attendance"> | string
+    status?: StringFilter<"attendance"> | string
+    deviceId?: StringNullableFilter<"attendance"> | string | null
+    notes?: StringNullableFilter<"attendance"> | string | null
+    createdAt?: DateTimeFilter<"attendance"> | Date | string
+    updatedAt?: DateTimeFilter<"attendance"> | Date | string
+  }
+
+  export type attendanceOrderByWithRelationInput = {
+    id?: SortOrder
+    staffId?: SortOrderInput | SortOrder
+    staffName?: SortOrderInput | SortOrder
+    staffRole?: SortOrderInput | SortOrder
+    date?: SortOrder
+    signInTime?: SortOrderInput | SortOrder
+    signInPhoto?: SortOrderInput | SortOrder
+    signOutTime?: SortOrderInput | SortOrder
+    signOutPhoto?: SortOrderInput | SortOrder
+    shift?: SortOrder
+    status?: SortOrder
+    deviceId?: SortOrderInput | SortOrder
+    notes?: SortOrderInput | SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type attendanceWhereUniqueInput = Prisma.AtLeast<{
+    id?: string
+    AND?: attendanceWhereInput | attendanceWhereInput[]
+    OR?: attendanceWhereInput[]
+    NOT?: attendanceWhereInput | attendanceWhereInput[]
+    staffId?: StringNullableFilter<"attendance"> | string | null
+    staffName?: StringNullableFilter<"attendance"> | string | null
+    staffRole?: StringNullableFilter<"attendance"> | string | null
+    date?: StringFilter<"attendance"> | string
+    signInTime?: StringNullableFilter<"attendance"> | string | null
+    signInPhoto?: StringNullableFilter<"attendance"> | string | null
+    signOutTime?: StringNullableFilter<"attendance"> | string | null
+    signOutPhoto?: StringNullableFilter<"attendance"> | string | null
+    shift?: StringFilter<"attendance"> | string
+    status?: StringFilter<"attendance"> | string
+    deviceId?: StringNullableFilter<"attendance"> | string | null
+    notes?: StringNullableFilter<"attendance"> | string | null
+    createdAt?: DateTimeFilter<"attendance"> | Date | string
+    updatedAt?: DateTimeFilter<"attendance"> | Date | string
+  }, "id">
+
+  export type attendanceOrderByWithAggregationInput = {
+    id?: SortOrder
+    staffId?: SortOrderInput | SortOrder
+    staffName?: SortOrderInput | SortOrder
+    staffRole?: SortOrderInput | SortOrder
+    date?: SortOrder
+    signInTime?: SortOrderInput | SortOrder
+    signInPhoto?: SortOrderInput | SortOrder
+    signOutTime?: SortOrderInput | SortOrder
+    signOutPhoto?: SortOrderInput | SortOrder
+    shift?: SortOrder
+    status?: SortOrder
+    deviceId?: SortOrderInput | SortOrder
+    notes?: SortOrderInput | SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    _count?: attendanceCountOrderByAggregateInput
+    _max?: attendanceMaxOrderByAggregateInput
+    _min?: attendanceMinOrderByAggregateInput
+  }
+
+  export type attendanceScalarWhereWithAggregatesInput = {
+    AND?: attendanceScalarWhereWithAggregatesInput | attendanceScalarWhereWithAggregatesInput[]
+    OR?: attendanceScalarWhereWithAggregatesInput[]
+    NOT?: attendanceScalarWhereWithAggregatesInput | attendanceScalarWhereWithAggregatesInput[]
+    id?: StringWithAggregatesFilter<"attendance"> | string
+    staffId?: StringNullableWithAggregatesFilter<"attendance"> | string | null
+    staffName?: StringNullableWithAggregatesFilter<"attendance"> | string | null
+    staffRole?: StringNullableWithAggregatesFilter<"attendance"> | string | null
+    date?: StringWithAggregatesFilter<"attendance"> | string
+    signInTime?: StringNullableWithAggregatesFilter<"attendance"> | string | null
+    signInPhoto?: StringNullableWithAggregatesFilter<"attendance"> | string | null
+    signOutTime?: StringNullableWithAggregatesFilter<"attendance"> | string | null
+    signOutPhoto?: StringNullableWithAggregatesFilter<"attendance"> | string | null
+    shift?: StringWithAggregatesFilter<"attendance"> | string
+    status?: StringWithAggregatesFilter<"attendance"> | string
+    deviceId?: StringNullableWithAggregatesFilter<"attendance"> | string | null
+    notes?: StringNullableWithAggregatesFilter<"attendance"> | string | null
+    createdAt?: DateTimeWithAggregatesFilter<"attendance"> | Date | string
+    updatedAt?: DateTimeWithAggregatesFilter<"attendance"> | Date | string
+  }
+
   export type app_settingsWhereInput = {
     AND?: app_settingsWhereInput | app_settingsWhereInput[]
     OR?: app_settingsWhereInput[]
@@ -26160,9 +29332,45 @@ export namespace Prisma {
     enableEmailNotifications?: BoolFilter<"app_settings"> | boolean
     enableVoiceNotes?: BoolFilter<"app_settings"> | boolean
     enableDailyDevotionals?: BoolFilter<"app_settings"> | boolean
+    enableDrugInteractionCheck?: BoolFilter<"app_settings"> | boolean
+    enableVitalAlerts?: BoolFilter<"app_settings"> | boolean
+    enableAuditLogging?: BoolFilter<"app_settings"> | boolean
+    enableBreakGlass?: BoolFilter<"app_settings"> | boolean
+    enableTwoFactor?: BoolFilter<"app_settings"> | boolean
     welcomeMessage?: StringNullableFilter<"app_settings"> | string | null
     headerMessage?: StringNullableFilter<"app_settings"> | string | null
     footerMessage?: StringNullableFilter<"app_settings"> | string | null
+    sessionTimeoutMinutes?: IntFilter<"app_settings"> | number
+    maxLoginAttempts?: IntFilter<"app_settings"> | number
+    lockoutDurationMinutes?: IntFilter<"app_settings"> | number
+    passwordMinLength?: IntFilter<"app_settings"> | number
+    passwordRequireUppercase?: BoolFilter<"app_settings"> | boolean
+    passwordRequireLowercase?: BoolFilter<"app_settings"> | boolean
+    passwordRequireNumber?: BoolFilter<"app_settings"> | boolean
+    passwordRequireSpecial?: BoolFilter<"app_settings"> | boolean
+    passwordExpiryDays?: IntFilter<"app_settings"> | number
+    auditLogRetentionDays?: IntFilter<"app_settings"> | number
+    logPatientAccess?: BoolFilter<"app_settings"> | boolean
+    logDataModifications?: BoolFilter<"app_settings"> | boolean
+    logLoginAttempts?: BoolFilter<"app_settings"> | boolean
+    smsProvider?: StringNullableFilter<"app_settings"> | string | null
+    smsApiKey?: StringNullableFilter<"app_settings"> | string | null
+    smsApiSecret?: StringNullableFilter<"app_settings"> | string | null
+    smsSenderId?: StringNullableFilter<"app_settings"> | string | null
+    emailProvider?: StringNullableFilter<"app_settings"> | string | null
+    emailApiKey?: StringNullableFilter<"app_settings"> | string | null
+    smtpHost?: StringNullableFilter<"app_settings"> | string | null
+    smtpPort?: IntNullableFilter<"app_settings"> | number | null
+    smtpUser?: StringNullableFilter<"app_settings"> | string | null
+    smtpPassword?: StringNullableFilter<"app_settings"> | string | null
+    rolePermissions?: StringNullableFilter<"app_settings"> | string | null
+    queuePrefix?: StringFilter<"app_settings"> | string
+    queueStartNumber?: IntFilter<"app_settings"> | number
+    queueResetDaily?: BoolFilter<"app_settings"> | boolean
+    autoBackupEnabled?: BoolFilter<"app_settings"> | boolean
+    backupFrequency?: StringNullableFilter<"app_settings"> | string | null
+    backupRetentionDays?: IntFilter<"app_settings"> | number
+    lastBackupAt?: DateTimeNullableFilter<"app_settings"> | Date | string | null
     lastUpdated?: DateTimeNullableFilter<"app_settings"> | Date | string | null
     updatedBy?: StringNullableFilter<"app_settings"> | string | null
     createdAt?: DateTimeFilter<"app_settings"> | Date | string
@@ -26198,9 +29406,45 @@ export namespace Prisma {
     enableEmailNotifications?: SortOrder
     enableVoiceNotes?: SortOrder
     enableDailyDevotionals?: SortOrder
+    enableDrugInteractionCheck?: SortOrder
+    enableVitalAlerts?: SortOrder
+    enableAuditLogging?: SortOrder
+    enableBreakGlass?: SortOrder
+    enableTwoFactor?: SortOrder
     welcomeMessage?: SortOrderInput | SortOrder
     headerMessage?: SortOrderInput | SortOrder
     footerMessage?: SortOrderInput | SortOrder
+    sessionTimeoutMinutes?: SortOrder
+    maxLoginAttempts?: SortOrder
+    lockoutDurationMinutes?: SortOrder
+    passwordMinLength?: SortOrder
+    passwordRequireUppercase?: SortOrder
+    passwordRequireLowercase?: SortOrder
+    passwordRequireNumber?: SortOrder
+    passwordRequireSpecial?: SortOrder
+    passwordExpiryDays?: SortOrder
+    auditLogRetentionDays?: SortOrder
+    logPatientAccess?: SortOrder
+    logDataModifications?: SortOrder
+    logLoginAttempts?: SortOrder
+    smsProvider?: SortOrderInput | SortOrder
+    smsApiKey?: SortOrderInput | SortOrder
+    smsApiSecret?: SortOrderInput | SortOrder
+    smsSenderId?: SortOrderInput | SortOrder
+    emailProvider?: SortOrderInput | SortOrder
+    emailApiKey?: SortOrderInput | SortOrder
+    smtpHost?: SortOrderInput | SortOrder
+    smtpPort?: SortOrderInput | SortOrder
+    smtpUser?: SortOrderInput | SortOrder
+    smtpPassword?: SortOrderInput | SortOrder
+    rolePermissions?: SortOrderInput | SortOrder
+    queuePrefix?: SortOrder
+    queueStartNumber?: SortOrder
+    queueResetDaily?: SortOrder
+    autoBackupEnabled?: SortOrder
+    backupFrequency?: SortOrderInput | SortOrder
+    backupRetentionDays?: SortOrder
+    lastBackupAt?: SortOrderInput | SortOrder
     lastUpdated?: SortOrderInput | SortOrder
     updatedBy?: SortOrderInput | SortOrder
     createdAt?: SortOrder
@@ -26239,9 +29483,45 @@ export namespace Prisma {
     enableEmailNotifications?: BoolFilter<"app_settings"> | boolean
     enableVoiceNotes?: BoolFilter<"app_settings"> | boolean
     enableDailyDevotionals?: BoolFilter<"app_settings"> | boolean
+    enableDrugInteractionCheck?: BoolFilter<"app_settings"> | boolean
+    enableVitalAlerts?: BoolFilter<"app_settings"> | boolean
+    enableAuditLogging?: BoolFilter<"app_settings"> | boolean
+    enableBreakGlass?: BoolFilter<"app_settings"> | boolean
+    enableTwoFactor?: BoolFilter<"app_settings"> | boolean
     welcomeMessage?: StringNullableFilter<"app_settings"> | string | null
     headerMessage?: StringNullableFilter<"app_settings"> | string | null
     footerMessage?: StringNullableFilter<"app_settings"> | string | null
+    sessionTimeoutMinutes?: IntFilter<"app_settings"> | number
+    maxLoginAttempts?: IntFilter<"app_settings"> | number
+    lockoutDurationMinutes?: IntFilter<"app_settings"> | number
+    passwordMinLength?: IntFilter<"app_settings"> | number
+    passwordRequireUppercase?: BoolFilter<"app_settings"> | boolean
+    passwordRequireLowercase?: BoolFilter<"app_settings"> | boolean
+    passwordRequireNumber?: BoolFilter<"app_settings"> | boolean
+    passwordRequireSpecial?: BoolFilter<"app_settings"> | boolean
+    passwordExpiryDays?: IntFilter<"app_settings"> | number
+    auditLogRetentionDays?: IntFilter<"app_settings"> | number
+    logPatientAccess?: BoolFilter<"app_settings"> | boolean
+    logDataModifications?: BoolFilter<"app_settings"> | boolean
+    logLoginAttempts?: BoolFilter<"app_settings"> | boolean
+    smsProvider?: StringNullableFilter<"app_settings"> | string | null
+    smsApiKey?: StringNullableFilter<"app_settings"> | string | null
+    smsApiSecret?: StringNullableFilter<"app_settings"> | string | null
+    smsSenderId?: StringNullableFilter<"app_settings"> | string | null
+    emailProvider?: StringNullableFilter<"app_settings"> | string | null
+    emailApiKey?: StringNullableFilter<"app_settings"> | string | null
+    smtpHost?: StringNullableFilter<"app_settings"> | string | null
+    smtpPort?: IntNullableFilter<"app_settings"> | number | null
+    smtpUser?: StringNullableFilter<"app_settings"> | string | null
+    smtpPassword?: StringNullableFilter<"app_settings"> | string | null
+    rolePermissions?: StringNullableFilter<"app_settings"> | string | null
+    queuePrefix?: StringFilter<"app_settings"> | string
+    queueStartNumber?: IntFilter<"app_settings"> | number
+    queueResetDaily?: BoolFilter<"app_settings"> | boolean
+    autoBackupEnabled?: BoolFilter<"app_settings"> | boolean
+    backupFrequency?: StringNullableFilter<"app_settings"> | string | null
+    backupRetentionDays?: IntFilter<"app_settings"> | number
+    lastBackupAt?: DateTimeNullableFilter<"app_settings"> | Date | string | null
     lastUpdated?: DateTimeNullableFilter<"app_settings"> | Date | string | null
     updatedBy?: StringNullableFilter<"app_settings"> | string | null
     createdAt?: DateTimeFilter<"app_settings"> | Date | string
@@ -26277,15 +29557,53 @@ export namespace Prisma {
     enableEmailNotifications?: SortOrder
     enableVoiceNotes?: SortOrder
     enableDailyDevotionals?: SortOrder
+    enableDrugInteractionCheck?: SortOrder
+    enableVitalAlerts?: SortOrder
+    enableAuditLogging?: SortOrder
+    enableBreakGlass?: SortOrder
+    enableTwoFactor?: SortOrder
     welcomeMessage?: SortOrderInput | SortOrder
     headerMessage?: SortOrderInput | SortOrder
     footerMessage?: SortOrderInput | SortOrder
+    sessionTimeoutMinutes?: SortOrder
+    maxLoginAttempts?: SortOrder
+    lockoutDurationMinutes?: SortOrder
+    passwordMinLength?: SortOrder
+    passwordRequireUppercase?: SortOrder
+    passwordRequireLowercase?: SortOrder
+    passwordRequireNumber?: SortOrder
+    passwordRequireSpecial?: SortOrder
+    passwordExpiryDays?: SortOrder
+    auditLogRetentionDays?: SortOrder
+    logPatientAccess?: SortOrder
+    logDataModifications?: SortOrder
+    logLoginAttempts?: SortOrder
+    smsProvider?: SortOrderInput | SortOrder
+    smsApiKey?: SortOrderInput | SortOrder
+    smsApiSecret?: SortOrderInput | SortOrder
+    smsSenderId?: SortOrderInput | SortOrder
+    emailProvider?: SortOrderInput | SortOrder
+    emailApiKey?: SortOrderInput | SortOrder
+    smtpHost?: SortOrderInput | SortOrder
+    smtpPort?: SortOrderInput | SortOrder
+    smtpUser?: SortOrderInput | SortOrder
+    smtpPassword?: SortOrderInput | SortOrder
+    rolePermissions?: SortOrderInput | SortOrder
+    queuePrefix?: SortOrder
+    queueStartNumber?: SortOrder
+    queueResetDaily?: SortOrder
+    autoBackupEnabled?: SortOrder
+    backupFrequency?: SortOrderInput | SortOrder
+    backupRetentionDays?: SortOrder
+    lastBackupAt?: SortOrderInput | SortOrder
     lastUpdated?: SortOrderInput | SortOrder
     updatedBy?: SortOrderInput | SortOrder
     createdAt?: SortOrder
     _count?: app_settingsCountOrderByAggregateInput
+    _avg?: app_settingsAvgOrderByAggregateInput
     _max?: app_settingsMaxOrderByAggregateInput
     _min?: app_settingsMinOrderByAggregateInput
+    _sum?: app_settingsSumOrderByAggregateInput
   }
 
   export type app_settingsScalarWhereWithAggregatesInput = {
@@ -26321,9 +29639,45 @@ export namespace Prisma {
     enableEmailNotifications?: BoolWithAggregatesFilter<"app_settings"> | boolean
     enableVoiceNotes?: BoolWithAggregatesFilter<"app_settings"> | boolean
     enableDailyDevotionals?: BoolWithAggregatesFilter<"app_settings"> | boolean
+    enableDrugInteractionCheck?: BoolWithAggregatesFilter<"app_settings"> | boolean
+    enableVitalAlerts?: BoolWithAggregatesFilter<"app_settings"> | boolean
+    enableAuditLogging?: BoolWithAggregatesFilter<"app_settings"> | boolean
+    enableBreakGlass?: BoolWithAggregatesFilter<"app_settings"> | boolean
+    enableTwoFactor?: BoolWithAggregatesFilter<"app_settings"> | boolean
     welcomeMessage?: StringNullableWithAggregatesFilter<"app_settings"> | string | null
     headerMessage?: StringNullableWithAggregatesFilter<"app_settings"> | string | null
     footerMessage?: StringNullableWithAggregatesFilter<"app_settings"> | string | null
+    sessionTimeoutMinutes?: IntWithAggregatesFilter<"app_settings"> | number
+    maxLoginAttempts?: IntWithAggregatesFilter<"app_settings"> | number
+    lockoutDurationMinutes?: IntWithAggregatesFilter<"app_settings"> | number
+    passwordMinLength?: IntWithAggregatesFilter<"app_settings"> | number
+    passwordRequireUppercase?: BoolWithAggregatesFilter<"app_settings"> | boolean
+    passwordRequireLowercase?: BoolWithAggregatesFilter<"app_settings"> | boolean
+    passwordRequireNumber?: BoolWithAggregatesFilter<"app_settings"> | boolean
+    passwordRequireSpecial?: BoolWithAggregatesFilter<"app_settings"> | boolean
+    passwordExpiryDays?: IntWithAggregatesFilter<"app_settings"> | number
+    auditLogRetentionDays?: IntWithAggregatesFilter<"app_settings"> | number
+    logPatientAccess?: BoolWithAggregatesFilter<"app_settings"> | boolean
+    logDataModifications?: BoolWithAggregatesFilter<"app_settings"> | boolean
+    logLoginAttempts?: BoolWithAggregatesFilter<"app_settings"> | boolean
+    smsProvider?: StringNullableWithAggregatesFilter<"app_settings"> | string | null
+    smsApiKey?: StringNullableWithAggregatesFilter<"app_settings"> | string | null
+    smsApiSecret?: StringNullableWithAggregatesFilter<"app_settings"> | string | null
+    smsSenderId?: StringNullableWithAggregatesFilter<"app_settings"> | string | null
+    emailProvider?: StringNullableWithAggregatesFilter<"app_settings"> | string | null
+    emailApiKey?: StringNullableWithAggregatesFilter<"app_settings"> | string | null
+    smtpHost?: StringNullableWithAggregatesFilter<"app_settings"> | string | null
+    smtpPort?: IntNullableWithAggregatesFilter<"app_settings"> | number | null
+    smtpUser?: StringNullableWithAggregatesFilter<"app_settings"> | string | null
+    smtpPassword?: StringNullableWithAggregatesFilter<"app_settings"> | string | null
+    rolePermissions?: StringNullableWithAggregatesFilter<"app_settings"> | string | null
+    queuePrefix?: StringWithAggregatesFilter<"app_settings"> | string
+    queueStartNumber?: IntWithAggregatesFilter<"app_settings"> | number
+    queueResetDaily?: BoolWithAggregatesFilter<"app_settings"> | boolean
+    autoBackupEnabled?: BoolWithAggregatesFilter<"app_settings"> | boolean
+    backupFrequency?: StringNullableWithAggregatesFilter<"app_settings"> | string | null
+    backupRetentionDays?: IntWithAggregatesFilter<"app_settings"> | number
+    lastBackupAt?: DateTimeNullableWithAggregatesFilter<"app_settings"> | Date | string | null
     lastUpdated?: DateTimeNullableWithAggregatesFilter<"app_settings"> | Date | string | null
     updatedBy?: StringNullableWithAggregatesFilter<"app_settings"> | string | null
     createdAt?: DateTimeWithAggregatesFilter<"app_settings"> | Date | string
@@ -26339,6 +29693,7 @@ export namespace Prisma {
     initials?: string | null
     phone?: string | null
     dateOfBirth?: Date | string | null
+    profilePhoto?: string | null
     isActive?: boolean
     isFirstLogin?: boolean
     approvalStatus?: string
@@ -26357,6 +29712,7 @@ export namespace Prisma {
     initials?: string | null
     phone?: string | null
     dateOfBirth?: Date | string | null
+    profilePhoto?: string | null
     isActive?: boolean
     isFirstLogin?: boolean
     approvalStatus?: string
@@ -26375,6 +29731,7 @@ export namespace Prisma {
     initials?: NullableStringFieldUpdateOperationsInput | string | null
     phone?: NullableStringFieldUpdateOperationsInput | string | null
     dateOfBirth?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    profilePhoto?: NullableStringFieldUpdateOperationsInput | string | null
     isActive?: BoolFieldUpdateOperationsInput | boolean
     isFirstLogin?: BoolFieldUpdateOperationsInput | boolean
     approvalStatus?: StringFieldUpdateOperationsInput | string
@@ -26393,6 +29750,7 @@ export namespace Prisma {
     initials?: NullableStringFieldUpdateOperationsInput | string | null
     phone?: NullableStringFieldUpdateOperationsInput | string | null
     dateOfBirth?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    profilePhoto?: NullableStringFieldUpdateOperationsInput | string | null
     isActive?: BoolFieldUpdateOperationsInput | boolean
     isFirstLogin?: BoolFieldUpdateOperationsInput | boolean
     approvalStatus?: StringFieldUpdateOperationsInput | string
@@ -26411,6 +29769,7 @@ export namespace Prisma {
     initials?: string | null
     phone?: string | null
     dateOfBirth?: Date | string | null
+    profilePhoto?: string | null
     isActive?: boolean
     isFirstLogin?: boolean
     approvalStatus?: string
@@ -26429,6 +29788,7 @@ export namespace Prisma {
     initials?: NullableStringFieldUpdateOperationsInput | string | null
     phone?: NullableStringFieldUpdateOperationsInput | string | null
     dateOfBirth?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    profilePhoto?: NullableStringFieldUpdateOperationsInput | string | null
     isActive?: BoolFieldUpdateOperationsInput | boolean
     isFirstLogin?: BoolFieldUpdateOperationsInput | boolean
     approvalStatus?: StringFieldUpdateOperationsInput | string
@@ -26447,6 +29807,7 @@ export namespace Prisma {
     initials?: NullableStringFieldUpdateOperationsInput | string | null
     phone?: NullableStringFieldUpdateOperationsInput | string | null
     dateOfBirth?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    profilePhoto?: NullableStringFieldUpdateOperationsInput | string | null
     isActive?: BoolFieldUpdateOperationsInput | boolean
     isFirstLogin?: BoolFieldUpdateOperationsInput | boolean
     approvalStatus?: StringFieldUpdateOperationsInput | string
@@ -28394,6 +31755,223 @@ export namespace Prisma {
     timestamp?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
+  export type rostersCreateInput = {
+    id: string
+    staffId?: string | null
+    staffName?: string | null
+    staffRole?: string | null
+    date: string
+    shift: string
+    notes?: string | null
+    createdBy?: string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type rostersUncheckedCreateInput = {
+    id: string
+    staffId?: string | null
+    staffName?: string | null
+    staffRole?: string | null
+    date: string
+    shift: string
+    notes?: string | null
+    createdBy?: string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type rostersUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    staffId?: NullableStringFieldUpdateOperationsInput | string | null
+    staffName?: NullableStringFieldUpdateOperationsInput | string | null
+    staffRole?: NullableStringFieldUpdateOperationsInput | string | null
+    date?: StringFieldUpdateOperationsInput | string
+    shift?: StringFieldUpdateOperationsInput | string
+    notes?: NullableStringFieldUpdateOperationsInput | string | null
+    createdBy?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type rostersUncheckedUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    staffId?: NullableStringFieldUpdateOperationsInput | string | null
+    staffName?: NullableStringFieldUpdateOperationsInput | string | null
+    staffRole?: NullableStringFieldUpdateOperationsInput | string | null
+    date?: StringFieldUpdateOperationsInput | string
+    shift?: StringFieldUpdateOperationsInput | string
+    notes?: NullableStringFieldUpdateOperationsInput | string | null
+    createdBy?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type rostersCreateManyInput = {
+    id: string
+    staffId?: string | null
+    staffName?: string | null
+    staffRole?: string | null
+    date: string
+    shift: string
+    notes?: string | null
+    createdBy?: string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type rostersUpdateManyMutationInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    staffId?: NullableStringFieldUpdateOperationsInput | string | null
+    staffName?: NullableStringFieldUpdateOperationsInput | string | null
+    staffRole?: NullableStringFieldUpdateOperationsInput | string | null
+    date?: StringFieldUpdateOperationsInput | string
+    shift?: StringFieldUpdateOperationsInput | string
+    notes?: NullableStringFieldUpdateOperationsInput | string | null
+    createdBy?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type rostersUncheckedUpdateManyInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    staffId?: NullableStringFieldUpdateOperationsInput | string | null
+    staffName?: NullableStringFieldUpdateOperationsInput | string | null
+    staffRole?: NullableStringFieldUpdateOperationsInput | string | null
+    date?: StringFieldUpdateOperationsInput | string
+    shift?: StringFieldUpdateOperationsInput | string
+    notes?: NullableStringFieldUpdateOperationsInput | string | null
+    createdBy?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type attendanceCreateInput = {
+    id: string
+    staffId?: string | null
+    staffName?: string | null
+    staffRole?: string | null
+    date: string
+    signInTime?: string | null
+    signInPhoto?: string | null
+    signOutTime?: string | null
+    signOutPhoto?: string | null
+    shift: string
+    status?: string
+    deviceId?: string | null
+    notes?: string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type attendanceUncheckedCreateInput = {
+    id: string
+    staffId?: string | null
+    staffName?: string | null
+    staffRole?: string | null
+    date: string
+    signInTime?: string | null
+    signInPhoto?: string | null
+    signOutTime?: string | null
+    signOutPhoto?: string | null
+    shift: string
+    status?: string
+    deviceId?: string | null
+    notes?: string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type attendanceUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    staffId?: NullableStringFieldUpdateOperationsInput | string | null
+    staffName?: NullableStringFieldUpdateOperationsInput | string | null
+    staffRole?: NullableStringFieldUpdateOperationsInput | string | null
+    date?: StringFieldUpdateOperationsInput | string
+    signInTime?: NullableStringFieldUpdateOperationsInput | string | null
+    signInPhoto?: NullableStringFieldUpdateOperationsInput | string | null
+    signOutTime?: NullableStringFieldUpdateOperationsInput | string | null
+    signOutPhoto?: NullableStringFieldUpdateOperationsInput | string | null
+    shift?: StringFieldUpdateOperationsInput | string
+    status?: StringFieldUpdateOperationsInput | string
+    deviceId?: NullableStringFieldUpdateOperationsInput | string | null
+    notes?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type attendanceUncheckedUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    staffId?: NullableStringFieldUpdateOperationsInput | string | null
+    staffName?: NullableStringFieldUpdateOperationsInput | string | null
+    staffRole?: NullableStringFieldUpdateOperationsInput | string | null
+    date?: StringFieldUpdateOperationsInput | string
+    signInTime?: NullableStringFieldUpdateOperationsInput | string | null
+    signInPhoto?: NullableStringFieldUpdateOperationsInput | string | null
+    signOutTime?: NullableStringFieldUpdateOperationsInput | string | null
+    signOutPhoto?: NullableStringFieldUpdateOperationsInput | string | null
+    shift?: StringFieldUpdateOperationsInput | string
+    status?: StringFieldUpdateOperationsInput | string
+    deviceId?: NullableStringFieldUpdateOperationsInput | string | null
+    notes?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type attendanceCreateManyInput = {
+    id: string
+    staffId?: string | null
+    staffName?: string | null
+    staffRole?: string | null
+    date: string
+    signInTime?: string | null
+    signInPhoto?: string | null
+    signOutTime?: string | null
+    signOutPhoto?: string | null
+    shift: string
+    status?: string
+    deviceId?: string | null
+    notes?: string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type attendanceUpdateManyMutationInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    staffId?: NullableStringFieldUpdateOperationsInput | string | null
+    staffName?: NullableStringFieldUpdateOperationsInput | string | null
+    staffRole?: NullableStringFieldUpdateOperationsInput | string | null
+    date?: StringFieldUpdateOperationsInput | string
+    signInTime?: NullableStringFieldUpdateOperationsInput | string | null
+    signInPhoto?: NullableStringFieldUpdateOperationsInput | string | null
+    signOutTime?: NullableStringFieldUpdateOperationsInput | string | null
+    signOutPhoto?: NullableStringFieldUpdateOperationsInput | string | null
+    shift?: StringFieldUpdateOperationsInput | string
+    status?: StringFieldUpdateOperationsInput | string
+    deviceId?: NullableStringFieldUpdateOperationsInput | string | null
+    notes?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type attendanceUncheckedUpdateManyInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    staffId?: NullableStringFieldUpdateOperationsInput | string | null
+    staffName?: NullableStringFieldUpdateOperationsInput | string | null
+    staffRole?: NullableStringFieldUpdateOperationsInput | string | null
+    date?: StringFieldUpdateOperationsInput | string
+    signInTime?: NullableStringFieldUpdateOperationsInput | string | null
+    signInPhoto?: NullableStringFieldUpdateOperationsInput | string | null
+    signOutTime?: NullableStringFieldUpdateOperationsInput | string | null
+    signOutPhoto?: NullableStringFieldUpdateOperationsInput | string | null
+    shift?: StringFieldUpdateOperationsInput | string
+    status?: StringFieldUpdateOperationsInput | string
+    deviceId?: NullableStringFieldUpdateOperationsInput | string | null
+    notes?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
   export type app_settingsCreateInput = {
     id: string
     facilityName?: string
@@ -28424,9 +32002,45 @@ export namespace Prisma {
     enableEmailNotifications?: boolean
     enableVoiceNotes?: boolean
     enableDailyDevotionals?: boolean
+    enableDrugInteractionCheck?: boolean
+    enableVitalAlerts?: boolean
+    enableAuditLogging?: boolean
+    enableBreakGlass?: boolean
+    enableTwoFactor?: boolean
     welcomeMessage?: string | null
     headerMessage?: string | null
     footerMessage?: string | null
+    sessionTimeoutMinutes?: number
+    maxLoginAttempts?: number
+    lockoutDurationMinutes?: number
+    passwordMinLength?: number
+    passwordRequireUppercase?: boolean
+    passwordRequireLowercase?: boolean
+    passwordRequireNumber?: boolean
+    passwordRequireSpecial?: boolean
+    passwordExpiryDays?: number
+    auditLogRetentionDays?: number
+    logPatientAccess?: boolean
+    logDataModifications?: boolean
+    logLoginAttempts?: boolean
+    smsProvider?: string | null
+    smsApiKey?: string | null
+    smsApiSecret?: string | null
+    smsSenderId?: string | null
+    emailProvider?: string | null
+    emailApiKey?: string | null
+    smtpHost?: string | null
+    smtpPort?: number | null
+    smtpUser?: string | null
+    smtpPassword?: string | null
+    rolePermissions?: string | null
+    queuePrefix?: string
+    queueStartNumber?: number
+    queueResetDaily?: boolean
+    autoBackupEnabled?: boolean
+    backupFrequency?: string | null
+    backupRetentionDays?: number
+    lastBackupAt?: Date | string | null
     lastUpdated?: Date | string | null
     updatedBy?: string | null
     createdAt?: Date | string
@@ -28462,9 +32076,45 @@ export namespace Prisma {
     enableEmailNotifications?: boolean
     enableVoiceNotes?: boolean
     enableDailyDevotionals?: boolean
+    enableDrugInteractionCheck?: boolean
+    enableVitalAlerts?: boolean
+    enableAuditLogging?: boolean
+    enableBreakGlass?: boolean
+    enableTwoFactor?: boolean
     welcomeMessage?: string | null
     headerMessage?: string | null
     footerMessage?: string | null
+    sessionTimeoutMinutes?: number
+    maxLoginAttempts?: number
+    lockoutDurationMinutes?: number
+    passwordMinLength?: number
+    passwordRequireUppercase?: boolean
+    passwordRequireLowercase?: boolean
+    passwordRequireNumber?: boolean
+    passwordRequireSpecial?: boolean
+    passwordExpiryDays?: number
+    auditLogRetentionDays?: number
+    logPatientAccess?: boolean
+    logDataModifications?: boolean
+    logLoginAttempts?: boolean
+    smsProvider?: string | null
+    smsApiKey?: string | null
+    smsApiSecret?: string | null
+    smsSenderId?: string | null
+    emailProvider?: string | null
+    emailApiKey?: string | null
+    smtpHost?: string | null
+    smtpPort?: number | null
+    smtpUser?: string | null
+    smtpPassword?: string | null
+    rolePermissions?: string | null
+    queuePrefix?: string
+    queueStartNumber?: number
+    queueResetDaily?: boolean
+    autoBackupEnabled?: boolean
+    backupFrequency?: string | null
+    backupRetentionDays?: number
+    lastBackupAt?: Date | string | null
     lastUpdated?: Date | string | null
     updatedBy?: string | null
     createdAt?: Date | string
@@ -28500,9 +32150,45 @@ export namespace Prisma {
     enableEmailNotifications?: BoolFieldUpdateOperationsInput | boolean
     enableVoiceNotes?: BoolFieldUpdateOperationsInput | boolean
     enableDailyDevotionals?: BoolFieldUpdateOperationsInput | boolean
+    enableDrugInteractionCheck?: BoolFieldUpdateOperationsInput | boolean
+    enableVitalAlerts?: BoolFieldUpdateOperationsInput | boolean
+    enableAuditLogging?: BoolFieldUpdateOperationsInput | boolean
+    enableBreakGlass?: BoolFieldUpdateOperationsInput | boolean
+    enableTwoFactor?: BoolFieldUpdateOperationsInput | boolean
     welcomeMessage?: NullableStringFieldUpdateOperationsInput | string | null
     headerMessage?: NullableStringFieldUpdateOperationsInput | string | null
     footerMessage?: NullableStringFieldUpdateOperationsInput | string | null
+    sessionTimeoutMinutes?: IntFieldUpdateOperationsInput | number
+    maxLoginAttempts?: IntFieldUpdateOperationsInput | number
+    lockoutDurationMinutes?: IntFieldUpdateOperationsInput | number
+    passwordMinLength?: IntFieldUpdateOperationsInput | number
+    passwordRequireUppercase?: BoolFieldUpdateOperationsInput | boolean
+    passwordRequireLowercase?: BoolFieldUpdateOperationsInput | boolean
+    passwordRequireNumber?: BoolFieldUpdateOperationsInput | boolean
+    passwordRequireSpecial?: BoolFieldUpdateOperationsInput | boolean
+    passwordExpiryDays?: IntFieldUpdateOperationsInput | number
+    auditLogRetentionDays?: IntFieldUpdateOperationsInput | number
+    logPatientAccess?: BoolFieldUpdateOperationsInput | boolean
+    logDataModifications?: BoolFieldUpdateOperationsInput | boolean
+    logLoginAttempts?: BoolFieldUpdateOperationsInput | boolean
+    smsProvider?: NullableStringFieldUpdateOperationsInput | string | null
+    smsApiKey?: NullableStringFieldUpdateOperationsInput | string | null
+    smsApiSecret?: NullableStringFieldUpdateOperationsInput | string | null
+    smsSenderId?: NullableStringFieldUpdateOperationsInput | string | null
+    emailProvider?: NullableStringFieldUpdateOperationsInput | string | null
+    emailApiKey?: NullableStringFieldUpdateOperationsInput | string | null
+    smtpHost?: NullableStringFieldUpdateOperationsInput | string | null
+    smtpPort?: NullableIntFieldUpdateOperationsInput | number | null
+    smtpUser?: NullableStringFieldUpdateOperationsInput | string | null
+    smtpPassword?: NullableStringFieldUpdateOperationsInput | string | null
+    rolePermissions?: NullableStringFieldUpdateOperationsInput | string | null
+    queuePrefix?: StringFieldUpdateOperationsInput | string
+    queueStartNumber?: IntFieldUpdateOperationsInput | number
+    queueResetDaily?: BoolFieldUpdateOperationsInput | boolean
+    autoBackupEnabled?: BoolFieldUpdateOperationsInput | boolean
+    backupFrequency?: NullableStringFieldUpdateOperationsInput | string | null
+    backupRetentionDays?: IntFieldUpdateOperationsInput | number
+    lastBackupAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     lastUpdated?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     updatedBy?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -28538,9 +32224,45 @@ export namespace Prisma {
     enableEmailNotifications?: BoolFieldUpdateOperationsInput | boolean
     enableVoiceNotes?: BoolFieldUpdateOperationsInput | boolean
     enableDailyDevotionals?: BoolFieldUpdateOperationsInput | boolean
+    enableDrugInteractionCheck?: BoolFieldUpdateOperationsInput | boolean
+    enableVitalAlerts?: BoolFieldUpdateOperationsInput | boolean
+    enableAuditLogging?: BoolFieldUpdateOperationsInput | boolean
+    enableBreakGlass?: BoolFieldUpdateOperationsInput | boolean
+    enableTwoFactor?: BoolFieldUpdateOperationsInput | boolean
     welcomeMessage?: NullableStringFieldUpdateOperationsInput | string | null
     headerMessage?: NullableStringFieldUpdateOperationsInput | string | null
     footerMessage?: NullableStringFieldUpdateOperationsInput | string | null
+    sessionTimeoutMinutes?: IntFieldUpdateOperationsInput | number
+    maxLoginAttempts?: IntFieldUpdateOperationsInput | number
+    lockoutDurationMinutes?: IntFieldUpdateOperationsInput | number
+    passwordMinLength?: IntFieldUpdateOperationsInput | number
+    passwordRequireUppercase?: BoolFieldUpdateOperationsInput | boolean
+    passwordRequireLowercase?: BoolFieldUpdateOperationsInput | boolean
+    passwordRequireNumber?: BoolFieldUpdateOperationsInput | boolean
+    passwordRequireSpecial?: BoolFieldUpdateOperationsInput | boolean
+    passwordExpiryDays?: IntFieldUpdateOperationsInput | number
+    auditLogRetentionDays?: IntFieldUpdateOperationsInput | number
+    logPatientAccess?: BoolFieldUpdateOperationsInput | boolean
+    logDataModifications?: BoolFieldUpdateOperationsInput | boolean
+    logLoginAttempts?: BoolFieldUpdateOperationsInput | boolean
+    smsProvider?: NullableStringFieldUpdateOperationsInput | string | null
+    smsApiKey?: NullableStringFieldUpdateOperationsInput | string | null
+    smsApiSecret?: NullableStringFieldUpdateOperationsInput | string | null
+    smsSenderId?: NullableStringFieldUpdateOperationsInput | string | null
+    emailProvider?: NullableStringFieldUpdateOperationsInput | string | null
+    emailApiKey?: NullableStringFieldUpdateOperationsInput | string | null
+    smtpHost?: NullableStringFieldUpdateOperationsInput | string | null
+    smtpPort?: NullableIntFieldUpdateOperationsInput | number | null
+    smtpUser?: NullableStringFieldUpdateOperationsInput | string | null
+    smtpPassword?: NullableStringFieldUpdateOperationsInput | string | null
+    rolePermissions?: NullableStringFieldUpdateOperationsInput | string | null
+    queuePrefix?: StringFieldUpdateOperationsInput | string
+    queueStartNumber?: IntFieldUpdateOperationsInput | number
+    queueResetDaily?: BoolFieldUpdateOperationsInput | boolean
+    autoBackupEnabled?: BoolFieldUpdateOperationsInput | boolean
+    backupFrequency?: NullableStringFieldUpdateOperationsInput | string | null
+    backupRetentionDays?: IntFieldUpdateOperationsInput | number
+    lastBackupAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     lastUpdated?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     updatedBy?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -28576,9 +32298,45 @@ export namespace Prisma {
     enableEmailNotifications?: boolean
     enableVoiceNotes?: boolean
     enableDailyDevotionals?: boolean
+    enableDrugInteractionCheck?: boolean
+    enableVitalAlerts?: boolean
+    enableAuditLogging?: boolean
+    enableBreakGlass?: boolean
+    enableTwoFactor?: boolean
     welcomeMessage?: string | null
     headerMessage?: string | null
     footerMessage?: string | null
+    sessionTimeoutMinutes?: number
+    maxLoginAttempts?: number
+    lockoutDurationMinutes?: number
+    passwordMinLength?: number
+    passwordRequireUppercase?: boolean
+    passwordRequireLowercase?: boolean
+    passwordRequireNumber?: boolean
+    passwordRequireSpecial?: boolean
+    passwordExpiryDays?: number
+    auditLogRetentionDays?: number
+    logPatientAccess?: boolean
+    logDataModifications?: boolean
+    logLoginAttempts?: boolean
+    smsProvider?: string | null
+    smsApiKey?: string | null
+    smsApiSecret?: string | null
+    smsSenderId?: string | null
+    emailProvider?: string | null
+    emailApiKey?: string | null
+    smtpHost?: string | null
+    smtpPort?: number | null
+    smtpUser?: string | null
+    smtpPassword?: string | null
+    rolePermissions?: string | null
+    queuePrefix?: string
+    queueStartNumber?: number
+    queueResetDaily?: boolean
+    autoBackupEnabled?: boolean
+    backupFrequency?: string | null
+    backupRetentionDays?: number
+    lastBackupAt?: Date | string | null
     lastUpdated?: Date | string | null
     updatedBy?: string | null
     createdAt?: Date | string
@@ -28614,9 +32372,45 @@ export namespace Prisma {
     enableEmailNotifications?: BoolFieldUpdateOperationsInput | boolean
     enableVoiceNotes?: BoolFieldUpdateOperationsInput | boolean
     enableDailyDevotionals?: BoolFieldUpdateOperationsInput | boolean
+    enableDrugInteractionCheck?: BoolFieldUpdateOperationsInput | boolean
+    enableVitalAlerts?: BoolFieldUpdateOperationsInput | boolean
+    enableAuditLogging?: BoolFieldUpdateOperationsInput | boolean
+    enableBreakGlass?: BoolFieldUpdateOperationsInput | boolean
+    enableTwoFactor?: BoolFieldUpdateOperationsInput | boolean
     welcomeMessage?: NullableStringFieldUpdateOperationsInput | string | null
     headerMessage?: NullableStringFieldUpdateOperationsInput | string | null
     footerMessage?: NullableStringFieldUpdateOperationsInput | string | null
+    sessionTimeoutMinutes?: IntFieldUpdateOperationsInput | number
+    maxLoginAttempts?: IntFieldUpdateOperationsInput | number
+    lockoutDurationMinutes?: IntFieldUpdateOperationsInput | number
+    passwordMinLength?: IntFieldUpdateOperationsInput | number
+    passwordRequireUppercase?: BoolFieldUpdateOperationsInput | boolean
+    passwordRequireLowercase?: BoolFieldUpdateOperationsInput | boolean
+    passwordRequireNumber?: BoolFieldUpdateOperationsInput | boolean
+    passwordRequireSpecial?: BoolFieldUpdateOperationsInput | boolean
+    passwordExpiryDays?: IntFieldUpdateOperationsInput | number
+    auditLogRetentionDays?: IntFieldUpdateOperationsInput | number
+    logPatientAccess?: BoolFieldUpdateOperationsInput | boolean
+    logDataModifications?: BoolFieldUpdateOperationsInput | boolean
+    logLoginAttempts?: BoolFieldUpdateOperationsInput | boolean
+    smsProvider?: NullableStringFieldUpdateOperationsInput | string | null
+    smsApiKey?: NullableStringFieldUpdateOperationsInput | string | null
+    smsApiSecret?: NullableStringFieldUpdateOperationsInput | string | null
+    smsSenderId?: NullableStringFieldUpdateOperationsInput | string | null
+    emailProvider?: NullableStringFieldUpdateOperationsInput | string | null
+    emailApiKey?: NullableStringFieldUpdateOperationsInput | string | null
+    smtpHost?: NullableStringFieldUpdateOperationsInput | string | null
+    smtpPort?: NullableIntFieldUpdateOperationsInput | number | null
+    smtpUser?: NullableStringFieldUpdateOperationsInput | string | null
+    smtpPassword?: NullableStringFieldUpdateOperationsInput | string | null
+    rolePermissions?: NullableStringFieldUpdateOperationsInput | string | null
+    queuePrefix?: StringFieldUpdateOperationsInput | string
+    queueStartNumber?: IntFieldUpdateOperationsInput | number
+    queueResetDaily?: BoolFieldUpdateOperationsInput | boolean
+    autoBackupEnabled?: BoolFieldUpdateOperationsInput | boolean
+    backupFrequency?: NullableStringFieldUpdateOperationsInput | string | null
+    backupRetentionDays?: IntFieldUpdateOperationsInput | number
+    lastBackupAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     lastUpdated?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     updatedBy?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -28652,9 +32446,45 @@ export namespace Prisma {
     enableEmailNotifications?: BoolFieldUpdateOperationsInput | boolean
     enableVoiceNotes?: BoolFieldUpdateOperationsInput | boolean
     enableDailyDevotionals?: BoolFieldUpdateOperationsInput | boolean
+    enableDrugInteractionCheck?: BoolFieldUpdateOperationsInput | boolean
+    enableVitalAlerts?: BoolFieldUpdateOperationsInput | boolean
+    enableAuditLogging?: BoolFieldUpdateOperationsInput | boolean
+    enableBreakGlass?: BoolFieldUpdateOperationsInput | boolean
+    enableTwoFactor?: BoolFieldUpdateOperationsInput | boolean
     welcomeMessage?: NullableStringFieldUpdateOperationsInput | string | null
     headerMessage?: NullableStringFieldUpdateOperationsInput | string | null
     footerMessage?: NullableStringFieldUpdateOperationsInput | string | null
+    sessionTimeoutMinutes?: IntFieldUpdateOperationsInput | number
+    maxLoginAttempts?: IntFieldUpdateOperationsInput | number
+    lockoutDurationMinutes?: IntFieldUpdateOperationsInput | number
+    passwordMinLength?: IntFieldUpdateOperationsInput | number
+    passwordRequireUppercase?: BoolFieldUpdateOperationsInput | boolean
+    passwordRequireLowercase?: BoolFieldUpdateOperationsInput | boolean
+    passwordRequireNumber?: BoolFieldUpdateOperationsInput | boolean
+    passwordRequireSpecial?: BoolFieldUpdateOperationsInput | boolean
+    passwordExpiryDays?: IntFieldUpdateOperationsInput | number
+    auditLogRetentionDays?: IntFieldUpdateOperationsInput | number
+    logPatientAccess?: BoolFieldUpdateOperationsInput | boolean
+    logDataModifications?: BoolFieldUpdateOperationsInput | boolean
+    logLoginAttempts?: BoolFieldUpdateOperationsInput | boolean
+    smsProvider?: NullableStringFieldUpdateOperationsInput | string | null
+    smsApiKey?: NullableStringFieldUpdateOperationsInput | string | null
+    smsApiSecret?: NullableStringFieldUpdateOperationsInput | string | null
+    smsSenderId?: NullableStringFieldUpdateOperationsInput | string | null
+    emailProvider?: NullableStringFieldUpdateOperationsInput | string | null
+    emailApiKey?: NullableStringFieldUpdateOperationsInput | string | null
+    smtpHost?: NullableStringFieldUpdateOperationsInput | string | null
+    smtpPort?: NullableIntFieldUpdateOperationsInput | number | null
+    smtpUser?: NullableStringFieldUpdateOperationsInput | string | null
+    smtpPassword?: NullableStringFieldUpdateOperationsInput | string | null
+    rolePermissions?: NullableStringFieldUpdateOperationsInput | string | null
+    queuePrefix?: StringFieldUpdateOperationsInput | string
+    queueStartNumber?: IntFieldUpdateOperationsInput | number
+    queueResetDaily?: BoolFieldUpdateOperationsInput | boolean
+    autoBackupEnabled?: BoolFieldUpdateOperationsInput | boolean
+    backupFrequency?: NullableStringFieldUpdateOperationsInput | string | null
+    backupRetentionDays?: IntFieldUpdateOperationsInput | number
+    lastBackupAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     lastUpdated?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     updatedBy?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -28732,6 +32562,7 @@ export namespace Prisma {
     initials?: SortOrder
     phone?: SortOrder
     dateOfBirth?: SortOrder
+    profilePhoto?: SortOrder
     isActive?: SortOrder
     isFirstLogin?: SortOrder
     approvalStatus?: SortOrder
@@ -28750,6 +32581,7 @@ export namespace Prisma {
     initials?: SortOrder
     phone?: SortOrder
     dateOfBirth?: SortOrder
+    profilePhoto?: SortOrder
     isActive?: SortOrder
     isFirstLogin?: SortOrder
     approvalStatus?: SortOrder
@@ -28768,6 +32600,7 @@ export namespace Prisma {
     initials?: SortOrder
     phone?: SortOrder
     dateOfBirth?: SortOrder
+    profilePhoto?: SortOrder
     isActive?: SortOrder
     isFirstLogin?: SortOrder
     approvalStatus?: SortOrder
@@ -29823,6 +33656,99 @@ export namespace Prisma {
     timestamp?: SortOrder
   }
 
+  export type rostersCountOrderByAggregateInput = {
+    id?: SortOrder
+    staffId?: SortOrder
+    staffName?: SortOrder
+    staffRole?: SortOrder
+    date?: SortOrder
+    shift?: SortOrder
+    notes?: SortOrder
+    createdBy?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type rostersMaxOrderByAggregateInput = {
+    id?: SortOrder
+    staffId?: SortOrder
+    staffName?: SortOrder
+    staffRole?: SortOrder
+    date?: SortOrder
+    shift?: SortOrder
+    notes?: SortOrder
+    createdBy?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type rostersMinOrderByAggregateInput = {
+    id?: SortOrder
+    staffId?: SortOrder
+    staffName?: SortOrder
+    staffRole?: SortOrder
+    date?: SortOrder
+    shift?: SortOrder
+    notes?: SortOrder
+    createdBy?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type attendanceCountOrderByAggregateInput = {
+    id?: SortOrder
+    staffId?: SortOrder
+    staffName?: SortOrder
+    staffRole?: SortOrder
+    date?: SortOrder
+    signInTime?: SortOrder
+    signInPhoto?: SortOrder
+    signOutTime?: SortOrder
+    signOutPhoto?: SortOrder
+    shift?: SortOrder
+    status?: SortOrder
+    deviceId?: SortOrder
+    notes?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type attendanceMaxOrderByAggregateInput = {
+    id?: SortOrder
+    staffId?: SortOrder
+    staffName?: SortOrder
+    staffRole?: SortOrder
+    date?: SortOrder
+    signInTime?: SortOrder
+    signInPhoto?: SortOrder
+    signOutTime?: SortOrder
+    signOutPhoto?: SortOrder
+    shift?: SortOrder
+    status?: SortOrder
+    deviceId?: SortOrder
+    notes?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type attendanceMinOrderByAggregateInput = {
+    id?: SortOrder
+    staffId?: SortOrder
+    staffName?: SortOrder
+    staffRole?: SortOrder
+    date?: SortOrder
+    signInTime?: SortOrder
+    signInPhoto?: SortOrder
+    signOutTime?: SortOrder
+    signOutPhoto?: SortOrder
+    shift?: SortOrder
+    status?: SortOrder
+    deviceId?: SortOrder
+    notes?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
   export type app_settingsCountOrderByAggregateInput = {
     id?: SortOrder
     facilityName?: SortOrder
@@ -29853,12 +33779,60 @@ export namespace Prisma {
     enableEmailNotifications?: SortOrder
     enableVoiceNotes?: SortOrder
     enableDailyDevotionals?: SortOrder
+    enableDrugInteractionCheck?: SortOrder
+    enableVitalAlerts?: SortOrder
+    enableAuditLogging?: SortOrder
+    enableBreakGlass?: SortOrder
+    enableTwoFactor?: SortOrder
     welcomeMessage?: SortOrder
     headerMessage?: SortOrder
     footerMessage?: SortOrder
+    sessionTimeoutMinutes?: SortOrder
+    maxLoginAttempts?: SortOrder
+    lockoutDurationMinutes?: SortOrder
+    passwordMinLength?: SortOrder
+    passwordRequireUppercase?: SortOrder
+    passwordRequireLowercase?: SortOrder
+    passwordRequireNumber?: SortOrder
+    passwordRequireSpecial?: SortOrder
+    passwordExpiryDays?: SortOrder
+    auditLogRetentionDays?: SortOrder
+    logPatientAccess?: SortOrder
+    logDataModifications?: SortOrder
+    logLoginAttempts?: SortOrder
+    smsProvider?: SortOrder
+    smsApiKey?: SortOrder
+    smsApiSecret?: SortOrder
+    smsSenderId?: SortOrder
+    emailProvider?: SortOrder
+    emailApiKey?: SortOrder
+    smtpHost?: SortOrder
+    smtpPort?: SortOrder
+    smtpUser?: SortOrder
+    smtpPassword?: SortOrder
+    rolePermissions?: SortOrder
+    queuePrefix?: SortOrder
+    queueStartNumber?: SortOrder
+    queueResetDaily?: SortOrder
+    autoBackupEnabled?: SortOrder
+    backupFrequency?: SortOrder
+    backupRetentionDays?: SortOrder
+    lastBackupAt?: SortOrder
     lastUpdated?: SortOrder
     updatedBy?: SortOrder
     createdAt?: SortOrder
+  }
+
+  export type app_settingsAvgOrderByAggregateInput = {
+    sessionTimeoutMinutes?: SortOrder
+    maxLoginAttempts?: SortOrder
+    lockoutDurationMinutes?: SortOrder
+    passwordMinLength?: SortOrder
+    passwordExpiryDays?: SortOrder
+    auditLogRetentionDays?: SortOrder
+    smtpPort?: SortOrder
+    queueStartNumber?: SortOrder
+    backupRetentionDays?: SortOrder
   }
 
   export type app_settingsMaxOrderByAggregateInput = {
@@ -29891,9 +33865,45 @@ export namespace Prisma {
     enableEmailNotifications?: SortOrder
     enableVoiceNotes?: SortOrder
     enableDailyDevotionals?: SortOrder
+    enableDrugInteractionCheck?: SortOrder
+    enableVitalAlerts?: SortOrder
+    enableAuditLogging?: SortOrder
+    enableBreakGlass?: SortOrder
+    enableTwoFactor?: SortOrder
     welcomeMessage?: SortOrder
     headerMessage?: SortOrder
     footerMessage?: SortOrder
+    sessionTimeoutMinutes?: SortOrder
+    maxLoginAttempts?: SortOrder
+    lockoutDurationMinutes?: SortOrder
+    passwordMinLength?: SortOrder
+    passwordRequireUppercase?: SortOrder
+    passwordRequireLowercase?: SortOrder
+    passwordRequireNumber?: SortOrder
+    passwordRequireSpecial?: SortOrder
+    passwordExpiryDays?: SortOrder
+    auditLogRetentionDays?: SortOrder
+    logPatientAccess?: SortOrder
+    logDataModifications?: SortOrder
+    logLoginAttempts?: SortOrder
+    smsProvider?: SortOrder
+    smsApiKey?: SortOrder
+    smsApiSecret?: SortOrder
+    smsSenderId?: SortOrder
+    emailProvider?: SortOrder
+    emailApiKey?: SortOrder
+    smtpHost?: SortOrder
+    smtpPort?: SortOrder
+    smtpUser?: SortOrder
+    smtpPassword?: SortOrder
+    rolePermissions?: SortOrder
+    queuePrefix?: SortOrder
+    queueStartNumber?: SortOrder
+    queueResetDaily?: SortOrder
+    autoBackupEnabled?: SortOrder
+    backupFrequency?: SortOrder
+    backupRetentionDays?: SortOrder
+    lastBackupAt?: SortOrder
     lastUpdated?: SortOrder
     updatedBy?: SortOrder
     createdAt?: SortOrder
@@ -29929,12 +33939,60 @@ export namespace Prisma {
     enableEmailNotifications?: SortOrder
     enableVoiceNotes?: SortOrder
     enableDailyDevotionals?: SortOrder
+    enableDrugInteractionCheck?: SortOrder
+    enableVitalAlerts?: SortOrder
+    enableAuditLogging?: SortOrder
+    enableBreakGlass?: SortOrder
+    enableTwoFactor?: SortOrder
     welcomeMessage?: SortOrder
     headerMessage?: SortOrder
     footerMessage?: SortOrder
+    sessionTimeoutMinutes?: SortOrder
+    maxLoginAttempts?: SortOrder
+    lockoutDurationMinutes?: SortOrder
+    passwordMinLength?: SortOrder
+    passwordRequireUppercase?: SortOrder
+    passwordRequireLowercase?: SortOrder
+    passwordRequireNumber?: SortOrder
+    passwordRequireSpecial?: SortOrder
+    passwordExpiryDays?: SortOrder
+    auditLogRetentionDays?: SortOrder
+    logPatientAccess?: SortOrder
+    logDataModifications?: SortOrder
+    logLoginAttempts?: SortOrder
+    smsProvider?: SortOrder
+    smsApiKey?: SortOrder
+    smsApiSecret?: SortOrder
+    smsSenderId?: SortOrder
+    emailProvider?: SortOrder
+    emailApiKey?: SortOrder
+    smtpHost?: SortOrder
+    smtpPort?: SortOrder
+    smtpUser?: SortOrder
+    smtpPassword?: SortOrder
+    rolePermissions?: SortOrder
+    queuePrefix?: SortOrder
+    queueStartNumber?: SortOrder
+    queueResetDaily?: SortOrder
+    autoBackupEnabled?: SortOrder
+    backupFrequency?: SortOrder
+    backupRetentionDays?: SortOrder
+    lastBackupAt?: SortOrder
     lastUpdated?: SortOrder
     updatedBy?: SortOrder
     createdAt?: SortOrder
+  }
+
+  export type app_settingsSumOrderByAggregateInput = {
+    sessionTimeoutMinutes?: SortOrder
+    maxLoginAttempts?: SortOrder
+    lockoutDurationMinutes?: SortOrder
+    passwordMinLength?: SortOrder
+    passwordExpiryDays?: SortOrder
+    auditLogRetentionDays?: SortOrder
+    smtpPort?: SortOrder
+    queueStartNumber?: SortOrder
+    backupRetentionDays?: SortOrder
   }
 
   export type StringFieldUpdateOperationsInput = {

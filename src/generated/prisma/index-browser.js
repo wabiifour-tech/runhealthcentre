@@ -130,6 +130,7 @@ exports.Prisma.UsersScalarFieldEnum = {
   initials: 'initials',
   phone: 'phone',
   dateOfBirth: 'dateOfBirth',
+  profilePhoto: 'profilePhoto',
   isActive: 'isActive',
   isFirstLogin: 'isFirstLogin',
   approvalStatus: 'approvalStatus',
@@ -415,6 +416,37 @@ exports.Prisma.Audit_logsScalarFieldEnum = {
   timestamp: 'timestamp'
 };
 
+exports.Prisma.RostersScalarFieldEnum = {
+  id: 'id',
+  staffId: 'staffId',
+  staffName: 'staffName',
+  staffRole: 'staffRole',
+  date: 'date',
+  shift: 'shift',
+  notes: 'notes',
+  createdBy: 'createdBy',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
+exports.Prisma.AttendanceScalarFieldEnum = {
+  id: 'id',
+  staffId: 'staffId',
+  staffName: 'staffName',
+  staffRole: 'staffRole',
+  date: 'date',
+  signInTime: 'signInTime',
+  signInPhoto: 'signInPhoto',
+  signOutTime: 'signOutTime',
+  signOutPhoto: 'signOutPhoto',
+  shift: 'shift',
+  status: 'status',
+  deviceId: 'deviceId',
+  notes: 'notes',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
 exports.Prisma.App_settingsScalarFieldEnum = {
   id: 'id',
   facilityName: 'facilityName',
@@ -445,9 +477,45 @@ exports.Prisma.App_settingsScalarFieldEnum = {
   enableEmailNotifications: 'enableEmailNotifications',
   enableVoiceNotes: 'enableVoiceNotes',
   enableDailyDevotionals: 'enableDailyDevotionals',
+  enableDrugInteractionCheck: 'enableDrugInteractionCheck',
+  enableVitalAlerts: 'enableVitalAlerts',
+  enableAuditLogging: 'enableAuditLogging',
+  enableBreakGlass: 'enableBreakGlass',
+  enableTwoFactor: 'enableTwoFactor',
   welcomeMessage: 'welcomeMessage',
   headerMessage: 'headerMessage',
   footerMessage: 'footerMessage',
+  sessionTimeoutMinutes: 'sessionTimeoutMinutes',
+  maxLoginAttempts: 'maxLoginAttempts',
+  lockoutDurationMinutes: 'lockoutDurationMinutes',
+  passwordMinLength: 'passwordMinLength',
+  passwordRequireUppercase: 'passwordRequireUppercase',
+  passwordRequireLowercase: 'passwordRequireLowercase',
+  passwordRequireNumber: 'passwordRequireNumber',
+  passwordRequireSpecial: 'passwordRequireSpecial',
+  passwordExpiryDays: 'passwordExpiryDays',
+  auditLogRetentionDays: 'auditLogRetentionDays',
+  logPatientAccess: 'logPatientAccess',
+  logDataModifications: 'logDataModifications',
+  logLoginAttempts: 'logLoginAttempts',
+  smsProvider: 'smsProvider',
+  smsApiKey: 'smsApiKey',
+  smsApiSecret: 'smsApiSecret',
+  smsSenderId: 'smsSenderId',
+  emailProvider: 'emailProvider',
+  emailApiKey: 'emailApiKey',
+  smtpHost: 'smtpHost',
+  smtpPort: 'smtpPort',
+  smtpUser: 'smtpUser',
+  smtpPassword: 'smtpPassword',
+  rolePermissions: 'rolePermissions',
+  queuePrefix: 'queuePrefix',
+  queueStartNumber: 'queueStartNumber',
+  queueResetDaily: 'queueResetDaily',
+  autoBackupEnabled: 'autoBackupEnabled',
+  backupFrequency: 'backupFrequency',
+  backupRetentionDays: 'backupRetentionDays',
+  lastBackupAt: 'lastBackupAt',
   lastUpdated: 'lastUpdated',
   updatedBy: 'updatedBy',
   createdAt: 'createdAt'
@@ -499,6 +567,8 @@ exports.Prisma.ModelName = {
   referral_letters: 'referral_letters',
   discharge_summaries: 'discharge_summaries',
   audit_logs: 'audit_logs',
+  rosters: 'rosters',
+  attendance: 'attendance',
   app_settings: 'app_settings'
 };
 
