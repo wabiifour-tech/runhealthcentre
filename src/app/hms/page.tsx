@@ -3261,7 +3261,6 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
   const [userForm, setUserForm] = useState({ id: '', name: '', email: '', role: 'NURSE' as UserRole, department: '', initials: '', password: '' })
   const [showPaymentDialog, setShowPaymentDialog] = useState(false)
   const [showExpenseDialog, setShowExpenseDialog] = useState(false)
-  const [showAttendanceDialog, setShowAttendanceDialog] = useState(false)
   const [showEquipmentDialog, setShowEquipmentDialog] = useState(false)
   const [showAmbulanceDialog, setShowAmbulanceDialog] = useState(false)
   const [showInsuranceDialog, setShowInsuranceDialog] = useState(false)
