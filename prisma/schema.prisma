@@ -321,6 +321,39 @@ model audit_logs {
   timestamp               DateTime  @default(now())
 }
 
+// Duty Roster model
+model rosters {
+  id                      String    @id
+  staffId                 String?
+  staffName               String?
+  staffRole               String?
+  date                    String    // YYYY-MM-DD format
+  shift                   String    // morning, afternoon, night
+  notes                   String?
+  createdBy               String?
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+}
+
+// Attendance model
+model attendance {
+  id                      String    @id
+  staffId                 String?
+  staffName               String?
+  staffRole               String?
+  date                    String    // toDateString format
+  signInTime              String?
+  signInPhoto             String?
+  signOutTime             String?
+  signOutPhoto            String?
+  shift                   String    // morning, afternoon, night
+  status                  String    @default("present") // present, late, absent, on_leave
+  deviceId                String?
+  notes                   String?
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+}
+
 // App settings model
 model app_settings {
   id                      String    @id

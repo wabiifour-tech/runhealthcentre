@@ -44,6 +44,8 @@ const demoData: Record<string, any[]> = {
   announcements: [],
   voiceNotes: [],
   auditLogs: [],
+  rosters: [],
+  attendance: [],
   users: []
 }
 
@@ -160,10 +162,20 @@ export async function GET(request: NextRequest) {
             data: await p.audit_logs.findMany({ orderBy: { timestamp: 'desc' }, take: 100 }) 
           })
 
+        case 'rosters':
+          return successResponse({ 
+            data: await p.rosters.findMany({ orderBy: { date: 'desc' } }) 
+          })
+
+        case 'attendance':
+          return successResponse({ 
+            data: await p.attendance.findMany({ orderBy: { createdAt: 'desc' } }) 
+          })
+
         case 'all': {
           const [patients, vitals, consultations, drugs, labTests, labRequests, labResults, 
                   queueEntries, appointments, admissions, prescriptions, medicalCertificates,
-                  referralLetters, dischargeSummaries, announcements, voiceNotes, users] = 
+                  referralLetters, dischargeSummaries, announcements, voiceNotes, users, rosters, attendance] = 
             await Promise.all([
               p.patients.findMany({ orderBy: { registeredAt: 'desc' } }),
               p.vital_signs.findMany({ orderBy: { recordedAt: 'desc' } }),
@@ -184,7 +196,9 @@ export async function GET(request: NextRequest) {
               p.users.findMany({ 
                 select: { id: true, email: true, name: true, role: true, department: true, initials: true, isActive: true, isFirstLogin: true },
                 orderBy: { createdAt: 'desc' }
-              })
+              }),
+              p.rosters.findMany({ orderBy: { date: 'desc' } }),
+              p.attendance.findMany({ orderBy: { createdAt: 'desc' } })
             ])
 
           logger.debug('Fetched all data', { patientCount: patients.length })
@@ -192,7 +206,7 @@ export async function GET(request: NextRequest) {
             data: {
               patients, vitals, consultations, drugs, labTests, labRequests, labResults,
               queueEntries, appointments, admissions, prescriptions, medicalCertificates,
-              referralLetters, dischargeSummaries, announcements, voiceNotes, users
+              referralLetters, dischargeSummaries, announcements, voiceNotes, users, rosters, attendance
             }
           })
         }
@@ -415,6 +429,24 @@ export async function POST(request: NextRequest) {
             data: { ...data, timestamp: now, id: generateId() }
           })
           return successResponse({ data: auditLog })
+        }
+
+        case 'roster': {
+          const roster = await p.rosters.create({
+            data: { ...data, createdAt: now, id: generateId() }
+          })
+          logger.info('Roster created', { staffId: data.staffId })
+          broadcastChange('roster_created', 'roster', roster)
+          return successResponse({ data: roster })
+        }
+
+        case 'attendance': {
+          const attendanceRecord = await p.attendance.create({
+            data: { ...data, createdAt: now, id: generateId() }
+          })
+          logger.info('Attendance recorded', { staffId: data.staffId })
+          broadcastChange('attendance_created', 'attendance', attendanceRecord)
+          return successResponse({ data: attendanceRecord })
         }
 
         default:
