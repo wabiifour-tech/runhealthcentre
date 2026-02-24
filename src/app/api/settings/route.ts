@@ -2,38 +2,107 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getPrisma } from '@/lib/db'
 import { createLogger } from '@/lib/logger'
 import { errorResponse, successResponse, Errors } from '@/lib/errors'
-import { authenticateRequest, hasRoleLevel } from '@/lib/auth-middleware'
+import { authenticateRequest } from '@/lib/auth-middleware'
 
 const logger = createLogger('Settings')
 
-// Default settings
+// Default settings with all new fields
 const defaultSettings = {
   id: 'default',
+  // Facility Information
   facilityName: 'RUN Health Centre',
   facilityShortName: 'RUHC',
   facilityCode: 'RUHC-2026',
   facilityCountry: 'Nigeria',
+  facilityAddress: '',
+  facilityCity: '',
+  facilityState: '',
+  // Contact Information
+  primaryPhone: '',
+  secondaryPhone: '',
+  emergencyPhone: '',
+  emailAddress: '',
+  website: '',
+  // Branding
+  logoUrl: '',
+  logoBase64: '',
   primaryColor: '#1e40af',
   secondaryColor: '#3b82f6',
   accentColor: '#10b981',
+  // Operational Settings
   openingTime: '08:00',
   closingTime: '18:00',
-  workingDays: 'Monday,Friday',
+  workingDays: 'Monday,Tuesday,Wednesday,Thursday,Friday',
   timezone: 'Africa/Lagos',
   currency: 'NGN',
   currencySymbol: '₦',
-  enableVoiceNotes: true,
-  enableDailyDevotionals: true,
+  // Feature Flags
   enableOnlineBooking: false,
   enableSmsNotifications: false,
   enableEmailNotifications: false,
+  enableVoiceNotes: true,
+  enableDailyDevotionals: true,
+  enableDrugInteractionCheck: true,
+  enableVitalAlerts: true,
+  enableAuditLogging: true,
+  enableBreakGlass: true,
+  enableTwoFactor: false,
+  // Custom Messages
+  welcomeMessage: '',
+  headerMessage: '',
+  footerMessage: '',
+  // Security Settings
+  sessionTimeoutMinutes: 30,
+  maxLoginAttempts: 5,
+  lockoutDurationMinutes: 30,
+  passwordMinLength: 8,
+  passwordRequireUppercase: true,
+  passwordRequireLowercase: true,
+  passwordRequireNumber: true,
+  passwordRequireSpecial: false,
+  passwordExpiryDays: 90,
+  // Audit Log Settings
+  auditLogRetentionDays: 90,
+  logPatientAccess: true,
+  logDataModifications: true,
+  logLoginAttempts: true,
+  // Notification Provider Settings
+  smsProvider: '',
+  smsApiKey: '',
+  smsApiSecret: '',
+  smsSenderId: '',
+  emailProvider: '',
+  emailApiKey: '',
+  smtpHost: '',
+  smtpPort: 587,
+  smtpUser: '',
+  smtpPassword: '',
+  // Role Permissions
+  rolePermissions: JSON.stringify({
+    SUPER_ADMIN: { all: true },
+    ADMIN: { all: true, superAdminOnly: false },
+    DOCTOR: { patients: true, consultations: true, labRequests: true, prescriptions: true, certificates: true, referrals: true, discharge: true },
+    NURSE: { patients: true, vitals: true, medicationAdmin: true, queue: true, admissions: true },
+    PHARMACIST: { drugs: true, dispensing: true, prescriptions: true },
+    LAB_TECHNICIAN: { labRequests: true, labResults: true },
+    MATRON: { all: false, staff: true, roster: true, announcements: true },
+    RECORDS_OFFICER: { patients: true, records: true }
+  }),
+  // Queue Settings
+  queuePrefix: 'RUHC',
+  queueStartNumber: 1,
+  queueResetDaily: true,
+  // Backup Settings
+  autoBackupEnabled: false,
+  backupFrequency: 'weekly',
+  backupRetentionDays: 30,
 }
 
-// In-memory settings for demo mode (persists during server runtime)
+// In-memory settings for demo mode
 let demoSettings = { ...defaultSettings }
 
 // GET - Retrieve app settings
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const prisma = await getPrisma()
     
@@ -66,7 +135,6 @@ export async function GET() {
       return successResponse({ settings, mode: 'database' })
     } catch (dbError) {
       logger.error('Database operation failed', { error: String(dbError) })
-      // Fall back to demo mode
       return successResponse({ 
         settings: demoSettings, 
         mode: 'demo',
@@ -129,13 +197,13 @@ export async function PUT(request: NextRequest) {
             facilityName: newSettings.facilityName || 'RUN Health Centre',
             facilityShortName: newSettings.facilityShortName || 'RUHC',
             facilityCode: newSettings.facilityCode || 'RUHC-2026',
-            lastUpdated: new Date().toISOString(),
+            lastUpdated: new Date(),
             updatedBy: auth.user?.id,
           }
         })
       }
 
-      // Update settings
+      // Update settings with all fields
       const updatedSettings = await p.app_settings.update({
         where: { id: 'default' },
         data: {
@@ -176,14 +244,61 @@ export async function PUT(request: NextRequest) {
           enableEmailNotifications: newSettings.enableEmailNotifications,
           enableVoiceNotes: newSettings.enableVoiceNotes,
           enableDailyDevotionals: newSettings.enableDailyDevotionals,
+          enableDrugInteractionCheck: newSettings.enableDrugInteractionCheck,
+          enableVitalAlerts: newSettings.enableVitalAlerts,
+          enableAuditLogging: newSettings.enableAuditLogging,
+          enableBreakGlass: newSettings.enableBreakGlass,
+          enableTwoFactor: newSettings.enableTwoFactor,
           
           // Custom Messages
           welcomeMessage: newSettings.welcomeMessage,
           headerMessage: newSettings.headerMessage,
           footerMessage: newSettings.footerMessage,
           
+          // Security Settings
+          sessionTimeoutMinutes: newSettings.sessionTimeoutMinutes,
+          maxLoginAttempts: newSettings.maxLoginAttempts,
+          lockoutDurationMinutes: newSettings.lockoutDurationMinutes,
+          passwordMinLength: newSettings.passwordMinLength,
+          passwordRequireUppercase: newSettings.passwordRequireUppercase,
+          passwordRequireLowercase: newSettings.passwordRequireLowercase,
+          passwordRequireNumber: newSettings.passwordRequireNumber,
+          passwordRequireSpecial: newSettings.passwordRequireSpecial,
+          passwordExpiryDays: newSettings.passwordExpiryDays,
+          
+          // Audit Log Settings
+          auditLogRetentionDays: newSettings.auditLogRetentionDays,
+          logPatientAccess: newSettings.logPatientAccess,
+          logDataModifications: newSettings.logDataModifications,
+          logLoginAttempts: newSettings.logLoginAttempts,
+          
+          // Notification Provider Settings
+          smsProvider: newSettings.smsProvider,
+          smsApiKey: newSettings.smsApiKey,
+          smsApiSecret: newSettings.smsApiSecret,
+          smsSenderId: newSettings.smsSenderId,
+          emailProvider: newSettings.emailProvider,
+          emailApiKey: newSettings.emailApiKey,
+          smtpHost: newSettings.smtpHost,
+          smtpPort: newSettings.smtpPort,
+          smtpUser: newSettings.smtpUser,
+          smtpPassword: newSettings.smtpPassword,
+          
+          // Role Permissions
+          rolePermissions: newSettings.rolePermissions,
+          
+          // Queue Settings
+          queuePrefix: newSettings.queuePrefix,
+          queueStartNumber: newSettings.queueStartNumber,
+          queueResetDaily: newSettings.queueResetDaily,
+          
+          // Backup Settings
+          autoBackupEnabled: newSettings.autoBackupEnabled,
+          backupFrequency: newSettings.backupFrequency,
+          backupRetentionDays: newSettings.backupRetentionDays,
+          
           // System
-          lastUpdated: new Date().toISOString(),
+          lastUpdated: new Date(),
           updatedBy: auth.user?.id,
         }
       })
@@ -202,7 +317,7 @@ export async function PUT(request: NextRequest) {
         error: dbError.message 
       })
       
-      // Fall back to demo mode - still save settings in memory
+      // Fall back to demo mode
       demoSettings = { 
         ...demoSettings, 
         ...newSettings, 
@@ -218,5 +333,45 @@ export async function PUT(request: NextRequest) {
     }
   } catch (error) {
     return errorResponse(error, { module: 'Settings', operation: 'update' })
+  }
+}
+
+// DELETE - Reset settings to default (superadmin only)
+export async function DELETE(request: NextRequest) {
+  try {
+    const auth = await authenticateRequest(request, { requiredRole: 'SUPER_ADMIN' })
+    if (!auth.authenticated) {
+      throw Errors.forbidden('Only superadmin can reset settings')
+    }
+
+    logger.info('Settings reset request', { admin: auth.user?.email })
+
+    const prisma = await getPrisma()
+
+    if (!prisma) {
+      demoSettings = { ...defaultSettings }
+      return successResponse({ 
+        settings: demoSettings, 
+        message: 'Settings reset to default (demo mode)' 
+      })
+    }
+
+    const p = prisma as any
+
+    const settings = await p.app_settings.update({
+      where: { id: 'default' },
+      data: {
+        ...defaultSettings,
+        lastUpdated: new Date(),
+        updatedBy: auth.user?.id,
+      }
+    })
+
+    return successResponse({ 
+      settings,
+      message: 'Settings reset to default successfully' 
+    })
+  } catch (error) {
+    return errorResponse(error, { module: 'Settings', operation: 'reset' })
   }
 }

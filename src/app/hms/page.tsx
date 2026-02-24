@@ -794,11 +794,59 @@ interface AppSettings {
   enableEmailNotifications: boolean
   enableVoiceNotes: boolean
   enableDailyDevotionals: boolean
+  enableDrugInteractionCheck: boolean
+  enableVitalAlerts: boolean
+  enableAuditLogging: boolean
+  enableBreakGlass: boolean
+  enableTwoFactor: boolean
   
   // Custom Messages
   welcomeMessage?: string
   headerMessage?: string
   footerMessage?: string
+  
+  // Security Settings
+  sessionTimeoutMinutes: number
+  maxLoginAttempts: number
+  lockoutDurationMinutes: number
+  passwordMinLength: number
+  passwordRequireUppercase: boolean
+  passwordRequireLowercase: boolean
+  passwordRequireNumber: boolean
+  passwordRequireSpecial: boolean
+  passwordExpiryDays: number
+  
+  // Audit Log Settings
+  auditLogRetentionDays: number
+  logPatientAccess: boolean
+  logDataModifications: boolean
+  logLoginAttempts: boolean
+  
+  // Notification Provider Settings
+  smsProvider?: string
+  smsApiKey?: string
+  smsApiSecret?: string
+  smsSenderId?: string
+  emailProvider?: string
+  emailApiKey?: string
+  smtpHost?: string
+  smtpPort?: number
+  smtpUser?: string
+  smtpPassword?: string
+  
+  // Role Permissions
+  rolePermissions?: string
+  
+  // Queue Settings
+  queuePrefix: string
+  queueStartNumber: number
+  queueResetDaily: boolean
+  
+  // Backup Settings
+  autoBackupEnabled: boolean
+  backupFrequency?: string
+  backupRetentionDays: number
+  lastBackupAt?: string
   
   // System
   lastUpdated?: string
@@ -2159,24 +2207,84 @@ export default function HMSApp() {
   // App Settings - SuperAdmin Customization
   const [appSettings, setAppSettings] = useState<AppSettings>({
     id: 'default',
+    // Facility Information
     facilityName: 'RUN Health Centre',
     facilityShortName: 'RUHC',
     facilityCode: 'RUHC-2026',
     facilityCountry: 'Nigeria',
+    facilityAddress: '',
+    facilityCity: '',
+    facilityState: '',
+    // Contact Information
+    primaryPhone: '',
+    secondaryPhone: '',
+    emergencyPhone: '',
+    emailAddress: '',
+    website: '',
+    // Branding
+    logoUrl: '',
+    logoBase64: '',
     primaryColor: '#1e40af',
     secondaryColor: '#3b82f6',
     accentColor: '#10b981',
+    // Operational Settings
     openingTime: '08:00',
     closingTime: '18:00',
-    workingDays: 'Monday,Friday',
+    workingDays: 'Monday,Tuesday,Wednesday,Thursday,Friday',
     timezone: 'Africa/Lagos',
     currency: 'NGN',
     currencySymbol: '₦',
+    // Feature Flags
     enableOnlineBooking: false,
     enableSmsNotifications: false,
     enableEmailNotifications: false,
     enableVoiceNotes: true,
     enableDailyDevotionals: true,
+    enableDrugInteractionCheck: true,
+    enableVitalAlerts: true,
+    enableAuditLogging: true,
+    enableBreakGlass: true,
+    enableTwoFactor: false,
+    // Custom Messages
+    welcomeMessage: '',
+    headerMessage: '',
+    footerMessage: '',
+    // Security Settings
+    sessionTimeoutMinutes: 30,
+    maxLoginAttempts: 5,
+    lockoutDurationMinutes: 30,
+    passwordMinLength: 8,
+    passwordRequireUppercase: true,
+    passwordRequireLowercase: true,
+    passwordRequireNumber: true,
+    passwordRequireSpecial: false,
+    passwordExpiryDays: 90,
+    // Audit Log Settings
+    auditLogRetentionDays: 90,
+    logPatientAccess: true,
+    logDataModifications: true,
+    logLoginAttempts: true,
+    // Notification Provider Settings
+    smsProvider: '',
+    smsApiKey: '',
+    smsApiSecret: '',
+    smsSenderId: '',
+    emailProvider: '',
+    emailApiKey: '',
+    smtpHost: '',
+    smtpPort: 587,
+    smtpUser: '',
+    smtpPassword: '',
+    // Role Permissions
+    rolePermissions: '',
+    // Queue Settings
+    queuePrefix: 'RUHC',
+    queueStartNumber: 1,
+    queueResetDaily: true,
+    // Backup Settings
+    autoBackupEnabled: false,
+    backupFrequency: 'weekly',
+    backupRetentionDays: 30,
   })
   const [settingsLoading, setSettingsLoading] = useState(false)
   const [settingsSaved, setSettingsSaved] = useState(false)
@@ -14802,7 +14910,493 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                         className="w-5 h-5"
                       />
                     </div>
+                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <div>
+                        <p className="font-medium">Drug Interaction Check</p>
+                        <p className="text-sm text-gray-500">Alert on drug interactions</p>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={appSettings.enableDrugInteractionCheck}
+                        onChange={e => saveAppSettings({ enableDrugInteractionCheck: e.target.checked })}
+                        className="w-5 h-5"
+                      />
+                    </div>
+                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <div>
+                        <p className="font-medium">Vital Alerts</p>
+                        <p className="text-sm text-gray-500">Alert on abnormal vitals</p>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={appSettings.enableVitalAlerts}
+                        onChange={e => saveAppSettings({ enableVitalAlerts: e.target.checked })}
+                        className="w-5 h-5"
+                      />
+                    </div>
+                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <div>
+                        <p className="font-medium">Audit Logging</p>
+                        <p className="text-sm text-gray-500">Log all data access</p>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={appSettings.enableAuditLogging}
+                        onChange={e => saveAppSettings({ enableAuditLogging: e.target.checked })}
+                        className="w-5 h-5"
+                      />
+                    </div>
+                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <div>
+                        <p className="font-medium">Break-the-Glass</p>
+                        <p className="text-sm text-gray-500">Emergency access to sensitive records</p>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={appSettings.enableBreakGlass}
+                        onChange={e => saveAppSettings({ enableBreakGlass: e.target.checked })}
+                        className="w-5 h-5"
+                      />
+                    </div>
+                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <div>
+                        <p className="font-medium">Two-Factor Auth</p>
+                        <p className="text-sm text-gray-500">Require 2FA for all users</p>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={appSettings.enableTwoFactor}
+                        onChange={e => saveAppSettings({ enableTwoFactor: e.target.checked })}
+                        className="w-5 h-5"
+                      />
+                    </div>
                   </div>
+                </CardContent>
+              </Card>
+
+              {/* Security Settings */}
+              <Card className="shadow-md border-orange-200">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-orange-700">
+                    <Shield className="h-5 w-5" />
+                    Security Settings
+                  </CardTitle>
+                  <CardDescription>Configure security and password policies</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-3 gap-4">
+                    <div className="space-y-2">
+                      <Label>Session Timeout (mins)</Label>
+                      <Select 
+                        value={String(appSettings.sessionTimeoutMinutes)} 
+                        onValueChange={v => setAppSettings({ ...appSettings, sessionTimeoutMinutes: parseInt(v) })}
+                      >
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="15">15 minutes</SelectItem>
+                          <SelectItem value="30">30 minutes</SelectItem>
+                          <SelectItem value="60">1 hour</SelectItem>
+                          <SelectItem value="120">2 hours</SelectItem>
+                          <SelectItem value="240">4 hours</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Max Login Attempts</Label>
+                      <Input
+                        type="number"
+                        min={3}
+                        max={10}
+                        value={appSettings.maxLoginAttempts}
+                        onChange={e => setAppSettings({ ...appSettings, maxLoginAttempts: parseInt(e.target.value) || 5 })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Lockout Duration (mins)</Label>
+                      <Input
+                        type="number"
+                        min={5}
+                        value={appSettings.lockoutDurationMinutes}
+                        onChange={e => setAppSettings({ ...appSettings, lockoutDurationMinutes: parseInt(e.target.value) || 30 })}
+                      />
+                    </div>
+                  </div>
+                  <div className="border-t pt-4 mt-4">
+                    <h4 className="font-medium mb-3">Password Policy</h4>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Minimum Length</Label>
+                        <Input
+                          type="number"
+                          min={6}
+                          max={20}
+                          value={appSettings.passwordMinLength}
+                          onChange={e => setAppSettings({ ...appSettings, passwordMinLength: parseInt(e.target.value) || 8 })}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Password Expiry (days)</Label>
+                        <Input
+                          type="number"
+                          min={0}
+                          max={365}
+                          value={appSettings.passwordExpiryDays}
+                          onChange={e => setAppSettings({ ...appSettings, passwordExpiryDays: parseInt(e.target.value) || 90 })}
+                        />
+                        <p className="text-xs text-gray-500">0 = never expires</p>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4 mt-4">
+                      <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                        <span className="text-sm">Require Uppercase</span>
+                        <input
+                          type="checkbox"
+                          checked={appSettings.passwordRequireUppercase}
+                          onChange={e => setAppSettings({ ...appSettings, passwordRequireUppercase: e.target.checked })}
+                          className="w-5 h-5"
+                        />
+                      </div>
+                      <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                        <span className="text-sm">Require Lowercase</span>
+                        <input
+                          type="checkbox"
+                          checked={appSettings.passwordRequireLowercase}
+                          onChange={e => setAppSettings({ ...appSettings, passwordRequireLowercase: e.target.checked })}
+                          className="w-5 h-5"
+                        />
+                      </div>
+                      <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                        <span className="text-sm">Require Number</span>
+                        <input
+                          type="checkbox"
+                          checked={appSettings.passwordRequireNumber}
+                          onChange={e => setAppSettings({ ...appSettings, passwordRequireNumber: e.target.checked })}
+                          className="w-5 h-5"
+                        />
+                      </div>
+                      <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                        <span className="text-sm">Require Special Char</span>
+                        <input
+                          type="checkbox"
+                          checked={appSettings.passwordRequireSpecial}
+                          onChange={e => setAppSettings({ ...appSettings, passwordRequireSpecial: e.target.checked })}
+                          className="w-5 h-5"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  <Button 
+                    onClick={() => saveAppSettings({})}
+                    disabled={settingsLoading}
+                    className="bg-orange-600 hover:bg-orange-700"
+                  >
+                    {settingsLoading ? 'Saving...' : 'Save Security Settings'}
+                  </Button>
+                </CardContent>
+              </Card>
+
+              {/* Audit Log Settings */}
+              <Card className="shadow-md border-purple-200">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-purple-700">
+                    <FileText className="h-5 w-5" />
+                    Audit Log Settings
+                  </CardTitle>
+                  <CardDescription>Configure audit logging behavior</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Log Retention (days)</Label>
+                      <Input
+                        type="number"
+                        min={30}
+                        max={365}
+                        value={appSettings.auditLogRetentionDays}
+                        onChange={e => setAppSettings({ ...appSettings, auditLogRetentionDays: parseInt(e.target.value) || 90 })}
+                      />
+                      <p className="text-xs text-gray-500">Logs older than this will be auto-deleted</p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-3 gap-4">
+                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <span className="text-sm">Log Patient Access</span>
+                      <input
+                        type="checkbox"
+                        checked={appSettings.logPatientAccess}
+                        onChange={e => setAppSettings({ ...appSettings, logPatientAccess: e.target.checked })}
+                        className="w-5 h-5"
+                      />
+                    </div>
+                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <span className="text-sm">Log Data Changes</span>
+                      <input
+                        type="checkbox"
+                        checked={appSettings.logDataModifications}
+                        onChange={e => setAppSettings({ ...appSettings, logDataModifications: e.target.checked })}
+                        className="w-5 h-5"
+                      />
+                    </div>
+                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <span className="text-sm">Log Login Attempts</span>
+                      <input
+                        type="checkbox"
+                        checked={appSettings.logLoginAttempts}
+                        onChange={e => setAppSettings({ ...appSettings, logLoginAttempts: e.target.checked })}
+                        className="w-5 h-5"
+                      />
+                    </div>
+                  </div>
+                  <Button 
+                    onClick={() => saveAppSettings({})}
+                    disabled={settingsLoading}
+                    className="bg-purple-600 hover:bg-purple-700"
+                  >
+                    {settingsLoading ? 'Saving...' : 'Save Audit Settings'}
+                  </Button>
+                </CardContent>
+              </Card>
+
+              {/* Queue Settings */}
+              <Card className="shadow-md border-cyan-200">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-cyan-700">
+                    <Clock className="h-5 w-5" />
+                    Queue Settings
+                  </CardTitle>
+                  <CardDescription>Configure queue management</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-3 gap-4">
+                    <div className="space-y-2">
+                      <Label>Queue Prefix</Label>
+                      <Input
+                        value={appSettings.queuePrefix}
+                        onChange={e => setAppSettings({ ...appSettings, queuePrefix: e.target.value })}
+                        placeholder="e.g., RUHC"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Start Number</Label>
+                      <Input
+                        type="number"
+                        min={1}
+                        value={appSettings.queueStartNumber}
+                        onChange={e => setAppSettings({ ...appSettings, queueStartNumber: parseInt(e.target.value) || 1 })}
+                      />
+                    </div>
+                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <div>
+                        <p className="font-medium">Reset Daily</p>
+                        <p className="text-xs text-gray-500">Reset queue each day</p>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={appSettings.queueResetDaily}
+                        onChange={e => setAppSettings({ ...appSettings, queueResetDaily: e.target.checked })}
+                        className="w-5 h-5"
+                      />
+                    </div>
+                  </div>
+                  <Button 
+                    onClick={() => saveAppSettings({})}
+                    disabled={settingsLoading}
+                    className="bg-cyan-600 hover:bg-cyan-700"
+                  >
+                    {settingsLoading ? 'Saving...' : 'Save Queue Settings'}
+                  </Button>
+                </CardContent>
+              </Card>
+
+              {/* Notification Providers */}
+              <Card className="shadow-md border-green-200">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-green-700">
+                    <Bell className="h-5 w-5" />
+                    Notification Providers
+                  </CardTitle>
+                  <CardDescription>Configure SMS and Email providers</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="border-b pb-4">
+                    <h4 className="font-medium mb-3">SMS Provider</h4>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Provider</Label>
+                        <Select 
+                          value={appSettings.smsProvider || ''} 
+                          onValueChange={v => setAppSettings({ ...appSettings, smsProvider: v })}
+                        >
+                          <SelectTrigger><SelectValue placeholder="Select provider" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="termii">Termii</SelectItem>
+                            <SelectItem value="africastalking">Africa's Talking</SelectItem>
+                            <SelectItem value="twilio">Twilio</SelectItem>
+                            <SelectItem value="custom">Custom</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Sender ID</Label>
+                        <Input
+                          value={appSettings.smsSenderId || ''}
+                          onChange={e => setAppSettings({ ...appSettings, smsSenderId: e.target.value })}
+                          placeholder="e.g., RUHC"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>API Key</Label>
+                        <Input
+                          type="password"
+                          value={appSettings.smsApiKey || ''}
+                          onChange={e => setAppSettings({ ...appSettings, smsApiKey: e.target.value })}
+                          placeholder="Enter API key"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>API Secret</Label>
+                        <Input
+                          type="password"
+                          value={appSettings.smsApiSecret || ''}
+                          onChange={e => setAppSettings({ ...appSettings, smsApiSecret: e.target.value })}
+                          placeholder="Enter API secret"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="pt-2">
+                    <h4 className="font-medium mb-3">Email Provider</h4>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Provider</Label>
+                        <Select 
+                          value={appSettings.emailProvider || ''} 
+                          onValueChange={v => setAppSettings({ ...appSettings, emailProvider: v })}
+                        >
+                          <SelectTrigger><SelectValue placeholder="Select provider" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="resend">Resend</SelectItem>
+                            <SelectItem value="sendgrid">SendGrid</SelectItem>
+                            <SelectItem value="smtp">SMTP</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>API Key</Label>
+                        <Input
+                          type="password"
+                          value={appSettings.emailApiKey || ''}
+                          onChange={e => setAppSettings({ ...appSettings, emailApiKey: e.target.value })}
+                          placeholder="Enter API key"
+                        />
+                      </div>
+                    </div>
+                    {appSettings.emailProvider === 'smtp' && (
+                      <div className="grid grid-cols-4 gap-4 mt-4">
+                        <div className="space-y-2">
+                          <Label>SMTP Host</Label>
+                          <Input
+                            value={appSettings.smtpHost || ''}
+                            onChange={e => setAppSettings({ ...appSettings, smtpHost: e.target.value })}
+                            placeholder="smtp.example.com"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Port</Label>
+                          <Input
+                            type="number"
+                            value={appSettings.smtpPort || 587}
+                            onChange={e => setAppSettings({ ...appSettings, smtpPort: parseInt(e.target.value) || 587 })}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Username</Label>
+                          <Input
+                            value={appSettings.smtpUser || ''}
+                            onChange={e => setAppSettings({ ...appSettings, smtpUser: e.target.value })}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Password</Label>
+                          <Input
+                            type="password"
+                            value={appSettings.smtpPassword || ''}
+                            onChange={e => setAppSettings({ ...appSettings, smtpPassword: e.target.value })}
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  <Button 
+                    onClick={() => saveAppSettings({})}
+                    disabled={settingsLoading}
+                    className="bg-green-600 hover:bg-green-700"
+                  >
+                    {settingsLoading ? 'Saving...' : 'Save Provider Settings'}
+                  </Button>
+                </CardContent>
+              </Card>
+
+              {/* Backup Settings */}
+              <Card className="shadow-md border-indigo-200">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-indigo-700">
+                    <Download className="h-5 w-5" />
+                    Backup Settings
+                  </CardTitle>
+                  <CardDescription>Configure automatic data backups</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <div>
+                      <p className="font-medium">Auto Backup</p>
+                      <p className="text-sm text-gray-500">Automatically backup data</p>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={appSettings.autoBackupEnabled}
+                      onChange={e => setAppSettings({ ...appSettings, autoBackupEnabled: e.target.checked })}
+                      className="w-5 h-5"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Backup Frequency</Label>
+                      <Select 
+                        value={appSettings.backupFrequency || 'weekly'} 
+                        onValueChange={v => setAppSettings({ ...appSettings, backupFrequency: v })}
+                      >
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="daily">Daily</SelectItem>
+                          <SelectItem value="weekly">Weekly</SelectItem>
+                          <SelectItem value="monthly">Monthly</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Retention (days)</Label>
+                      <Input
+                        type="number"
+                        min={7}
+                        max={365}
+                        value={appSettings.backupRetentionDays}
+                        onChange={e => setAppSettings({ ...appSettings, backupRetentionDays: parseInt(e.target.value) || 30 })}
+                      />
+                    </div>
+                  </div>
+                  {appSettings.lastBackupAt && (
+                    <p className="text-sm text-gray-500">
+                      Last backup: {new Date(appSettings.lastBackupAt).toLocaleString()}
+                    </p>
+                  )}
+                  <Button 
+                    onClick={() => saveAppSettings({})}
+                    disabled={settingsLoading}
+                    className="bg-indigo-600 hover:bg-indigo-700"
+                  >
+                    {settingsLoading ? 'Saving...' : 'Save Backup Settings'}
+                  </Button>
                 </CardContent>
               </Card>
 

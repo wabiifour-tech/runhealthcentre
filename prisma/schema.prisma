@@ -362,11 +362,59 @@ model app_settings {
   enableEmailNotifications Boolean  @default(false)
   enableVoiceNotes        Boolean   @default(true)
   enableDailyDevotionals  Boolean   @default(true)
+  enableDrugInteractionCheck Boolean @default(true)
+  enableVitalAlerts       Boolean   @default(true)
+  enableAuditLogging      Boolean   @default(true)
+  enableBreakGlass        Boolean   @default(true)
+  enableTwoFactor         Boolean   @default(false)
   
   // Custom Messages
   welcomeMessage          String?
   headerMessage           String?
   footerMessage           String?
+  
+  // Security Settings
+  sessionTimeoutMinutes   Int       @default(30)
+  maxLoginAttempts        Int       @default(5)
+  lockoutDurationMinutes  Int       @default(30)
+  passwordMinLength       Int       @default(8)
+  passwordRequireUppercase Boolean  @default(true)
+  passwordRequireLowercase Boolean  @default(true)
+  passwordRequireNumber   Boolean   @default(true)
+  passwordRequireSpecial  Boolean   @default(false)
+  passwordExpiryDays      Int       @default(90)
+  
+  // Audit Log Settings
+  auditLogRetentionDays   Int       @default(90)
+  logPatientAccess        Boolean   @default(true)
+  logDataModifications    Boolean   @default(true)
+  logLoginAttempts        Boolean   @default(true)
+  
+  // Notification Provider Settings
+  smsProvider             String?   // 'twilio', 'africastalking', 'termii', 'custom'
+  smsApiKey               String?
+  smsApiSecret            String?
+  smsSenderId             String?
+  emailProvider           String?   // 'resend', 'sendgrid', 'smtp'
+  emailApiKey             String?
+  smtpHost                String?
+  smtpPort                Int?
+  smtpUser                String?
+  smtpPassword            String?
+  
+  // Role Permissions (JSON string)
+  rolePermissions         String?   // JSON object with permissions per role
+  
+  // Queue Settings
+  queuePrefix             String    @default("RUHC")
+  queueStartNumber        Int       @default(1)
+  queueResetDaily         Boolean   @default(true)
+  
+  // Backup Settings
+  autoBackupEnabled       Boolean   @default(false)
+  backupFrequency         String?   // 'daily', 'weekly', 'monthly'
+  backupRetentionDays     Int       @default(30)
+  lastBackupAt            DateTime?
   
   // System
   lastUpdated             DateTime?
