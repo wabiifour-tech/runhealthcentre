@@ -6223,8 +6223,8 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
     }
     
     const permissions: Record<string, UserRole[]> = {
-      patients: ['SUPER_ADMIN', 'ADMIN', 'DOCTOR', 'NURSE', 'RECORDS_OFFICER'],
-      consultations: ['SUPER_ADMIN', 'ADMIN', 'DOCTOR', 'NURSE', 'RECORDS_OFFICER'],
+      patients: ['SUPER_ADMIN', 'ADMIN', 'RECORDS_OFFICER'], // Only Records, Admin, SuperAdmin can see patients
+      consultations: ['SUPER_ADMIN', 'ADMIN', 'DOCTOR', 'RECORDS_OFFICER'], // Nurses don't consult
       appointments: ['SUPER_ADMIN', 'ADMIN', 'DOCTOR', 'NURSE', 'RECORDS_OFFICER'],
       pharmacy: ['SUPER_ADMIN', 'ADMIN', 'PHARMACIST', 'DOCTOR'],
       laboratory: ['SUPER_ADMIN', 'ADMIN', 'LAB_TECHNICIAN', 'DOCTOR'],
@@ -6237,7 +6237,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
       medications: ['SUPER_ADMIN', 'ADMIN', 'DOCTOR', 'NURSE'],
       wards: ['SUPER_ADMIN', 'ADMIN'],
       admissions: ['SUPER_ADMIN', 'ADMIN', 'DOCTOR', 'NURSE', 'RECORDS_OFFICER'],
-      queue: ['SUPER_ADMIN', 'ADMIN', 'DOCTOR', 'NURSE', 'RECORDS_OFFICER'],
+      queue: ['SUPER_ADMIN', 'ADMIN', 'DOCTOR', 'NURSE', 'PHARMACIST', 'LAB_TECHNICIAN', 'RECORDS_OFFICER'], // All can view queue
       inventory: ['SUPER_ADMIN', 'ADMIN', 'PHARMACIST'],
       reports: ['SUPER_ADMIN', 'ADMIN', 'DOCTOR', 'RECORDS_OFFICER'],
       certificates: ['SUPER_ADMIN', 'ADMIN', 'DOCTOR', 'RECORDS_OFFICER'],
@@ -6262,7 +6262,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
       medications: ['SUPER_ADMIN', 'ADMIN', 'NURSE'],
       wards: ['SUPER_ADMIN', 'ADMIN'],
       admissions: ['SUPER_ADMIN', 'ADMIN', 'DOCTOR', 'NURSE'],
-      queue: ['SUPER_ADMIN', 'ADMIN', 'NURSE', 'RECORDS_OFFICER'],
+      queue: ['SUPER_ADMIN', 'ADMIN', 'RECORDS_OFFICER'], // Only Records can manage queue
       inventory: ['SUPER_ADMIN', 'ADMIN', 'PHARMACIST'],
       certificates: ['SUPER_ADMIN', 'ADMIN', 'DOCTOR', 'RECORDS_OFFICER'],
       reports: ['SUPER_ADMIN', 'ADMIN', 'DOCTOR', 'RECORDS_OFFICER'],
@@ -6356,6 +6356,8 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
     ...(user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN' ? [{ id: 'campaigns', label: 'Health Campaigns', icon: Calendar }] : []),
     // Mental Health Resources
     { id: 'mentalHealth', label: 'Mental Health', icon: Heart },
+    // Gospel Media - Available to all
+    { id: 'gospelMedia', label: 'Gospel Media', icon: Sparkles },
   ]
 
   // Stats
@@ -10089,7 +10091,14 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
           {activeTab === 'queue' && (
             <div className="space-y-6">
               <div className="flex justify-between items-center">
-                <h3 className="text-lg font-semibold">Patient Queue - OPD</h3>
+                <div>
+                  <h3 className="text-lg font-semibold">Patient Queue Management</h3>
+                  <p className="text-sm text-gray-500">
+                    {user?.role === 'RECORDS_OFFICER' || user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN' 
+                      ? 'Manage patient flow across departments'
+                      : 'View patients in your department queue'}
+                  </p>
+                </div>
                 {canEdit('queue') && (
                   <Button onClick={() => setShowQueueDialog(true)} className="bg-blue-600 hover:bg-blue-700">
                     <Plus className="h-4 w-4 mr-2" /> Add to Queue
@@ -10097,128 +10106,251 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                 )}
               </div>
               
+              {/* Department Filter - Only for Records/Admin */}
+              {(user?.role === 'RECORDS_OFFICER' || user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN') && (
+                <Card className="shadow-sm">
+                  <CardContent className="p-4">
+                    <div className="flex items-center gap-4 flex-wrap">
+                      <span className="font-medium text-gray-700">Filter by Department:</span>
+                      <div className="flex gap-2 flex-wrap">
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          className="bg-blue-50"
+                          onClick={() => {/* Show all */}}
+                        >
+                          All Departments
+                        </Button>
+                        {healthCentreUnits.map(unit => (
+                          <Button 
+                            key={unit.id}
+                            size="sm" 
+                            variant="outline"
+                            onClick={() => {/* Filter by unit */}}
+                          >
+                            {unit.shortName}
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+              
+              {/* Queue Stats */}
+              <div className="grid grid-cols-3 gap-4">
+                <Card className="bg-yellow-50 border-yellow-200">
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm text-yellow-700">Waiting</p>
+                        <p className="text-2xl font-bold text-yellow-800">{queueEntries.filter(q => q.status === 'waiting').length}</p>
+                      </div>
+                      <Clock className="h-8 w-8 text-yellow-500" />
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card className="bg-blue-50 border-blue-200">
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm text-blue-700">In Progress</p>
+                        <p className="text-2xl font-bold text-blue-800">{queueEntries.filter(q => q.status === 'in_progress').length}</p>
+                      </div>
+                      <Activity className="h-8 w-8 text-blue-500" />
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card className="bg-green-50 border-green-200">
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm text-green-700">Completed Today</p>
+                        <p className="text-2xl font-bold text-green-800">{queueEntries.filter(q => q.status === 'completed').length}</p>
+                      </div>
+                      <CheckCircle className="h-8 w-8 text-green-500" />
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+              
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {/* Waiting */}
-                <Card className="shadow-md">
-                  <CardHeader className="bg-yellow-50">
+                <Card className="shadow-md border-yellow-200">
+                  <CardHeader className="bg-yellow-50 border-b border-yellow-200">
                     <CardTitle className="text-lg flex items-center justify-between">
-                      <span>Waiting</span>
+                      <span className="flex items-center gap-2">
+                        <Clock className="h-5 w-5 text-yellow-600" />
+                        Waiting
+                      </span>
                       <Badge className="bg-yellow-500 text-white">{queueEntries.filter(q => q.status === 'waiting').length}</Badge>
                     </CardTitle>
+                    <CardDescription>Patients waiting to be seen</CardDescription>
                   </CardHeader>
                   <CardContent className="p-4 space-y-2 max-h-96 overflow-y-auto">
-                    {queueEntries.filter(q => q.status === 'waiting').map(entry => {
-                      const patient = patients.find(p => p.id === entry.patientId) || entry.patient
-                      return (
-                        <div key={entry.id} className="p-3 rounded-lg border bg-white hover:shadow-md transition-shadow">
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold text-lg">
-                              {entry.queueNumber}
+                    {queueEntries.filter(q => q.status === 'waiting').length === 0 ? (
+                      <div className="text-center py-8 text-gray-500">
+                        <Clock className="h-12 w-12 mx-auto mb-2 opacity-30" />
+                        <p>No patients waiting</p>
+                      </div>
+                    ) : (
+                      queueEntries.filter(q => q.status === 'waiting').map(entry => {
+                        const patient = patients.find(p => p.id === entry.patientId) || entry.patient
+                        return (
+                          <div key={entry.id} className="p-3 rounded-lg border bg-white hover:shadow-md transition-shadow">
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 rounded-full bg-yellow-500 flex items-center justify-center text-white font-bold text-lg">
+                                {entry.queueNumber}
+                              </div>
+                              <div className="flex-1">
+                                <p className="font-medium">{patient?.firstName} {patient?.lastName}</p>
+                                <p className="text-xs text-gray-500">{patient?.ruhcCode} • {entry.unit}</p>
+                              </div>
+                              {entry.priority === 'urgent' && <Badge className="bg-red-500 text-white">Urgent</Badge>}
+                              {entry.priority === 'emergency' && <Badge className="bg-red-700 text-white animate-pulse">Emergency</Badge>}
                             </div>
-                            <div className="flex-1">
-                              <p className="font-medium">{patient?.firstName} {patient?.lastName}</p>
-                              <p className="text-xs text-gray-500">{patient?.ruhcCode}</p>
-                            </div>
-                            {entry.priority === 'urgent' && <Badge className="bg-red-500 text-white">Urgent</Badge>}
+                            {canEdit('queue') && (
+                              <div className="mt-3 flex gap-2">
+                                <Button 
+                                  size="sm" 
+                                  className="flex-1 bg-green-600 hover:bg-green-700"
+                                  onClick={() => {
+                                    setQueueEntries(queueEntries.map(q => 
+                                      q.id === entry.id ? { ...q, status: 'in_progress', calledAt: new Date().toISOString() } : q
+                                    ))
+                                    updateInDB('queueEntry', entry.id, { status: 'in_progress', calledAt: new Date().toISOString() })
+                                    showToast(`Calling ${patient?.firstName} ${patient?.lastName}`, 'success')
+                                  }}
+                                >
+                                  <Volume2 className="h-4 w-4 mr-1" /> Call
+                                </Button>
+                                <Select onValueChange={(v) => {
+                                  // Move to department
+                                  setQueueEntries(queueEntries.map(q => 
+                                    q.id === entry.id ? { ...q, unit: v } : q
+                                  ))
+                                }}>
+                                  <SelectTrigger className="w-32 h-8">
+                                    <SelectValue placeholder="Send to..." />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {healthCentreUnits.map(unit => (
+                                      <SelectItem key={unit.id} value={unit.id}>{unit.shortName}</SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            )}
                           </div>
-                          <div className="mt-2 flex gap-2">
-                            <Button 
-                              size="sm" 
-                              className="flex-1 bg-green-600 hover:bg-green-700"
-                              onClick={() => {
-                                setQueueEntries(queueEntries.map(q => 
-                                  q.id === entry.id ? { ...q, status: 'in_progress', calledAt: new Date().toISOString() } : q
-                                ))
-                                updateInDB('queueEntry', entry.id, { status: 'in_progress', calledAt: new Date().toISOString() })
-                              }}
-                            >
-                              Call
-                            </Button>
-                          </div>
-                        </div>
-                      )
-                    })}
+                        )
+                      })
+                    )}
                   </CardContent>
                 </Card>
 
                 {/* In Progress */}
-                <Card className="shadow-md">
-                  <CardHeader className="bg-blue-50">
+                <Card className="shadow-md border-blue-200">
+                  <CardHeader className="bg-blue-50 border-b border-blue-200">
                     <CardTitle className="text-lg flex items-center justify-between">
-                      <span>In Progress</span>
+                      <span className="flex items-center gap-2">
+                        <Activity className="h-5 w-5 text-blue-600" />
+                        In Progress
+                      </span>
                       <Badge className="bg-blue-500 text-white">{queueEntries.filter(q => q.status === 'in_progress').length}</Badge>
                     </CardTitle>
+                    <CardDescription>Currently being attended to</CardDescription>
                   </CardHeader>
                   <CardContent className="p-4 space-y-2 max-h-96 overflow-y-auto">
-                    {queueEntries.filter(q => q.status === 'in_progress').map(entry => {
-                      const patient = patients.find(p => p.id === entry.patientId) || entry.patient
-                      return (
-                        <div key={entry.id} className="p-3 rounded-lg border bg-blue-50">
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold">
-                              {entry.queueNumber}
+                    {queueEntries.filter(q => q.status === 'in_progress').length === 0 ? (
+                      <div className="text-center py-8 text-gray-500">
+                        <Activity className="h-12 w-12 mx-auto mb-2 opacity-30" />
+                        <p>No patients in progress</p>
+                      </div>
+                    ) : (
+                      queueEntries.filter(q => q.status === 'in_progress').map(entry => {
+                        const patient = patients.find(p => p.id === entry.patientId) || entry.patient
+                        return (
+                          <div key={entry.id} className="p-3 rounded-lg border bg-blue-50 border-blue-200">
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold">
+                                {entry.queueNumber}
+                              </div>
+                              <div className="flex-1">
+                                <p className="font-medium">{patient?.firstName} {patient?.lastName}</p>
+                                <p className="text-xs text-gray-500">Since: {entry.calledAt ? formatDateTime(entry.calledAt) : ''}</p>
+                              </div>
                             </div>
-                            <div className="flex-1">
-                              <p className="font-medium">{patient?.firstName} {patient?.lastName}</p>
-                              <p className="text-xs text-gray-500">Called: {entry.calledAt ? formatDateTime(entry.calledAt) : ''}</p>
+                            <div className="mt-2 flex gap-2">
+                              <Button 
+                                size="sm" 
+                                variant="outline"
+                                className="flex-1"
+                                onClick={() => {
+                                  // View patient details - role-based
+                                  showToast('View patient details', 'info')
+                                }}
+                              >
+                                <Eye className="h-4 w-4 mr-1" /> View
+                              </Button>
+                              {canEdit('queue') && (
+                                <Button 
+                                  size="sm" 
+                                  className="flex-1 bg-green-600 hover:bg-green-700"
+                                  onClick={() => {
+                                    setQueueEntries(queueEntries.map(q => 
+                                      q.id === entry.id ? { ...q, status: 'completed', completedAt: new Date().toISOString() } : q
+                                    ))
+                                    updateInDB('queueEntry', entry.id, { status: 'completed', completedAt: new Date().toISOString() })
+                                    showToast(`Completed: ${patient?.firstName} ${patient?.lastName}`, 'success')
+                                  }}
+                                >
+                                  <CheckCircle className="h-4 w-4 mr-1" /> Complete
+                                </Button>
+                              )}
                             </div>
                           </div>
-                          <div className="mt-2 flex gap-2">
-                            <Button 
-                              size="sm" 
-                              variant="outline"
-                              className="flex-1"
-                              onClick={() => {
-                                setSelectedPatient(patient || null)
-                                setActiveTab('patient-detail')
-                              }}
-                            >
-                              View
-                            </Button>
-                            <Button 
-                              size="sm" 
-                              className="flex-1 bg-green-600 hover:bg-green-700"
-                              onClick={() => {
-                                setQueueEntries(queueEntries.map(q => 
-                                  q.id === entry.id ? { ...q, status: 'completed', completedAt: new Date().toISOString() } : q
-                                ))
-                                updateInDB('queueEntry', entry.id, { status: 'completed', completedAt: new Date().toISOString() })
-                              }}
-                            >
-                              Complete
-                            </Button>
-                          </div>
-                        </div>
-                      )
-                    })}
+                        )
+                      })
+                    )}
                   </CardContent>
                 </Card>
 
                 {/* Completed */}
-                <Card className="shadow-md">
-                  <CardHeader className="bg-green-50">
+                <Card className="shadow-md border-green-200">
+                  <CardHeader className="bg-green-50 border-b border-green-200">
                     <CardTitle className="text-lg flex items-center justify-between">
-                      <span>Completed</span>
+                      <span className="flex items-center gap-2">
+                        <CheckCircle className="h-5 w-5 text-green-600" />
+                        Completed
+                      </span>
                       <Badge className="bg-green-500 text-white">{queueEntries.filter(q => q.status === 'completed').length}</Badge>
                     </CardTitle>
+                    <CardDescription>Finished consultations today</CardDescription>
                   </CardHeader>
                   <CardContent className="p-4 space-y-2 max-h-96 overflow-y-auto">
-                    {queueEntries.filter(q => q.status === 'completed').slice(0, 10).map(entry => {
-                      const patient = patients.find(p => p.id === entry.patientId) || entry.patient
-                      return (
-                        <div key={entry.id} className="p-3 rounded-lg border bg-green-50 opacity-75">
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-full bg-green-500 flex items-center justify-center text-white font-bold">
-                              {entry.queueNumber}
-                            </div>
-                            <div>
-                              <p className="font-medium">{patient?.firstName} {patient?.lastName}</p>
-                              <p className="text-xs text-gray-500">Done: {entry.completedAt ? formatDateTime(entry.completedAt) : ''}</p>
+                    {queueEntries.filter(q => q.status === 'completed').length === 0 ? (
+                      <div className="text-center py-8 text-gray-500">
+                        <CheckCircle className="h-12 w-12 mx-auto mb-2 opacity-30" />
+                        <p>No completed visits</p>
+                      </div>
+                    ) : (
+                      queueEntries.filter(q => q.status === 'completed').slice(0, 10).map(entry => {
+                        const patient = patients.find(p => p.id === entry.patientId) || entry.patient
+                        return (
+                          <div key={entry.id} className="p-3 rounded-lg border bg-green-50 border-green-200 opacity-75">
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 rounded-full bg-green-500 flex items-center justify-center text-white font-bold">
+                                <CheckCircle className="h-5 w-5" />
+                              </div>
+                              <div>
+                                <p className="font-medium">{patient?.firstName} {patient?.lastName}</p>
+                                <p className="text-xs text-gray-500">Done: {entry.completedAt ? formatDateTime(entry.completedAt) : ''}</p>
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      )
-                    })}
+                        )
+                      })
+                    )}
                   </CardContent>
                 </Card>
               </div>
@@ -14509,6 +14641,242 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                   </div>
                 </CardContent>
               </Card>
+            </div>
+          )}
+
+          {/* Gospel Media - Audio & Video */}
+          {activeTab === 'gospelMedia' && (
+            <div className="space-y-6">
+              <div className="text-center">
+                <h2 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-pink-600 flex items-center justify-center gap-2">
+                  <Sparkles className="h-8 w-8 text-purple-500" />
+                  Gospel Media Center
+                </h2>
+                <p className="text-gray-600 mt-2">Spiritual nourishment through music and video content</p>
+              </div>
+
+              {/* Media Tabs */}
+              <Tabs defaultValue="music" className="w-full">
+                <TabsList className="grid w-full grid-cols-2 max-w-md mx-auto">
+                  <TabsTrigger value="music" className="flex items-center gap-2">
+                    <Volume2 className="h-4 w-4" /> Gospel Music
+                  </TabsTrigger>
+                  <TabsTrigger value="videos" className="flex items-center gap-2">
+                    <Monitor className="h-4 w-4" /> Gospel Videos
+                  </TabsTrigger>
+                </TabsList>
+
+                {/* Gospel Music Section */}
+                <TabsContent value="music" className="space-y-6 mt-6">
+                  {/* Featured Playlist */}
+                  <Card className="shadow-lg bg-gradient-to-r from-purple-600 to-pink-600 text-white">
+                    <CardContent className="p-6">
+                      <div className="flex items-center gap-4">
+                        <div className="w-20 h-20 rounded-xl bg-white/20 flex items-center justify-center">
+                          <Volume2 className="h-10 w-10" />
+                        </div>
+                        <div className="flex-1">
+                          <h3 className="text-xl font-bold">Morning Devotion Playlist</h3>
+                          <p className="text-purple-100">Start your day with uplifting worship</p>
+                          <p className="text-sm text-purple-200 mt-1">12 songs • 48 minutes</p>
+                        </div>
+                        <Button className="bg-white text-purple-600 hover:bg-purple-50" size="lg">
+                          <Play className="h-5 w-5 mr-2" /> Play All
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Music Categories */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    {[
+                      { name: 'Worship', count: 45, color: 'from-blue-500 to-purple-500', icon: Heart },
+                      { name: 'Praise', count: 38, color: 'from-orange-500 to-red-500', icon: Sparkles },
+                      { name: 'Hymns', count: 52, color: 'from-green-500 to-teal-500', icon: BookOpen },
+                      { name: 'Contemporary', count: 33, color: 'from-pink-500 to-purple-500', icon: Sun },
+                    ].map((category, i) => (
+                      <Card key={i} className="shadow-md hover:shadow-lg transition-all cursor-pointer group overflow-hidden">
+                        <div className={`h-24 bg-gradient-to-r ${category.color} flex items-center justify-center`}>
+                          <category.icon className="h-10 w-10 text-white group-hover:scale-110 transition-transform" />
+                        </div>
+                        <CardContent className="p-3">
+                          <h3 className="font-semibold">{category.name}</h3>
+                          <p className="text-sm text-gray-500">{category.count} songs</p>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+
+                  {/* Song List */}
+                  <Card className="shadow-md">
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <Volume2 className="h-5 w-5 text-purple-600" />
+                        Popular Gospel Songs
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-0">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="w-12">#</TableHead>
+                            <TableHead>Title</TableHead>
+                            <TableHead>Artist</TableHead>
+                            <TableHead>Album</TableHead>
+                            <TableHead className="w-20">Duration</TableHead>
+                            <TableHead className="w-24">Action</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {[
+                            { title: 'How Great Is Our God', artist: 'Chris Tomlin', album: 'See the Morning', duration: '4:55' },
+                            { title: '10,000 Reasons (Bless the Lord)', artist: 'Matt Redman', album: '10,000 Reasons', duration: '5:14' },
+                            { title: 'Amazing Grace', artist: 'Various Artists', album: 'Classic Hymns', duration: '4:22' },
+                            { title: 'What A Beautiful Name', artist: 'Hillsong Worship', album: 'Let There Be Light', duration: '5:41' },
+                            { title: 'Good Good Father', artist: 'Chris Tomlin', album: 'Never Lose Sight', duration: '4:38' },
+                            { title: 'Oceans (Where Feet May Fail)', artist: 'Hillsong UNITED', album: 'Zion', duration: '8:53' },
+                            { title: 'Way Maker', artist: 'Sinach', album: 'Way Maker', duration: '6:32' },
+                            { title: 'In Christ Alone', artist: 'Keith & Kristyn Getty', album: 'In Christ Alone', duration: '5:02' },
+                            { title: 'Great Are You Lord', artist: 'All Sons & Daughters', album: 'Live', duration: '4:48' },
+                            { title: 'It Is Well', artist: 'Bethel Music', album: 'Be Lifted High', duration: '5:35' },
+                          ].map((song, i) => (
+                            <TableRow key={i} className="group hover:bg-purple-50">
+                              <TableCell className="font-medium">{i + 1}</TableCell>
+                              <TableCell>
+                                <div className="flex items-center gap-2">
+                                  <div className="w-8 h-8 rounded bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-center text-white text-xs">
+                                    <Volume2 className="h-4 w-4" />
+                                  </div>
+                                  <span className="font-medium">{song.title}</span>
+                                </div>
+                              </TableCell>
+                              <TableCell className="text-gray-600">{song.artist}</TableCell>
+                              <TableCell className="text-gray-500">{song.album}</TableCell>
+                              <TableCell className="text-gray-500">{song.duration}</TableCell>
+                              <TableCell>
+                                <Button size="sm" className="bg-purple-600 hover:bg-purple-700 w-full">
+                                  <Play className="h-3 w-3 mr-1" /> Play
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </CardContent>
+                  </Card>
+
+                  {/* Audio Player */}
+                  <Card className="shadow-lg fixed bottom-4 left-1/2 transform -translate-x-1/2 w-full max-w-2xl bg-gradient-to-r from-purple-700 to-pink-700 text-white z-50">
+                    <CardContent className="p-4">
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-lg bg-white/20 flex items-center justify-center">
+                          <Volume2 className="h-6 w-6" />
+                        </div>
+                        <div className="flex-1">
+                          <p className="font-medium text-sm">How Great Is Our God</p>
+                          <p className="text-xs text-purple-200">Chris Tomlin • See the Morning</p>
+                          <div className="mt-2 h-1 bg-white/20 rounded-full">
+                            <div className="h-1 bg-white rounded-full w-1/3"></div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button size="icon" variant="ghost" className="text-white hover:bg-white/20">
+                            <span className="text-xs">⏮</span>
+                          </Button>
+                          <Button size="icon" className="bg-white text-purple-700 hover:bg-purple-100 h-10 w-10 rounded-full">
+                            <Play className="h-5 w-5" />
+                          </Button>
+                          <Button size="icon" variant="ghost" className="text-white hover:bg-white/20">
+                            <span className="text-xs">⏭</span>
+                          </Button>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Volume2 className="h-4 w-4" />
+                          <input type="range" className="w-20" min="0" max="100" />
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+
+                {/* Gospel Videos Section */}
+                <TabsContent value="videos" className="space-y-6 mt-6">
+                  {/* Featured Video */}
+                  <Card className="shadow-lg overflow-hidden">
+                    <div className="relative aspect-video bg-gradient-to-r from-purple-900 to-pink-900 flex items-center justify-center">
+                      <div className="text-center text-white">
+                        <div className="w-24 h-24 rounded-full bg-white/20 flex items-center justify-center mx-auto mb-4 cursor-pointer hover:bg-white/30 transition-all group">
+                          <Play className="h-12 w-12 group-hover:scale-110 transition-transform" />
+                        </div>
+                        <h3 className="text-2xl font-bold">The Chosen - Season 1, Episode 1</h3>
+                        <p className="text-purple-200">A groundbreaking series about the life of Jesus</p>
+                        <p className="text-sm text-purple-300 mt-2">52 minutes</p>
+                      </div>
+                    </div>
+                  </Card>
+
+                  {/* Video Categories */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    {[
+                      { name: 'Sermons', count: 28, color: 'from-blue-600 to-indigo-600' },
+                      { name: 'Christian Movies', count: 15, color: 'from-purple-600 to-pink-600' },
+                      { name: 'Bible Study', count: 42, color: 'from-green-600 to-teal-600' },
+                      { name: 'Testimonies', count: 35, color: 'from-orange-600 to-red-600' },
+                    ].map((category, i) => (
+                      <Card key={i} className="shadow-md hover:shadow-lg transition-all cursor-pointer overflow-hidden">
+                        <div className={`h-20 bg-gradient-to-r ${category.color} flex items-center justify-center`}>
+                          <Monitor className="h-8 w-8 text-white" />
+                        </div>
+                        <CardContent className="p-3">
+                          <h3 className="font-semibold">{category.name}</h3>
+                          <p className="text-sm text-gray-500">{category.count} videos</p>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+
+                  {/* Video Grid */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {[
+                      { title: 'The Passion of the Christ', duration: '2h 7m', year: '2004', rating: '8.5' },
+                      { title: 'War Room', duration: '2h', year: '2015', rating: '8.1' },
+                      { title: 'Courageous', duration: '2h 9m', year: '2011', rating: '8.2' },
+                      { title: 'Fireproof', duration: '2h 2m', year: '2008', rating: '7.9' },
+                      { title: 'Facing the Giants', duration: '1h 52m', year: '2006', rating: '7.8' },
+                      { title: 'Soul Surfer', duration: '1h 52m', year: '2011', rating: '8.0' },
+                      { title: 'Heaven is for Real', duration: '1h 40m', year: '2014', rating: '7.6' },
+                      { title: 'Miracles from Heaven', duration: '1h 49m', year: '2016', rating: '7.9' },
+                      { title: 'I Can Only Imagine', duration: '1h 50m', year: '2018', rating: '8.3' },
+                    ].map((video, i) => (
+                      <Card key={i} className="shadow-md hover:shadow-lg transition-all cursor-pointer group overflow-hidden">
+                        <div className="relative aspect-video bg-gradient-to-r from-purple-800 to-pink-800 flex items-center justify-center">
+                          <div className="w-14 h-14 rounded-full bg-white/20 flex items-center justify-center group-hover:bg-white/40 transition-all">
+                            <Play className="h-7 w-7 text-white" />
+                          </div>
+                          <Badge className="absolute top-2 right-2 bg-black/50 text-white">{video.duration}</Badge>
+                        </div>
+                        <CardContent className="p-3">
+                          <h3 className="font-semibold text-sm truncate">{video.title}</h3>
+                          <div className="flex items-center justify-between mt-1">
+                            <p className="text-xs text-gray-500">{video.year}</p>
+                            <div className="flex items-center gap-1">
+                              <span className="text-yellow-500 text-xs">★</span>
+                              <span className="text-xs text-gray-500">{video.rating}</span>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+
+                  {/* More Videos Link */}
+                  <div className="text-center">
+                    <Button variant="outline" size="lg" className="px-8">
+                      Load More Videos
+                    </Button>
+                  </div>
+                </TabsContent>
+              </Tabs>
             </div>
           )}
 
