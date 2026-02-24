@@ -2519,6 +2519,7 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
   const [showMedicationDialog, setShowMedicationDialog] = useState(false)
   const [showPasswordDialog, setShowPasswordDialog] = useState(false)
   const [showSendToDoctorDialog, setShowSendToDoctorDialog] = useState(false)
+  const [showSendPatientDialog, setShowSendPatientDialog] = useState(false)
   const [showConsultationDialog, setShowConsultationDialog] = useState(false)
   const [showLabResultDialog, setShowLabResultDialog] = useState(false)
   const [showDispenseDialog, setShowDispenseDialog] = useState(false)
@@ -2579,6 +2580,12 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
   const [sessionTimeoutMinutes, setSessionTimeoutMinutes] = useState(30)
   const [loginRateLimited, setLoginRateLimited] = useState<{ isBlocked: boolean; message: string; blockedUntil?: Date } | null>(null)
   const [sendToDoctorForm, setSendToDoctorForm] = useState({ patientId: '', doctorId: '3', chiefComplaint: '', signsAndSymptoms: '', notes: '', initials: '', patientType: 'outpatient' as 'outpatient' | 'inpatient', wardUnit: '' as '' | 'opd' | 'mmw' | 'fmw' | 'wdu' })
+  const [sendPatientForm, setSendPatientForm] = useState({ 
+    patientId: '', 
+    destination: '' as 'nurse' | 'doctor' | 'laboratory' | 'pharmacy' | 'records',
+    notes: '',
+    priority: 'normal' as 'normal' | 'urgent' | 'emergency'
+  })
   const [consultationForm, setConsultationForm] = useState<{
     consultationId: string
     patientId: string
@@ -4135,6 +4142,88 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
     }))
   }
 
+  // Records Officer sends patient to department (nurse, doctor, lab, pharmacy)
+  const sendPatientToDepartment = () => {
+    if (!user) {
+      showToast('You must be logged in to perform this action', 'warning')
+      return
+    }
+    if (!sendPatientForm.patientId || !sendPatientForm.destination) {
+      showToast('Please select a patient and destination', 'warning')
+      return
+    }
+
+    const patient = patients.find(p => p.id === sendPatientForm.patientId)
+    if (!patient) {
+      showToast('Patient not found', 'warning')
+      return
+    }
+
+    const senderName = getUserDisplayName(user)
+    const patientName = getFullName(patient.firstName, patient.lastName, patient.middleName, patient.title)
+    const destinationName = sendPatientForm.destination.charAt(0).toUpperCase() + sendPatientForm.destination.slice(1)
+
+    // Create a consultation record for routing
+    const newConsultation: Consultation = {
+      id: `c${Date.now()}`,
+      patientId: sendPatientForm.patientId,
+      patient,
+      doctorId: sendPatientForm.destination === 'doctor' ? 'any' : '',
+      doctorName: sendPatientForm.destination === 'doctor' ? 'Pending Assignment' : '',
+      chiefComplaint: `Sent from Records - ${sendPatientForm.notes || 'No complaint specified'}`,
+      sentByNurseInitials: senderName,
+      status: 'pending_review',
+      hasPrescription: false,
+      createdAt: new Date().toISOString(),
+      sentAt: new Date().toISOString(),
+      referredTo: sendPatientForm.destination as any,
+      referralNotes: sendPatientForm.notes
+    }
+
+    // Add to consultations
+    setConsultations(prev => [newConsultation, ...prev])
+    saveConsultationToDB(newConsultation)
+
+    // Update patient's current unit if needed
+    let unitUpdate = patient.currentUnit
+    if (sendPatientForm.destination === 'nurse') {
+      unitUpdate = 'opd'
+    } else if (sendPatientForm.destination === 'laboratory') {
+      unitUpdate = 'laboratory'
+    } else if (sendPatientForm.destination === 'pharmacy') {
+      unitUpdate = 'pharmacy'
+    }
+
+    if (unitUpdate !== patient.currentUnit) {
+      setPatients(prev => prev.map(p => 
+        p.id === sendPatientForm.patientId 
+          ? { ...p, currentUnit: unitUpdate }
+          : p
+      ))
+      updateInDB('patient', sendPatientForm.patientId, { currentUnit: unitUpdate })
+    }
+
+    // Close dialog and reset form
+    setShowSendPatientDialog(false)
+    setSendPatientForm({ patientId: '', destination: '' as any, notes: '', priority: 'normal' })
+
+    // Show success message
+    showToast(`✅ ${patientName} sent to ${destinationName} successfully!`, 'success')
+
+    // Dispatch event for real-time notification
+    window.dispatchEvent(new CustomEvent('patientFileSent', {
+      detail: {
+        patientName,
+        fromRole: user?.role,
+        toRole: sendPatientForm.destination.toUpperCase(),
+        notes: sendPatientForm.notes
+      }
+    }))
+
+    // Play notification sound
+    playNotificationSound()
+  }
+
   // Doctor starts consultation
   const startConsultation = (consultation: Consultation) => {
     try {
@@ -5374,7 +5463,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
     }
     
     const permissions: Record<string, UserRole[]> = {
-      patients: ['SUPER_ADMIN', 'ADMIN', 'NURSE', 'RECORDS_OFFICER'],
+      patients: ['SUPER_ADMIN', 'ADMIN', 'RECORDS_OFFICER'], // Only Records, Admin, SuperAdmin can register/edit patients
       appointments: ['SUPER_ADMIN', 'ADMIN', 'NURSE', 'RECORDS_OFFICER'],
       pharmacy: ['SUPER_ADMIN', 'ADMIN', 'PHARMACIST'],
       laboratory: ['SUPER_ADMIN', 'ADMIN', 'LAB_TECHNICIAN'],
@@ -5390,6 +5479,11 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
       reports: ['SUPER_ADMIN', 'ADMIN', 'DOCTOR', 'RECORDS_OFFICER'],
     }
     return permissions[module]?.includes(user?.role as UserRole) || false
+  }
+
+  // Check if user can send patients to other departments (Records Officer feature)
+  const canSendPatients = () => {
+    return user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN' || user?.role === 'RECORDS_OFFICER'
   }
 
   // Navigation items
@@ -6650,7 +6744,23 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
           {activeTab === 'dashboard' && (
             <div className="space-y-6">
               {/* Stats Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                {/* Total Patients - Visible to ALL roles */}
+                <Card className="border-l-4 border-l-indigo-500 shadow-md hover:shadow-lg transition-shadow bg-gradient-to-br from-indigo-50 to-purple-50">
+                  <CardContent className="p-6">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <p className="text-sm text-gray-600 mb-1">Total Patients</p>
+                        <p className="text-3xl font-bold text-indigo-700">{patients.length}</p>
+                        <p className="text-xs text-gray-500 mt-1">All registered</p>
+                      </div>
+                      <div className="p-3 bg-indigo-100 rounded-xl">
+                        <Users className="h-6 w-6 text-indigo-600" />
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
                 <Card className="border-l-4 border-l-blue-500 shadow-md hover:shadow-lg transition-shadow">
                   <CardContent className="p-6">
                     <div className="flex justify-between items-start">
@@ -7316,6 +7426,26 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                               </TableCell>
                               <TableCell className="text-right">
                                 <div className="flex justify-end gap-2">
+                                  {/* Send Patient Button - Records Officer, Admin, SuperAdmin */}
+                                  {canSendPatients() && (
+                                    <Button 
+                                      size="sm" 
+                                      variant="ghost" 
+                                      className="text-green-600 hover:text-green-700 hover:bg-green-50"
+                                      title="Send to Department"
+                                      onClick={() => {
+                                        setSendPatientForm({
+                                          patientId: p.id,
+                                          destination: '' as any,
+                                          notes: '',
+                                          priority: 'normal'
+                                        })
+                                        setShowSendPatientDialog(true)
+                                      }}
+                                    >
+                                      <Send className="h-4 w-4" />
+                                    </Button>
+                                  )}
                                   <Button size="sm" variant="ghost" title="View Details" onClick={() => { setSelectedPatient(p); setActiveTab('patient-detail') }}>
                                     <Eye className="h-4 w-4" />
                                   </Button>
@@ -15396,6 +15526,150 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
               className="bg-green-600 hover:bg-green-700"
             >
               <Send className="h-4 w-4 mr-2" /> Send to Doctor
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Send Patient to Department Dialog - Records Officer */}
+      <Dialog open={showSendPatientDialog} onOpenChange={setShowSendPatientDialog}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Send className="h-5 w-5 text-green-600" />
+              Send Patient to Department
+            </DialogTitle>
+            <DialogDescription>
+              Route this patient to the appropriate department for care
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            {/* Patient Info */}
+            {sendPatientForm.patientId && (() => {
+              const patient = patients.find(p => p.id === sendPatientForm.patientId)
+              return patient ? (
+                <div className="p-3 bg-blue-50 rounded-lg border border-blue-200 flex items-center gap-3">
+                  <Avatar className="h-10 w-10">
+                    <AvatarFallback className={getAvatarColor(patient.firstName + ' ' + patient.lastName)}>
+                      {getInitials(patient.firstName, patient.lastName)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <p className="font-semibold">{getFullName(patient.firstName, patient.lastName, patient.middleName, patient.title)}</p>
+                    <p className="text-xs text-gray-500">{patient.ruhcCode} • {formatAge(patient.dateOfBirth)} • {patient.gender}</p>
+                  </div>
+                </div>
+              ) : null
+            })()}
+
+            {/* Destination Selection */}
+            <div className="space-y-2">
+              <Label>Send To *</Label>
+              <Select 
+                value={sendPatientForm.destination} 
+                onValueChange={v => setSendPatientForm({ ...sendPatientForm, destination: v as any })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select destination" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="nurse">
+                    <div className="flex items-center gap-2">
+                      <Activity className="h-4 w-4 text-teal-600" />
+                      <span>Nurse Station</span>
+                      <span className="text-xs text-gray-400">- For vitals & initial assessment</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="doctor">
+                    <div className="flex items-center gap-2">
+                      <Stethoscope className="h-4 w-4 text-green-600" />
+                      <span>Doctor</span>
+                      <span className="text-xs text-gray-400">- For consultation</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="laboratory">
+                    <div className="flex items-center gap-2">
+                      <Microscope className="h-4 w-4 text-pink-600" />
+                      <span>Laboratory</span>
+                      <span className="text-xs text-gray-400">- For tests</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="pharmacy">
+                    <div className="flex items-center gap-2">
+                      <Pill className="h-4 w-4 text-orange-600" />
+                      <span>Pharmacy</span>
+                      <span className="text-xs text-gray-400">- For medication</span>
+                    </div>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Priority */}
+            <div className="space-y-2">
+              <Label>Priority</Label>
+              <div className="flex gap-2">
+                {['normal', 'urgent', 'emergency'].map(p => (
+                  <button
+                    key={p}
+                    type="button"
+                    onClick={() => setSendPatientForm({ ...sendPatientForm, priority: p as any })}
+                    className={cn(
+                      "flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all border-2",
+                      sendPatientForm.priority === p
+                        ? p === 'emergency' 
+                          ? "bg-red-500 text-white border-red-600"
+                          : p === 'urgent'
+                            ? "bg-orange-500 text-white border-orange-600"
+                            : "bg-blue-500 text-white border-blue-600"
+                        : "bg-gray-50 text-gray-600 border-gray-200 hover:border-gray-300"
+                    )}
+                  >
+                    {p.charAt(0).toUpperCase() + p.slice(1)}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Notes */}
+            <div className="space-y-2">
+              <Label>Notes/Reason</Label>
+              <Textarea
+                value={sendPatientForm.notes}
+                onChange={e => setSendPatientForm({ ...sendPatientForm, notes: e.target.value })}
+                placeholder="Add any notes or reason for routing..."
+                rows={3}
+              />
+            </div>
+
+            {/* Sender Info */}
+            <div className="p-3 bg-green-50 rounded-lg border border-green-200">
+              <div className="flex items-center gap-3">
+                <Avatar className="h-8 w-8">
+                  <AvatarFallback className={getAvatarColor(user?.name || '')}>
+                    {user?.name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+                  </AvatarFallback>
+                </Avatar>
+                <div>
+                  <p className="text-sm font-medium text-gray-800">Sent by: {getUserDisplayName(user)}</p>
+                  <p className="text-xs text-gray-500">{getRoleDisplayName(user?.role || 'NURSE')}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => {
+              setShowSendPatientDialog(false)
+              setSendPatientForm({ patientId: '', destination: '' as any, notes: '', priority: 'normal' })
+            }}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={sendPatientToDepartment}
+              disabled={!sendPatientForm.patientId || !sendPatientForm.destination}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              <Send className="h-4 w-4 mr-2" /> Send Patient
             </Button>
           </DialogFooter>
         </DialogContent>
