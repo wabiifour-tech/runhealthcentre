@@ -34,8 +34,8 @@ import { checkDrugInteractions, checkDrugAllergies, type DrugInteraction, type A
 import { VITAL_TEMPLATES, getVitalTemplate, getAppropriateTemplate, isVitalAbnormal, getVitalAlerts, calculateBMI, calculateMAP, type VitalTemplate } from '@/lib/vital-templates'
 import { sendMessage, getMessagesForUser, getUnreadCount, markAsRead, broadcastAlert, type InternalMessage, QUICK_MESSAGES, createQuickMessage } from '@/lib/messaging'
 import { sendSMS, sendAppointmentReminder, sendQueueCall, sendPrescriptionReady, sendPaymentReceipt, sendWelcomeMessage, formatPhoneNumber } from '@/lib/notifications'
-import { 
-  LogOut, Users, Calendar, Stethoscope, Pill, Microscope, Receipt, 
+import {
+  LogOut, Users, Calendar, Stethoscope, Pill, Microscope, Receipt,
   Shield, Activity, Search, Plus, Eye, Clock, Menu, Home,
   UserPlus, Calculator, Mic, MicOff, Play, Pause, Send, Download,
   FileText, Bell, Cake, Watch, ClipboardList, Volume2, Trash2,
@@ -43,7 +43,7 @@ import {
   Smartphone, Monitor, AlertTriangle, CheckCircle, Key, Lock, Building2,
   XCircle, BookOpen, BookMarked, Cross, Bookmark, Sparkles, Sun,
   Timer, LogIn, Phone, Mail, ShieldCheck, Edit2, Cloud, CloudOff, RefreshCw, Wifi, WifiOff,
-  MessageSquare, AlertCircle, Zap, UserCheck, Fingerprint, Camera
+  MessageSquare, AlertCircle, Zap, UserCheck, Fingerprint, Camera, FolderOpen, Undo2
 } from 'lucide-react'
 import { 
   PatientVisitsChart, 
@@ -3246,6 +3246,10 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
   const [showReferralDialog, setShowReferralDialog] = useState(false)
   const [showDischargeDialog, setShowDischargeDialog] = useState(false)
   const [showReportsDialog, setShowReportsDialog] = useState(false)
+  // Nurse file workspace
+  const [showNurseFileWorkspace, setShowNurseFileWorkspace] = useState(false)
+  const [selectedNurseFile, setSelectedNurseFile] = useState<Consultation | null>(null)
+  const [nurseFileNotes, setNurseFileNotes] = useState('')
   // New dialogs
   const [showUserDialog, setShowUserDialog] = useState(false)
   const [showResetPasswordDialog, setShowResetPasswordDialog] = useState(false)
@@ -8930,39 +8934,33 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                                   </div>
                                 </div>
                                 <div className="mt-3 p-3 bg-white rounded-lg border">
-                                  <p className="text-sm"><strong>Notes:</strong> {consultation.chiefComplaint?.replace('Sent from Records - ', '') || consultation.referralNotes || 'No notes'}</p>
+                                  <p className="text-sm"><strong>Notes from Records:</strong> {consultation.chiefComplaint?.replace('Sent from Records - ', '') || consultation.referralNotes || 'No notes'}</p>
                                 </div>
-                                <div className="mt-3 flex justify-end gap-2">
-                                  <Button 
+                                <div className="mt-3 flex justify-end gap-2 flex-wrap">
+                                  <Button
+                                    className="bg-blue-600 hover:bg-blue-700"
+                                    onClick={() => {
+                                      setSelectedNurseFile(consultation)
+                                      setNurseFileNotes(consultation.referralNotes || '')
+                                      setShowNurseFileWorkspace(true)
+                                    }}
+                                  >
+                                    <FolderOpen className="h-4 w-4 mr-2" /> Open File
+                                  </Button>
+                                  <Button
                                     variant="outline"
                                     onClick={() => { setSelectedPatient(patient || null); setActiveTab('patient-detail') }}
                                   >
                                     <Eye className="h-4 w-4 mr-2" /> View Patient
                                   </Button>
-                                  <Button 
-                                    className="bg-green-600 hover:bg-green-700"
-                                    onClick={() => {
-                                      setSendToDoctorForm({
-                                        ...sendToDoctorForm,
-                                        patientId: consultation.patientId,
-                                        chiefComplaint: consultation.chiefComplaint?.replace('Sent from Records - ', '') || '',
-                                        signsAndSymptoms: '',
-                                        notes: consultation.referralNotes || '',
-                                        initials: ''
-                                      })
-                                      setShowSendToDoctorDialog(true)
-                                    }}
-                                  >
-                                    <Stethoscope className="h-4 w-4 mr-2" /> Send to Doctor
-                                  </Button>
-                                  <Button 
+                                  <Button
                                     className="bg-teal-600 hover:bg-teal-700"
                                     onClick={() => {
                                       setVitalsForm({ ...vitalsForm, patientId: consultation.patientId })
                                       setShowVitalsDialog(true)
                                     }}
                                   >
-                                    <Activity className="h-4 w-4 mr-2" /> Record Vitals
+                                    <Activity className="h-4 w-4 mr-2" /> Vitals
                                   </Button>
                                 </div>
                               </div>
@@ -18313,6 +18311,266 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
               </>
             )}
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Nurse File Workspace Dialog */}
+      <Dialog open={showNurseFileWorkspace} onOpenChange={setShowNurseFileWorkspace}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-xl">
+              <FolderOpen className="h-6 w-6 text-blue-600" />
+              Patient File Workspace
+            </DialogTitle>
+            <DialogDescription>
+              Complete your tasks and send the file to the appropriate destination
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedNurseFile && (() => {
+            const patient = patients.find(p => p.id === selectedNurseFile.patientId) || selectedNurseFile.patient
+            const patientVitals = vitals.filter(v => v.patientId === selectedNurseFile.patientId).slice(0, 3)
+            const patientMeds = medicationAdmins.filter(m => m.patientId === selectedNurseFile.patientId).slice(0, 3)
+
+            return (
+              <div className="space-y-6 py-4">
+                {/* Patient Info Header */}
+                <div className="p-4 bg-gradient-to-r from-blue-50 to-teal-50 rounded-lg border">
+                  <div className="flex items-center gap-4">
+                    <Avatar className="h-16 w-16">
+                      <AvatarFallback className={getAvatarColor((patient?.firstName || '') + ' ' + (patient?.lastName || 'U'))}>
+                        {patient ? getInitials(patient.firstName, patient.lastName) : 'NA'}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1">
+                      <h3 className="text-lg font-semibold">
+                        {patient ? getFullName(patient.firstName, patient.lastName, patient.middleName, patient.title) : 'Unknown Patient'}
+                      </h3>
+                      <div className="flex items-center gap-2 flex-wrap mt-1">
+                        <Badge className="bg-gradient-to-r from-blue-600 to-teal-500 text-white">
+                          {patient?.ruhcCode}
+                        </Badge>
+                        {patient && (
+                          <Badge variant="outline">
+                            {patient.gender} • {formatAge(patient.dateOfBirth)}
+                          </Badge>
+                        )}
+                        {patient?.phone && (
+                          <Badge variant="outline">
+                            📞 {patient.phone}
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <Badge className="bg-cyan-100 text-cyan-800">From Records</Badge>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Received: {formatDateTime(selectedNurseFile.createdAt)}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Reason for Visit */}
+                <Card className="border-l-4 border-l-cyan-500">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <FileText className="h-4 w-4 text-cyan-600" />
+                      Reason for Visit (From Records)
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-gray-700">{selectedNurseFile.chiefComplaint?.replace('Sent from Records - ', '') || 'No complaint recorded'}</p>
+                    {selectedNurseFile.referralNotes && (
+                      <p className="text-sm text-gray-500 mt-2"><strong>Notes:</strong> {selectedNurseFile.referralNotes}</p>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Quick Actions */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <Button
+                    variant="outline"
+                    className="h-auto py-3 flex-col"
+                    onClick={() => {
+                      setVitalsForm({ ...vitalsForm, patientId: selectedNurseFile.patientId })
+                      setShowVitalsDialog(true)
+                    }}
+                  >
+                    <Activity className="h-6 w-6 text-teal-600 mb-1" />
+                    <span className="text-xs">Record Vitals</span>
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="h-auto py-3 flex-col"
+                    onClick={() => {
+                      setMedicationForm({ ...medicationForm, patientId: selectedNurseFile.patientId })
+                      setShowMedicationDialog(true)
+                    }}
+                  >
+                    <Pill className="h-6 w-6 text-purple-600 mb-1" />
+                    <span className="text-xs">Give Medication</span>
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="h-auto py-3 flex-col"
+                    onClick={() => {
+                      setSelectedPatient(patient || null)
+                      setActiveTab('patient-detail')
+                      setShowNurseFileWorkspace(false)
+                    }}
+                  >
+                    <Eye className="h-6 w-6 text-blue-600 mb-1" />
+                    <span className="text-xs">Full Patient Info</span>
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="h-auto py-3 flex-col"
+                    onClick={() => {
+                      setQueueForm({ ...queueForm, patientId: selectedNurseFile.patientId })
+                      setShowQueueDialog(true)
+                    }}
+                  >
+                    <Users className="h-6 w-6 text-orange-600 mb-1" />
+                    <span className="text-xs">Add to Queue</span>
+                  </Button>
+                </div>
+
+                {/* Recent Vitals */}
+                {patientVitals.length > 0 && (
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm">Recent Vitals</CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-0">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Time</TableHead>
+                            <TableHead>BP</TableHead>
+                            <TableHead>Temp</TableHead>
+                            <TableHead>Pulse</TableHead>
+                            <TableHead>SpO2</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {patientVitals.map(v => (
+                            <TableRow key={v.id}>
+                              <TableCell className="text-xs">{formatDateTime(v.recordedAt)}</TableCell>
+                              <TableCell className="text-xs">{v.bloodPressureSystolic}/{v.bloodPressureDiastolic}</TableCell>
+                              <TableCell className="text-xs">{v.temperature}°C</TableCell>
+                              <TableCell className="text-xs">{v.pulse}</TableCell>
+                              <TableCell className="text-xs">{v.oxygenSaturation}%</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Nurse Notes */}
+                <div className="space-y-2">
+                  <Label>Your Notes</Label>
+                  <Textarea
+                    value={nurseFileNotes}
+                    onChange={e => setNurseFileNotes(e.target.value)}
+                    placeholder="Add your observations, findings, or notes..."
+                    rows={3}
+                  />
+                </div>
+
+                <Separator />
+
+                {/* Send Options */}
+                <div className="space-y-3">
+                  <h4 className="font-medium text-gray-700">Send File To:</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <Button
+                      className="bg-green-600 hover:bg-green-700 h-auto py-4"
+                      onClick={() => {
+                        setSendToDoctorForm({
+                          ...sendToDoctorForm,
+                          patientId: selectedNurseFile.patientId,
+                          chiefComplaint: selectedNurseFile.chiefComplaint?.replace('Sent from Records - ', '') || '',
+                          signsAndSymptoms: '',
+                          notes: nurseFileNotes,
+                          initials: ''
+                        })
+                        setShowNurseFileWorkspace(false)
+                        setShowSendToDoctorDialog(true)
+                      }}
+                    >
+                      <div className="flex flex-col items-center">
+                        <Stethoscope className="h-6 w-6 mb-1" />
+                        <span className="font-medium">Send to Doctor</span>
+                        <span className="text-xs opacity-80">For consultation</span>
+                      </div>
+                    </Button>
+                    <Button
+                      className="bg-indigo-600 hover:bg-indigo-700 h-auto py-4"
+                      onClick={async () => {
+                        // Update consultation to send to Matron
+                        const updatedConsultation = {
+                          ...selectedNurseFile,
+                          referredTo: 'matron' as const,
+                          referralNotes: nurseFileNotes,
+                          status: 'pending_review' as const
+                        }
+                        setConsultations(prev => prev.map(c => c.id === selectedNurseFile.id ? updatedConsultation : c))
+                        await updateInDB('consultation', selectedNurseFile.id, updatedConsultation)
+                        // Broadcast real-time
+                        fetch('/api/realtime', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ event: 'consultation_updated', data: updatedConsultation })
+                        })
+                        setShowNurseFileWorkspace(false)
+                        setSelectedNurseFile(null)
+                        showToast('File sent to Matron successfully!', 'success')
+                      }}
+                    >
+                      <div className="flex flex-col items-center">
+                        <UserCheck className="h-6 w-6 mb-1" />
+                        <span className="font-medium">Send to Matron</span>
+                        <span className="text-xs opacity-80">For supervision</span>
+                      </div>
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="border-orange-500 text-orange-600 hover:bg-orange-50 h-auto py-4"
+                      onClick={async () => {
+                        // Update consultation to send back to Records
+                        const updatedConsultation = {
+                          ...selectedNurseFile,
+                          referredTo: 'records' as const,
+                          referralNotes: `RETURNED BY NURSE: ${nurseFileNotes || 'File error - please review'}`,
+                          status: 'pending_review' as const
+                        }
+                        setConsultations(prev => prev.map(c => c.id === selectedNurseFile.id ? updatedConsultation : c))
+                        await updateInDB('consultation', selectedNurseFile.id, updatedConsultation)
+                        // Broadcast real-time
+                        fetch('/api/realtime', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ event: 'consultation_updated', data: updatedConsultation })
+                        })
+                        setShowNurseFileWorkspace(false)
+                        setSelectedNurseFile(null)
+                        showToast('File returned to Records for correction', 'warning')
+                      }}
+                    >
+                      <div className="flex flex-col items-center">
+                        <Undo2 className="h-6 w-6 mb-1" />
+                        <span className="font-medium">Back to Records</span>
+                        <span className="text-xs opacity-80">File error</span>
+                      </div>
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )
+          })()}
         </DialogContent>
       </Dialog>
 
