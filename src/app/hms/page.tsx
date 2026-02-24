@@ -6251,6 +6251,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
     unreadAnnouncements: announcements.filter(a => !a.isRead).length,
     vitalsRecordedToday: vitals.filter(v => new Date(v.recordedAt).toDateString() === new Date().toDateString()).length,
     medicationsAdminToday: medicationAdmins.filter(m => new Date(m.administeredAt).toDateString() === new Date().toDateString()).length,
+    unreadMessages: internalMessages.filter(m => !m.isRead && (m.recipientId === user?.id || m.recipientRole === user?.role || m.recipientRole === 'all')).length,
   }
 
   // Session timeout management
@@ -7096,6 +7097,9 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
               )}
               {item.id === 'announcements' && stats.unreadAnnouncements > 0 && sidebarOpen && (
                 <Badge className="ml-auto bg-red-500 text-white text-xs">{stats.unreadAnnouncements}</Badge>
+              )}
+              {item.id === 'messages' && stats.unreadMessages > 0 && sidebarOpen && (
+                <Badge className="ml-auto bg-blue-500 text-white text-xs">{stats.unreadMessages}</Badge>
               )}
             </button>
           ))}
@@ -8058,17 +8062,24 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                 <div className="relative flex-1 max-w-md">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                   <Input
-                    placeholder="Search patients by name or number..."
+                    placeholder="Fuzzy search: name, matric, phone, RUHC code..."
                     className="pl-10"
                     value={searchQuery}
                     onChange={e => setSearchQuery(e.target.value)}
                   />
+                  {searchQuery && (
+                    <div className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-gray-400">
+                      {fuzzySearchPatients(searchQuery, patients).length} results
+                    </div>
+                  )}
                 </div>
-                {canEdit('patients') && (
-                  <Button onClick={() => setShowPatientDialog(true)} className="bg-blue-600 hover:bg-blue-700">
-                    <Plus className="h-4 w-4 mr-2" /> Register Patient
-                  </Button>
-                )}
+                <div className="flex gap-2">
+                  {canEdit('patients') && (
+                    <Button onClick={() => { setShowPatientDialog(true); setEditingPatientId(null); }} className="bg-blue-600 hover:bg-blue-700">
+                      <Plus className="h-4 w-4 mr-2" /> Register Patient
+                    </Button>
+                  )}
+                </div>
               </div>
               
               <Card className="shadow-md">
@@ -8088,15 +8099,8 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {patients
-                          .filter(p =>
-                            searchQuery === '' ||
-                            p.ruhcCode.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                            p.hospitalNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                            p.firstName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                            p.lastName.toLowerCase().includes(searchQuery.toLowerCase())
-                          )
-                          .slice(0, 20)
+                        {fuzzySearchPatients(searchQuery, patients)
+                          .slice(0, 30)
                           .map(p => (
                             <TableRow key={p.id} className="hover:bg-gray-50">
                               <TableCell>
@@ -8109,11 +8113,38 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                                       {getInitials(p.firstName, p.lastName)}
                                     </AvatarFallback>
                                   </Avatar>
-                                  <span>{getFullName(p.firstName, p.lastName, p.middleName, p.title)}</span>
+                                  <div>
+                                    <span>{getFullName(p.firstName, p.lastName, p.middleName, p.title)}</span>
+                                    {p.matricNumber && (
+                                      <p className="text-xs text-gray-500">{p.matricNumber}</p>
+                                    )}
+                                  </div>
                                 </div>
                               </TableCell>
                               <TableCell>{formatAge(p.dateOfBirth)} / {p.gender}</TableCell>
-                              <TableCell>{p.phone || '-'}</TableCell>
+                              <TableCell>
+                                <div className="flex items-center gap-1">
+                                  {p.phone || '-'}
+                                  {p.phone && (
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      className="h-6 w-6 p-0"
+                                      title="Send SMS Notification"
+                                      onClick={async () => {
+                                        const result = await sendPatientNotification(p, 'appointment_reminder', { date: 'your next appointment', time: '' })
+                                        if (result.success) {
+                                          showToast('SMS sent successfully!', 'success')
+                                        } else {
+                                          showToast('Failed to send SMS', 'warning')
+                                        }
+                                      }}
+                                    >
+                                      <Phone className="h-3 w-3 text-blue-600" />
+                                    </Button>
+                                  )}
+                                </div>
+                              </TableCell>
                               <TableCell>
                                 {p.bloodGroup ? (
                                   <Badge variant="outline" className="border-red-200 text-red-700">{p.bloodGroup}</Badge>
@@ -8132,7 +8163,21 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                                 </Badge>
                               </TableCell>
                               <TableCell className="text-right">
-                                <div className="flex justify-end gap-2">
+                                <div className="flex justify-end gap-1 flex-wrap">
+                                  {/* View Patient */}
+                                  <Button 
+                                    size="sm" 
+                                    variant="ghost" 
+                                    className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                                    title="View Details"
+                                    onClick={() => {
+                                      logPatientAccess(p.id, `${p.firstName} ${p.lastName}`, 'VIEW')
+                                      setSelectedPatient(p)
+                                      setActiveTab('patient-detail')
+                                    }}
+                                  >
+                                    <Eye className="h-4 w-4" />
+                                  </Button>
                                   {/* Send Patient Button - Records Officer, Admin, SuperAdmin */}
                                   {canSendPatients() && (
                                     <Button 
@@ -15217,17 +15262,77 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
             <DialogTitle>Record Vital Signs</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
+            {/* Vital Signs Template Selector */}
+            <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
+              <Label className="text-sm font-medium text-blue-800 mb-2 block">Quick Template</Label>
+              <Select value={selectedVitalTemplate?.id || ''} onValueChange={v => {
+                const template = VITAL_TEMPLATES.find(t => t.id === v)
+                setSelectedVitalTemplate(template || null)
+              }}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a template for faster entry..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {VITAL_TEMPLATES.map(t => (
+                    <SelectItem key={t.id} value={t.id}>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline" className="text-xs">{t.category}</Badge>
+                        {t.name}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {selectedVitalTemplate && (
+                <p className="text-xs text-blue-600 mt-1">{selectedVitalTemplate.description}</p>
+              )}
+            </div>
+            
             <div className="space-y-2">
               <Label>Patient</Label>
-              <Select value={vitalsForm.patientId} onValueChange={v => setVitalsForm({ ...vitalsForm, patientId: v })}>
+              <Select value={vitalsForm.patientId} onValueChange={v => {
+                const patient = patients.find(p => p.id === v)
+                setVitalsForm({ ...vitalsForm, patientId: v })
+                
+                // Auto-select appropriate template based on patient age
+                if (patient?.dateOfBirth) {
+                  const age = calculateAge(patient.dateOfBirth)
+                  const appropriateTemplate = getAppropriateTemplate(age)
+                  setSelectedVitalTemplate(appropriateTemplate)
+                }
+                
+                // Log patient access
+                if (patient) {
+                  logPatientAccess(v, `${patient.firstName} ${patient.lastName}`, 'VIEW')
+                }
+              }}>
                 <SelectTrigger><SelectValue placeholder="Select patient" /></SelectTrigger>
                 <SelectContent>
-                  {patients.map(p => (
+                  {patients.filter(p => p.isActive).map(p => (
                     <SelectItem key={p.id} value={p.id}>{p.ruhcCode} - {getFullName(p.firstName, p.lastName, p.middleName)}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
+            
+            {/* Vital Alerts Display */}
+            {vitalAlerts.length > 0 && (
+              <div className="p-3 bg-red-50 rounded-lg border border-red-200">
+                <h4 className="font-medium text-red-800 flex items-center gap-2 mb-2">
+                  <AlertTriangle className="h-4 w-4" />
+                  Abnormal Vitals Detected
+                </h4>
+                <div className="space-y-1">
+                  {vitalAlerts.map((alert, i) => (
+                    <div key={i} className={`text-xs p-2 rounded ${alert.isCritical ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'}`}>
+                      <strong>{alert.field.label}:</strong> {alert.value} {alert.field.unit} - 
+                      <span className="ml-1">{alert.status.replace('_', ' ').toUpperCase()}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Blood Pressure (Systolic)</Label>
@@ -16928,6 +17033,29 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
 
               {consultationForm.hasPrescription && (
                 <div className="space-y-3">
+                  {/* Drug Interaction Alerts */}
+                  {drugInteractions.length > 0 && (
+                    <div className="p-3 bg-red-50 rounded-lg border border-red-200">
+                      <h4 className="font-medium text-red-800 flex items-center gap-2 mb-2">
+                        <AlertCircle className="h-4 w-4" />
+                        Drug Interaction Alerts
+                      </h4>
+                      <div className="space-y-2 max-h-40 overflow-y-auto">
+                        {drugInteractions.map((interaction, i) => (
+                          <div key={i} className={`p-2 rounded text-xs ${getInteractionSeverityColor(interaction.severity)} border`}>
+                            <div className="flex items-center gap-2 font-medium">
+                              <span>{getInteractionSeverityIcon(interaction.severity)}</span>
+                              <span>{interaction.drug1} + {interaction.drug2}</span>
+                              <Badge variant="outline" className="text-xs">{interaction.severity.toUpperCase()}</Badge>
+                            </div>
+                            <p className="mt-1">{interaction.description}</p>
+                            <p className="mt-1 text-gray-600"><strong>Management:</strong> {interaction.management}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  
                   {consultationForm.prescriptionItems.map((item, index) => (
                     <div key={index} className="p-3 border rounded-lg bg-gray-50">
                       <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
@@ -16935,7 +17063,37 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                           <Label className="text-xs">Drug Name</Label>
                           <Input
                             value={item.drugName}
-                            onChange={e => updatePrescriptionItem(index, 'drugName', e.target.value)}
+                            onChange={e => {
+                              updatePrescriptionItem(index, 'drugName', e.target.value)
+                              
+                              // Check for drug interactions when drug name changes
+                              if (e.target.value.length > 2) {
+                                const patient = patients.find(p => p.id === consultationForm.patientId)
+                                const allergies = patient?.allergies?.split(',').map(a => a.trim()) || []
+                                const existingDrugs = consultationForm.prescriptionItems
+                                  .filter((_, i) => i !== index)
+                                  .map(i => i.drugName)
+                                  .filter(d => d)
+                                
+                                const { interactions, allergyChecks } = checkAndAlertDrugInteractions(
+                                  e.target.value,
+                                  existingDrugs,
+                                  allergies
+                                )
+                                
+                                if (interactions.length > 0 || allergyChecks.length > 0) {
+                                  setDrugInteractions(interactions)
+                                  if (allergyChecks.length > 0) {
+                                    showToast(`⚠️ Allergy Alert: ${allergyChecks[0].reaction}`, 'warning')
+                                  }
+                                  if (interactions.some(i => i.severity === 'contraindicated' || i.severity === 'major')) {
+                                    setShowDrugInteractionDialog(true)
+                                  }
+                                } else {
+                                  setDrugInteractions([])
+                                }
+                              }
+                            }}
                             placeholder="Drug name"
                           />
                         </div>
