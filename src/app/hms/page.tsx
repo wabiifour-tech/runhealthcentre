@@ -2200,6 +2200,14 @@ export default function HMSApp() {
   // Staff Certifications
   const [staffCertifications, setStaffCertifications] = useState<StaffCertification[]>([])
   const [trainingRecords, setTrainingRecords] = useState<TrainingRecord[]>([])
+  const [showAddCertificationDialog, setShowAddCertificationDialog] = useState(false)
+  const [showAddTrainingDialog, setShowAddTrainingDialog] = useState(false)
+  const [newCertification, setNewCertification] = useState({
+    staffId: '', staffName: '', certificationName: '', issuingBody: '', dateObtained: '', expiryDate: '', cpdPoints: '', certificateNumber: ''
+  })
+  const [newTraining, setNewTraining] = useState({
+    staffId: '', staffName: '', trainingTitle: '', trainingType: '', provider: '', startDate: '', endDate: '', hours: '', location: ''
+  })
   
   // Blood Bank
   const [bloodDonors, setBloodDonors] = useState<BloodDonor[]>([])
@@ -2346,10 +2354,8 @@ export default function HMSApp() {
       
       const response = await fetch('/api/settings', {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify({
-          userId: user.id,
-          userRole: user.role,
           settings: settingsToSave
         })
       })
@@ -6352,7 +6358,6 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
   // Navigation items
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: Home },
-    ...(canView('wards') ? [{ id: 'wards', label: 'Ward Management', icon: Building2 }] : []),
     ...(canView('admissions') ? [{ id: 'admissions', label: 'Admissions', icon: Building2 }] : []),
     ...(canView('patients') ? [{ id: 'patients', label: 'Patients', icon: Users }] : []),
     ...(canView('consultations') ? [{ id: 'consultations', label: 'Consultations', icon: Stethoscope }] : []),
@@ -12862,14 +12867,177 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
               <div className="flex justify-between items-center">
                 <h3 className="text-lg font-semibold">Staff Certifications & Training</h3>
                 <div className="flex gap-2">
-                  <Button variant="outline">
+                  <Button variant="outline" onClick={() => setShowAddCertificationDialog(true)}>
                     <Plus className="h-4 w-4 mr-2" /> Add Certification
                   </Button>
-                  <Button className="bg-blue-600 hover:bg-blue-700">
+                  <Button className="bg-blue-600 hover:bg-blue-700" onClick={() => setShowAddTrainingDialog(true)}>
                     <Plus className="h-4 w-4 mr-2" /> Record Training
                   </Button>
                 </div>
               </div>
+
+              {/* Add Certification Dialog */}
+              <Dialog open={showAddCertificationDialog} onOpenChange={setShowAddCertificationDialog}>
+                <DialogContent className="max-w-md">
+                  <DialogHeader>
+                    <DialogTitle>Add Staff Certification</DialogTitle>
+                    <DialogDescription>Record a new certification for a staff member</DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label>Staff Member</Label>
+                      <Select value={newCertification.staffId} onValueChange={(v) => {
+                        const staff = users.find(u => u.id === v)
+                        setNewCertification({ ...newCertification, staffId: v, staffName: staff?.name || '' })
+                      }}>
+                        <SelectTrigger><SelectValue placeholder="Select staff" /></SelectTrigger>
+                        <SelectContent>
+                          {users.filter(u => u.role === 'NURSE' || u.role === 'DOCTOR' || u.role === 'RECORDS_OFFICER' || u.role === 'LAB_TECHNICIAN' || u.role === 'PHARMACIST').map(u => (
+                            <SelectItem key={u.id} value={u.id}>{u.name} ({u.role})</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Certification Name</Label>
+                      <Input value={newCertification.certificationName} onChange={e => setNewCertification({ ...newCertification, certificationName: e.target.value })} placeholder="e.g., BLS, ACLS, PALS" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Issuing Body</Label>
+                      <Input value={newCertification.issuingBody} onChange={e => setNewCertification({ ...newCertification, issuingBody: e.target.value })} placeholder="e.g., American Heart Association" />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Date Obtained</Label>
+                        <Input type="date" value={newCertification.dateObtained} onChange={e => setNewCertification({ ...newCertification, dateObtained: e.target.value })} />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Expiry Date</Label>
+                        <Input type="date" value={newCertification.expiryDate} onChange={e => setNewCertification({ ...newCertification, expiryDate: e.target.value })} />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>CPD Points</Label>
+                        <Input type="number" value={newCertification.cpdPoints} onChange={e => setNewCertification({ ...newCertification, cpdPoints: e.target.value })} placeholder="0" />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Certificate Number</Label>
+                        <Input value={newCertification.certificateNumber} onChange={e => setNewCertification({ ...newCertification, certificateNumber: e.target.value })} placeholder="Optional" />
+                      </div>
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setShowAddCertificationDialog(false)}>Cancel</Button>
+                    <Button onClick={() => {
+                      if (!newCertification.staffId || !newCertification.certificationName) {
+                        alert('Please fill in required fields'); return
+                      }
+                      const expiry = newCertification.expiryDate ? new Date(newCertification.expiryDate) : null
+                      const now = new Date()
+                      const thirtyDaysFromNow = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000)
+                      staffCertifications.push({
+                        id: `cert-${Date.now()}`, staffId: newCertification.staffId, staffName: newCertification.staffName,
+                        certificationName: newCertification.certificationName, issuingBody: newCertification.issuingBody,
+                        dateObtained: new Date(newCertification.dateObtained), expiryDate: expiry,
+                        cpdPoints: newCertification.cpdPoints ? parseInt(newCertification.cpdPoints) : undefined,
+                        certificateNumber: newCertification.certificateNumber,
+                        isExpired: expiry ? expiry < now : false, isExpiringSoon: expiry ? expiry <= thirtyDaysFromNow && expiry >= now : false,
+                        verifiedBy: user?.name
+                      })
+                      setStaffCertifications([...staffCertifications])
+                      setNewCertification({ staffId: '', staffName: '', certificationName: '', issuingBody: '', dateObtained: '', expiryDate: '', cpdPoints: '', certificateNumber: '' })
+                      setShowAddCertificationDialog(false)
+                    }}>Add Certification</Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+
+              {/* Add Training Dialog */}
+              <Dialog open={showAddTrainingDialog} onOpenChange={setShowAddTrainingDialog}>
+                <DialogContent className="max-w-md">
+                  <DialogHeader>
+                    <DialogTitle>Record Training</DialogTitle>
+                    <DialogDescription>Record a training program for a staff member</DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label>Staff Member</Label>
+                      <Select value={newTraining.staffId} onValueChange={(v) => {
+                        const staff = users.find(u => u.id === v)
+                        setNewTraining({ ...newTraining, staffId: v, staffName: staff?.name || '' })
+                      }}>
+                        <SelectTrigger><SelectValue placeholder="Select staff" /></SelectTrigger>
+                        <SelectContent>
+                          {users.filter(u => u.role === 'NURSE' || u.role === 'DOCTOR' || u.role === 'RECORDS_OFFICER' || u.role === 'LAB_TECHNICIAN' || u.role === 'PHARMACIST').map(u => (
+                            <SelectItem key={u.id} value={u.id}>{u.name} ({u.role})</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Training Title</Label>
+                      <Input value={newTraining.trainingTitle} onChange={e => setNewTraining({ ...newTraining, trainingTitle: e.target.value })} placeholder="e.g., Infection Control Training" />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Training Type</Label>
+                        <Select value={newTraining.trainingType} onValueChange={v => setNewTraining({ ...newTraining, trainingType: v })}>
+                          <SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Online">Online</SelectItem>
+                            <SelectItem value="In-Person">In-Person</SelectItem>
+                            <SelectItem value="Workshop">Workshop</SelectItem>
+                            <SelectItem value="Conference">Conference</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Provider</Label>
+                        <Input value={newTraining.provider} onChange={e => setNewTraining({ ...newTraining, provider: e.target.value })} placeholder="Training provider" />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Start Date</Label>
+                        <Input type="date" value={newTraining.startDate} onChange={e => setNewTraining({ ...newTraining, startDate: e.target.value })} />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>End Date</Label>
+                        <Input type="date" value={newTraining.endDate} onChange={e => setNewTraining({ ...newTraining, endDate: e.target.value })} />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Hours</Label>
+                        <Input type="number" value={newTraining.hours} onChange={e => setNewTraining({ ...newTraining, hours: e.target.value })} placeholder="Duration" />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Location</Label>
+                        <Input value={newTraining.location} onChange={e => setNewTraining({ ...newTraining, location: e.target.value })} placeholder="Location" />
+                      </div>
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setShowAddTrainingDialog(false)}>Cancel</Button>
+                    <Button onClick={() => {
+                      if (!newTraining.staffId || !newTraining.trainingTitle) {
+                        alert('Please fill in required fields'); return
+                      }
+                      trainingRecords.push({
+                        id: `train-${Date.now()}`, staffId: newTraining.staffId, staffName: newTraining.staffName,
+                        trainingTitle: newTraining.trainingTitle, trainingType: newTraining.trainingType,
+                        provider: newTraining.provider, startDate: new Date(newTraining.startDate),
+                        endDate: new Date(newTraining.endDate), hours: newTraining.hours ? parseInt(newTraining.hours) : undefined,
+                        location: newTraining.location, status: 'Completed', certificateIssued: false
+                      })
+                      setTrainingRecords([...trainingRecords])
+                      setNewTraining({ staffId: '', staffName: '', trainingTitle: '', trainingType: '', provider: '', startDate: '', endDate: '', hours: '', location: '' })
+                      setShowAddTrainingDialog(false)
+                    }}>Record Training</Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
 
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <Card className="shadow-md">
