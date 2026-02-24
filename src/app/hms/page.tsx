@@ -1753,6 +1753,7 @@ export default function HMSApp() {
   const [newPendingUsers, setNewPendingUsers] = useState<SystemUser[]>([])
   const [showApprovalPopup, setShowApprovalPopup] = useState<boolean>(false)
   const [currentUserForApproval, setCurrentUserForApproval] = useState<SystemUser | null>(null)
+  const knownPendingUserIds = useRef<Set<string>>(new Set())
   const [payments, setPayments] = useState<Payment[]>([])
   const [expenses, setExpenses] = useState<Expense[]>([])
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([])
@@ -2994,6 +2995,83 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
       loadDataFromDB(true)
     }, 15000)
 
+    // INSTANT polling for pending approvals (every 2 seconds) - Admin only
+    let approvalPollInterval: NodeJS.Timeout | null = null
+    if (user && (user.role === 'SUPER_ADMIN' || user.role === 'ADMIN')) {
+      approvalPollInterval = setInterval(async () => {
+        try {
+          const response = await fetch('/api/pending-approvals', {
+            headers: getAuthHeaders()
+          })
+          const data = await response.json()
+          
+          if (data.success && data.pendingUsers) {
+            const pendingUsers = data.pendingUsers
+            const newUsers: any[] = []
+            
+            // Find users we haven't seen before
+            pendingUsers.forEach((u: any) => {
+              if (!knownPendingUserIds.current.has(u.id)) {
+                newUsers.push(u)
+                knownPendingUserIds.current.add(u.id)
+              }
+            })
+            
+            // If we found new users, show popup
+            if (newUsers.length > 0) {
+              // Update system users state
+              setSystemUsers(prev => {
+                const updated = [...prev]
+                newUsers.forEach((newUser: any) => {
+                  const idx = updated.findIndex(u => u.id === newUser.id)
+                  if (idx >= 0) {
+                    updated[idx] = { ...updated[idx], ...newUser, approvalStatus: 'PENDING' }
+                  } else {
+                    updated.push({ ...newUser, password: '', isFirstLogin: true })
+                  }
+                })
+                return updated
+              })
+              
+              // Show popup for the first new user
+              setCurrentUserForApproval(newUsers[0])
+              setShowApprovalPopup(true)
+              
+              // Play notification sound (WhatsApp-like double beep)
+              try {
+                const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)()
+                
+                const playBeep = (freq: number, startTime: number, duration: number) => {
+                  const osc = audioContext.createOscillator()
+                  const gain = audioContext.createGain()
+                  osc.connect(gain)
+                  gain.connect(audioContext.destination)
+                  osc.frequency.value = freq
+                  osc.type = 'sine'
+                  gain.gain.setValueAtTime(0, startTime)
+                  gain.gain.linearRampToValueAtTime(0.4, startTime + 0.01)
+                  gain.gain.linearRampToValueAtTime(0, startTime + duration)
+                  osc.start(startTime)
+                  osc.stop(startTime + duration)
+                }
+                
+                const now = audioContext.currentTime
+                playBeep(880, now, 0.15)
+                playBeep(880, now + 0.2, 0.15)
+                playBeep(1100, now + 0.4, 0.2)
+                playBeep(1100, now + 0.65, 0.2)
+              } catch (e) {}
+            }
+            
+            // Update pending count
+            setPrevPendingCount(pendingUsers.length)
+          }
+        } catch (e) {
+          // Silent fail - don't disrupt the app
+        }
+      }, 2000) // Check every 2 seconds for instant feel
+    }
+
     return () => {
       window.removeEventListener('storage', handleStorageChange)
       window.removeEventListener('patientFileSent', handlePatientFileSent as EventListener)
@@ -3003,6 +3081,7 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
       window.removeEventListener('newAdmission', handleNewAdmission as EventListener)
       window.removeEventListener('patientDischarged', handlePatientDischarged as EventListener)
       clearInterval(pollInterval)
+      if (approvalPollInterval) clearInterval(approvalPollInterval)
     }
   }, [user])
 
@@ -3067,11 +3146,15 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
         if (dbAnnouncements) setAnnouncements(dbAnnouncements)
         if (dbVoiceNotes) setVoiceNotes(dbVoiceNotes)
         if (dbUsers) {
-          setSystemUsers(dbUsers.map((u: any) => ({
+          const users = dbUsers.map((u: any) => ({
             ...u,
             password: '',
             isFirstLogin: u.isFirstLogin ?? true
-          })))
+          }))
+          setSystemUsers(users)
+          // Initialize pending count for instant notification detection
+          const pendingCount = users.filter((u: any) => u.approvalStatus === 'PENDING').length
+          setPrevPendingCount(pendingCount)
         }
         
         console.log('Data loaded from database')
@@ -3085,65 +3168,6 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
   useEffect(() => {
     loadDataFromDB()
   }, [])
-
-  // Monitor for new pending user approvals - notify admin with popup
-  useEffect(() => {
-    if (!user || (user.role !== 'SUPER_ADMIN' && user.role !== 'ADMIN')) return
-    
-    const currentPendingUsers = systemUsers.filter((u: any) => u.approvalStatus === 'PENDING')
-    const currentPendingCount = currentPendingUsers.length
-    
-    // Only notify if count increased (new pending user)
-    if (prevPendingCount > 0 && currentPendingCount > prevPendingCount) {
-      // Find the new users (ones that weren't in the previous count)
-      const newUsers = currentPendingUsers.slice(0, currentPendingCount - prevPendingCount)
-      
-      if (newUsers.length > 0) {
-        // Add to new pending users queue
-        setNewPendingUsers(prev => [...prev, ...newUsers])
-        
-        // Show the first new user in popup
-        if (!showApprovalPopup) {
-          setCurrentUserForApproval(newUsers[0])
-          setShowApprovalPopup(true)
-        }
-        
-        // Play notification sound
-        try {
-          const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)()
-          const oscillator = audioContext.createOscillator()
-          const gainNode = audioContext.createGain()
-          oscillator.connect(gainNode)
-          gainNode.connect(audioContext.destination)
-          oscillator.frequency.value = 800
-          oscillator.type = 'sine'
-          gainNode.gain.setValueAtTime(0.3, audioContext.currentTime)
-          gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5)
-          oscillator.start(audioContext.currentTime)
-          oscillator.stop(audioContext.currentTime + 0.5)
-          
-          // Play a second beep
-          setTimeout(() => {
-            try {
-              const ctx2 = new (window.AudioContext || (window as any).webkitAudioContext)()
-              const osc2 = ctx2.createOscillator()
-              const gain2 = ctx2.createGain()
-              osc2.connect(gain2)
-              gain2.connect(ctx2.destination)
-              osc2.frequency.value = 1000
-              osc2.type = 'sine'
-              gain2.gain.setValueAtTime(0.3, ctx2.currentTime)
-              gain2.gain.exponentialRampToValueAtTime(0.01, ctx2.currentTime + 0.3)
-              osc2.start(ctx2.currentTime)
-              osc2.stop(ctx2.currentTime + 0.3)
-            } catch (e) {}
-          }, 200)
-        } catch (e) {}
-      }
-    }
-    
-    setPrevPendingCount(currentPendingCount)
-  }, [systemUsers, user, prevPendingCount, showApprovalPopup])
 
   // Handle approve user from popup
   const handleApproveUser = async (userToApprove: SystemUser) => {
