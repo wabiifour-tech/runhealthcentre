@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from '@/components/ui/dialog'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -42,7 +42,7 @@ import {
   Smartphone, Monitor, AlertTriangle, CheckCircle, Key, Lock, Building2,
   XCircle, BookOpen, BookMarked, Cross, Bookmark, Sparkles, Sun,
   Timer, LogIn, Phone, Mail, ShieldCheck, Edit2, Cloud, CloudOff, RefreshCw, Wifi, WifiOff,
-  MessageSquare, AlertCircle, Zap, UserCheck, Fingerprint
+  MessageSquare, AlertCircle, Zap, UserCheck, Fingerprint, Camera
 } from 'lucide-react'
 import { 
   PatientVisitsChart, 
@@ -460,6 +460,26 @@ interface AttendanceRecord {
   clockOut?: string
   status: 'present' | 'absent' | 'late' | 'on_leave'
   notes?: string
+  shift?: 'morning' | 'afternoon' | 'night'
+  signInPhoto?: string
+  signOutPhoto?: string
+  signInTime?: string
+  signOutTime?: string
+  deviceId?: string
+}
+
+interface UserActivityLog {
+  id: string
+  userId: string
+  userName: string
+  userRole: UserRole
+  action: string
+  details: string
+  timestamp: Date
+  ipAddress?: string
+  deviceId?: string
+  tabVisited?: string
+  buttonClicked?: string
 }
 
 interface Equipment {
@@ -2074,6 +2094,21 @@ export default function HMSApp() {
   const [payments, setPayments] = useState<Payment[]>([])
   const [expenses, setExpenses] = useState<Expense[]>([])
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([])
+  
+  // Attendance Dialog & Camera States
+  const [showAttendanceDialog, setShowAttendanceDialog] = useState(false)
+  const [attendanceSignedInToday, setAttendanceSignedInToday] = useState(false)
+  const [attendanceSignInRecord, setAttendanceSignInRecord] = useState<AttendanceRecord | null>(null)
+  const [cameraStream, setCameraStream] = useState<MediaStream | null>(null)
+  const [capturedPhoto, setCapturedPhoto] = useState<string | null>(null)
+  const [selectedShift, setSelectedShift] = useState<'morning' | 'afternoon' | 'night'>('morning')
+  const [cameraError, setCameraError] = useState<string | null>(null)
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  
+  // User Activity Logs
+  const [userActivityLogs, setUserActivityLogs] = useState<UserActivityLog[]>([])
+  
   const [equipment, setEquipment] = useState<Equipment[]>([])
   const [ambulanceCalls, setAmbulanceCalls] = useState<AmbulanceCall[]>([])
   const [staffMessages, setStaffMessages] = useState<StaffMessage[]>([])
@@ -2383,6 +2418,228 @@ export default function HMSApp() {
       showToast('Failed to save settings. Please try again.', 'warning')
     } finally {
       setSettingsLoading(false)
+    }
+  }
+  
+  // ============== ATTENDANCE & ACTIVITY TRACKING FUNCTIONS ==============
+  
+  // Log user activity
+  const logUserActivity = (action: string, details: string, tabVisited?: string, buttonClicked?: string) => {
+    if (!user) return
+    const activity: UserActivityLog = {
+      id: `activity_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      userId: user.id,
+      userName: user.name,
+      userRole: user.role,
+      action,
+      details,
+      timestamp: new Date(),
+      deviceId: navigator.userAgent.slice(0, 100),
+      tabVisited,
+      buttonClicked
+    }
+    setUserActivityLogs(prev => [activity, ...prev])
+    // Also save to localStorage for persistence
+    try {
+      const savedLogs = JSON.parse(localStorage.getItem('hms_activity_logs') || '[]')
+      localStorage.setItem('hms_activity_logs', JSON.stringify([activity, ...savedLogs].slice(0, 1000)))
+    } catch (e) {
+      console.log('Could not save activity log')
+    }
+  }
+  
+  // Check if user has signed in today
+  const checkAttendanceToday = () => {
+    const today = new Date().toDateString()
+    const existingRecord = attendanceRecords.find(
+      r => r.staffId === user?.id && r.date === today && r.signInTime
+    )
+    if (existingRecord) {
+      setAttendanceSignedInToday(true)
+      setAttendanceSignInRecord(existingRecord)
+      return true
+    }
+    return false
+  }
+  
+  // Get current shift based on time
+  const getCurrentShift = (): 'morning' | 'afternoon' | 'night' => {
+    const hour = new Date().getHours()
+    if (hour >= 6 && hour < 14) return 'morning'
+    if (hour >= 14 && hour < 22) return 'afternoon'
+    return 'night'
+  }
+  
+  // Verify shift against roster
+  const verifyShiftWithRoster = (shift: string): boolean => {
+    const today = new Date()
+    const dayOfWeek = today.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase()
+    
+    // Check if user has a roster entry for today
+    const userRoster = rosterEntries.find(r => 
+      r.staffId === user?.id && 
+      r.day.toLowerCase() === dayOfWeek
+    )
+    
+    if (userRoster) {
+      // User has a roster, check if shift matches
+      return userRoster.shift?.toLowerCase() === shift.toLowerCase()
+    }
+    
+    // If no roster found, allow any shift (admin hasn't set roster yet)
+    return true
+  }
+  
+  // Start camera
+  const startCamera = async () => {
+    try {
+      setCameraError(null)
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        video: { facingMode: 'user', width: 320, height: 240 } 
+      })
+      setCameraStream(stream)
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream
+      }
+    } catch (err: any) {
+      console.error('Camera error:', err)
+      setCameraError('Could not access camera. Please allow camera permission.')
+    }
+  }
+  
+  // Stop camera
+  const stopCamera = () => {
+    if (cameraStream) {
+      cameraStream.getTracks().forEach(track => track.stop())
+      setCameraStream(null)
+    }
+  }
+  
+  // Capture photo
+  const capturePhoto = () => {
+    if (!videoRef.current || !canvasRef.current) return
+    
+    const video = videoRef.current
+    const canvas = canvasRef.current
+    const context = canvas.getContext('2d')
+    
+    if (!context) return
+    
+    canvas.width = video.videoWidth || 320
+    canvas.height = video.videoHeight || 240
+    context.drawImage(video, 0, 0, canvas.width, canvas.height)
+    
+    const photoData = canvas.toDataURL('image/jpeg', 0.8)
+    setCapturedPhoto(photoData)
+    stopCamera()
+  }
+  
+  // Sign in attendance
+  const signInAttendance = () => {
+    if (!user) return
+    if (!capturedPhoto) {
+      showToast('Please capture a photo first', 'warning')
+      return
+    }
+    
+    // Verify shift
+    if (!verifyShiftWithRoster(selectedShift)) {
+      showToast('This shift does not match your roster assignment', 'warning')
+      return
+    }
+    
+    const now = new Date()
+    const today = now.toDateString()
+    const timeString = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+    
+    // Determine status based on time and shift
+    let status: 'present' | 'late' = 'present'
+    const hour = now.getHours()
+    
+    if (selectedShift === 'morning' && hour >= 8) status = 'late'
+    if (selectedShift === 'afternoon' && hour >= 14) status = 'late'
+    if (selectedShift === 'night' && hour >= 22) status = 'late'
+    
+    const record: AttendanceRecord = {
+      id: `att_${Date.now()}`,
+      staffId: user.id,
+      staffName: user.name,
+      staffRole: user.role,
+      date: today,
+      signInTime: timeString,
+      signInPhoto: capturedPhoto,
+      shift: selectedShift,
+      status,
+      deviceId: navigator.userAgent.slice(0, 100)
+    }
+    
+    setAttendanceRecords(prev => [...prev, record])
+    setAttendanceSignInRecord(record)
+    setAttendanceSignedInToday(true)
+    setShowAttendanceDialog(false)
+    setCapturedPhoto(null)
+    
+    logUserActivity('ATTENDANCE_SIGN_IN', `Signed in for ${selectedShift} shift at ${timeString}`, 'attendance', 'Sign In')
+    showToast(`Signed in successfully for ${selectedShift} shift`, 'success')
+    
+    // Save to localStorage
+    try {
+      const saved = JSON.parse(localStorage.getItem('hms_attendance') || '[]')
+      localStorage.setItem('hms_attendance', JSON.stringify([...saved, record]))
+    } catch (e) {
+      console.log('Could not save attendance')
+    }
+  }
+  
+  // Sign out attendance
+  const signOutAttendance = () => {
+    if (!user || !attendanceSignInRecord) return
+    
+    // Start camera for sign out photo
+    startCamera()
+    
+    // Show sign out dialog
+    setShowSignOutDialog(true)
+  }
+  
+  const [showSignOutDialog, setShowSignOutDialog] = useState(false)
+  const [signOutPhoto, setSignOutPhoto] = useState<string | null>(null)
+  
+  const confirmSignOut = () => {
+    if (!user || !attendanceSignInRecord) return
+    
+    const now = new Date()
+    const timeString = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+    
+    // Update the attendance record
+    const updatedRecords = attendanceRecords.map(r => {
+      if (r.id === attendanceSignInRecord.id) {
+        return {
+          ...r,
+          signOutTime: timeString,
+          signOutPhoto: signOutPhoto || capturedPhoto,
+          clockOut: timeString
+        }
+      }
+      return r
+    })
+    
+    setAttendanceRecords(updatedRecords)
+    setAttendanceSignInRecord(null)
+    setAttendanceSignedInToday(false)
+    setShowSignOutDialog(false)
+    setCapturedPhoto(null)
+    setSignOutPhoto(null)
+    stopCamera()
+    
+    logUserActivity('ATTENDANCE_SIGN_OUT', `Signed out at ${timeString}`, 'attendance', 'Sign Out')
+    showToast('Signed out successfully. Goodbye!', 'success')
+    
+    // Update localStorage
+    try {
+      localStorage.setItem('hms_attendance', JSON.stringify(updatedRecords))
+    } catch (e) {
+      console.log('Could not save attendance')
     }
   }
   
@@ -4641,6 +4898,29 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
       setShowWelcome(true)
       setTimeout(() => {
         setShowWelcome(false)
+        
+        // Check if user needs to sign attendance
+        const today = new Date().toDateString()
+        const savedAttendance = JSON.parse(localStorage.getItem('hms_attendance') || '[]')
+        setAttendanceRecords(savedAttendance)
+        
+        const existingRecord = savedAttendance.find(
+          (r: AttendanceRecord) => r.staffId === result.user.id && r.date === today && r.signInTime
+        )
+        
+        if (!existingRecord) {
+          // User hasn't signed in today, show attendance dialog
+          setSelectedShift(getCurrentShift())
+          setShowAttendanceDialog(true)
+          startCamera()
+        } else {
+          setAttendanceSignedInToday(true)
+          setAttendanceSignInRecord(existingRecord)
+        }
+        
+        // Load activity logs
+        const savedLogs = JSON.parse(localStorage.getItem('hms_activity_logs') || '[]')
+        setUserActivityLogs(savedLogs)
       }, 5000)
 
       // Load data from database after successful login
@@ -6390,6 +6670,8 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
     ...(user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN' ? [{ id: 'insurance', label: 'Insurance Claims', icon: FileText }] : []),
     ...(user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN' ? [{ id: 'equipment', label: 'Equipment', icon: Settings }] : []),
     ...(user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN' ? [{ id: 'audit', label: 'Audit Logs', icon: Shield }] : []),
+    // Activity Logs - SuperAdmin only
+    ...(user?.role === 'SUPER_ADMIN' ? [{ id: 'activityLogs', label: 'Activity Logs', icon: Activity }] : []),
     // ========== NEW FEATURE NAVIGATION ==========
     // Bed Management
     ...(user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN' || user?.role === 'NURSE' || user?.role === 'MATRON' ? [{ id: 'bedManagement', label: 'Bed Management', icon: Building2 }] : []),
@@ -7285,7 +7567,10 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
           {navItems.map(item => (
             <button
               key={item.id}
-              onClick={() => setActiveTab(item.id)}
+              onClick={() => {
+                setActiveTab(item.id)
+                logUserActivity('TAB_CHANGE', `Visited ${item.label} section`, item.id)
+              }}
               className={cn(
                 "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-all",
                 activeTab === item.id
@@ -7307,6 +7592,20 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
             </button>
           ))}
         </nav>
+        
+        {/* Sign Out Button - Show if signed in today */}
+        {attendanceSignedInToday && (
+          <div className="p-3 border-t border-blue-700">
+            <Button 
+              onClick={() => {
+                signOutAttendance()
+              }}
+              className="w-full bg-red-600 hover:bg-red-700 text-white"
+            >
+              <LogOut className="h-4 w-4 mr-2" /> Sign Out Attendance
+            </Button>
+          </div>
+        )}
         
         <div className="p-4 border-t border-blue-700">
           <div className="flex items-center gap-3 mb-3">
@@ -11033,29 +11332,6 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
             <div className="space-y-4">
               <div className="flex justify-between items-center">
                 <h3 className="text-lg font-semibold">Staff Attendance - {new Date().toLocaleDateString()}</h3>
-                <div className="flex gap-2">
-                  <Button onClick={() => {
-                    // Clock in current user
-                    const existing = attendanceRecords.find(a => a.staffId === user?.id && a.date === new Date().toDateString())
-                    if (existing) {
-                      setAttendanceRecords(attendanceRecords.map(a => 
-                        a.id === existing.id ? { ...a, clockOut: new Date().toISOString() } : a
-                      ))
-                    } else {
-                      setAttendanceRecords([{
-                        id: `att${Date.now()}`,
-                        staffId: user?.id || '',
-                        staffName: user?.name || '',
-                        staffRole: user?.role || 'NURSE',
-                        date: new Date().toDateString(),
-                        clockIn: new Date().toISOString(),
-                        status: 'present'
-                      }, ...attendanceRecords])
-                    }
-                  }} className="bg-green-600 hover:bg-green-700">
-                    <Clock className="h-4 w-4 mr-2" /> Clock In/Out
-                  </Button>
-                </div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <Card className="shadow-md"><CardContent className="p-4"><p className="text-sm text-gray-600">Present</p><p className="text-2xl font-bold text-green-600">{attendanceRecords.filter(a => a.date === new Date().toDateString() && a.status === 'present').length}</p></CardContent></Card>
@@ -11064,25 +11340,81 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                 <Card className="shadow-md"><CardContent className="p-4"><p className="text-sm text-gray-600">On Leave</p><p className="text-2xl font-bold text-blue-600">{attendanceRecords.filter(a => a.date === new Date().toDateString() && a.status === 'on_leave').length}</p></CardContent></Card>
               </div>
               <Card className="shadow-md">
-                <CardHeader><CardTitle>Today's Attendance</CardTitle></CardHeader>
+                <CardHeader><CardTitle>Today's Attendance with Photos</CardTitle></CardHeader>
                 <CardContent className="p-0">
                   <Table>
                     <TableHeader>
                       <TableRow>
+                        <TableHead>Photo</TableHead>
                         <TableHead>Staff Name</TableHead>
                         <TableHead>Role</TableHead>
-                        <TableHead>Clock In</TableHead>
-                        <TableHead>Clock Out</TableHead>
+                        <TableHead>Shift</TableHead>
+                        <TableHead>Sign In</TableHead>
+                        <TableHead>Sign Out</TableHead>
                         <TableHead>Status</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {attendanceRecords.filter(a => a.date === new Date().toDateString()).map(a => (
                         <TableRow key={a.id}>
+                          <TableCell>
+                            {a.signInPhoto ? (
+                              <img src={a.signInPhoto} alt={a.staffName} className="w-10 h-10 rounded-full object-cover" />
+                            ) : (
+                              <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center">
+                                <User className="h-5 w-5 text-gray-500" />
+                              </div>
+                            )}
+                          </TableCell>
                           <TableCell className="font-medium">{a.staffName}</TableCell>
                           <TableCell><Badge className={getRoleBadgeColor(a.staffRole)}>{getRoleDisplayName(a.staffRole)}</Badge></TableCell>
-                          <TableCell>{a.clockIn ? formatDateTime(a.clockIn) : '-'}</TableCell>
-                          <TableCell>{a.clockOut ? formatDateTime(a.clockOut) : '-'}</TableCell>
+                          <TableCell>
+                            <Badge variant="outline">
+                              {a.shift === 'morning' ? '🌅 Morning' : a.shift === 'afternoon' ? '☀️ Afternoon' : a.shift === 'night' ? '🌙 Night' : '-'}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <span>{a.signInTime || '-'}</span>
+                              {a.signInPhoto && (
+                                <Dialog>
+                                  <DialogTrigger asChild>
+                                    <Button variant="ghost" size="sm" className="p-1 h-6 w-6">
+                                      <Eye className="h-3 w-3" />
+                                    </Button>
+                                  </DialogTrigger>
+                                  <DialogContent className="max-w-sm">
+                                    <DialogHeader>
+                                      <DialogTitle>Sign In Photo</DialogTitle>
+                                    </DialogHeader>
+                                    <img src={a.signInPhoto} alt="Sign In" className="w-full rounded-lg" />
+                                    <p className="text-sm text-center text-gray-600">{a.staffName} - {a.signInTime}</p>
+                                  </DialogContent>
+                                </Dialog>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <span>{a.signOutTime || '-'}</span>
+                              {a.signOutPhoto && (
+                                <Dialog>
+                                  <DialogTrigger asChild>
+                                    <Button variant="ghost" size="sm" className="p-1 h-6 w-6">
+                                      <Eye className="h-3 w-3" />
+                                    </Button>
+                                  </DialogTrigger>
+                                  <DialogContent className="max-w-sm">
+                                    <DialogHeader>
+                                      <DialogTitle>Sign Out Photo</DialogTitle>
+                                    </DialogHeader>
+                                    <img src={a.signOutPhoto} alt="Sign Out" className="w-full rounded-lg" />
+                                    <p className="text-sm text-center text-gray-600">{a.staffName} - {a.signOutTime}</p>
+                                  </DialogContent>
+                                </Dialog>
+                              )}
+                            </div>
+                          </TableCell>
                           <TableCell>
                             <Badge className={a.status === 'present' ? 'bg-green-100 text-green-800' : a.status === 'late' ? 'bg-yellow-100 text-yellow-800' : a.status === 'absent' ? 'bg-red-100 text-red-800' : 'bg-blue-100 text-blue-800'}>
                               {a.status}
@@ -11090,6 +11422,13 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                           </TableCell>
                         </TableRow>
                       ))}
+                      {attendanceRecords.filter(a => a.date === new Date().toDateString()).length === 0 && (
+                        <TableRow>
+                          <TableCell colSpan={7} className="text-center py-8 text-gray-500">
+                            No attendance records for today
+                          </TableCell>
+                        </TableRow>
+                      )}
                     </TableBody>
                   </Table>
                 </CardContent>
@@ -20927,6 +21266,288 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Attendance Sign In Dialog */}
+      <Dialog open={showAttendanceDialog} onOpenChange={(open) => {
+        if (!open) stopCamera()
+        setShowAttendanceDialog(open)
+      }}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-blue-600">
+              <Clock className="h-5 w-5" />
+              Sign In Attendance
+            </DialogTitle>
+            <DialogDescription>
+              Please capture your photo and select your shift to sign in
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4 space-y-4">
+            {/* Date and Time - Read Only */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label className="text-gray-600">Date</Label>
+                <Input 
+                  value={new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                  readOnly
+                  className="bg-gray-100"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-gray-600">Time</Label>
+                <Input 
+                  value={new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                  readOnly
+                  className="bg-gray-100"
+                />
+              </div>
+            </div>
+            
+            {/* Shift Selection */}
+            <div className="space-y-2">
+              <Label>Shift *</Label>
+              <Select value={selectedShift} onValueChange={(v) => setSelectedShift(v as 'morning' | 'afternoon' | 'night')}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="morning">🌅 Morning (6:00 AM - 2:00 PM)</SelectItem>
+                  <SelectItem value="afternoon">☀️ Afternoon (2:00 PM - 10:00 PM)</SelectItem>
+                  <SelectItem value="night">🌙 Night (10:00 PM - 6:00 AM)</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-gray-500">Auto-detected: {getCurrentShift()} shift based on current time</p>
+            </div>
+            
+            {/* Camera Section */}
+            <div className="space-y-3">
+              <Label>Photo Verification *</Label>
+              
+              {cameraError && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+                  {cameraError}
+                </div>
+              )}
+              
+              <div className="relative">
+                {!capturedPhoto ? (
+                  <div className="bg-black rounded-lg overflow-hidden aspect-video flex items-center justify-center">
+                    <video 
+                      ref={videoRef}
+                      autoPlay 
+                      playsInline
+                      muted
+                      className="w-full h-full object-cover"
+                    />
+                    {!cameraStream && !cameraError && (
+                      <div className="absolute inset-0 flex items-center justify-center text-white">
+                        <div className="text-center">
+                          <div className="animate-spin w-8 h-8 border-2 border-white border-t-transparent rounded-full mx-auto mb-2"></div>
+                          <p className="text-sm">Starting camera...</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="bg-black rounded-lg overflow-hidden aspect-video">
+                    <img src={capturedPhoto} alt="Captured" className="w-full h-full object-cover" />
+                  </div>
+                )}
+              </div>
+              
+              <canvas ref={canvasRef} className="hidden" />
+              
+              <div className="flex gap-2">
+                {!capturedPhoto ? (
+                  <>
+                    <Button onClick={capturePhoto} className="flex-1 bg-blue-600 hover:bg-blue-700" disabled={!cameraStream}>
+                      <Camera className="h-4 w-4 mr-2" /> Capture Photo
+                    </Button>
+                    <Button variant="outline" onClick={startCamera} disabled={!!cameraStream}>
+                      <RefreshCw className="h-4 w-4 mr-2" /> Retry Camera
+                    </Button>
+                  </>
+                ) : (
+                  <Button variant="outline" onClick={() => { setCapturedPhoto(null); startCamera() }} className="flex-1">
+                    <RefreshCw className="h-4 w-4 mr-2" /> Retake Photo
+                  </Button>
+                )}
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button 
+              onClick={signInAttendance} 
+              className="bg-green-600 hover:bg-green-700"
+              disabled={!capturedPhoto}
+            >
+              <CheckCircle className="h-4 w-4 mr-2" /> Sign In
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Sign Out Dialog */}
+      <Dialog open={showSignOutDialog} onOpenChange={(open) => {
+        if (!open) stopCamera()
+        setShowSignOutDialog(open)
+      }}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-600">
+              <LogOut className="h-5 w-5" />
+              Sign Out Attendance
+            </DialogTitle>
+            <DialogDescription>
+              Please capture your photo to confirm sign out
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4 space-y-4">
+            {/* Date and Time - Read Only */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label className="text-gray-600">Date</Label>
+                <Input 
+                  value={new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                  readOnly
+                  className="bg-gray-100"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-gray-600">Sign Out Time</Label>
+                <Input 
+                  value={new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                  readOnly
+                  className="bg-gray-100"
+                />
+              </div>
+            </div>
+            
+            {/* Camera Section */}
+            <div className="space-y-3">
+              <Label>Photo Verification *</Label>
+              
+              <div className="relative">
+                {!signOutPhoto ? (
+                  <div className="bg-black rounded-lg overflow-hidden aspect-video flex items-center justify-center">
+                    <video 
+                      ref={videoRef}
+                      autoPlay 
+                      playsInline
+                      muted
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                ) : (
+                  <div className="bg-black rounded-lg overflow-hidden aspect-video">
+                    <img src={signOutPhoto} alt="Captured" className="w-full h-full object-cover" />
+                  </div>
+                )}
+              </div>
+              
+              <div className="flex gap-2">
+                {!signOutPhoto ? (
+                  <Button onClick={() => {
+                    if (videoRef.current && canvasRef.current) {
+                      const video = videoRef.current
+                      const canvas = canvasRef.current
+                      const context = canvas.getContext('2d')
+                      if (context) {
+                        canvas.width = video.videoWidth || 320
+                        canvas.height = video.videoHeight || 240
+                        context.drawImage(video, 0, 0, canvas.width, canvas.height)
+                        setSignOutPhoto(canvas.toDataURL('image/jpeg', 0.8))
+                        stopCamera()
+                      }
+                    }
+                  }} className="flex-1 bg-blue-600 hover:bg-blue-700" disabled={!cameraStream}>
+                    <Camera className="h-4 w-4 mr-2" /> Capture Photo
+                  </Button>
+                ) : (
+                  <Button variant="outline" onClick={() => { setSignOutPhoto(null); startCamera() }} className="flex-1">
+                    <RefreshCw className="h-4 w-4 mr-2" /> Retake Photo
+                  </Button>
+                )}
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setShowSignOutDialog(false); stopCamera() }}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={confirmSignOut} 
+              className="bg-red-600 hover:bg-red-700"
+              disabled={!signOutPhoto}
+            >
+              <LogOut className="h-4 w-4 mr-2" /> Confirm Sign Out
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* User Activity Logs - SuperAdmin Only */}
+      {user?.role === 'SUPER_ADMIN' && (
+        <Dialog open={activeTab === 'activityLogs'} onOpenChange={() => setActiveTab('dashboard')}>
+          <DialogContent className="max-w-6xl max-h-[80vh] overflow-hidden">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Activity className="h-5 w-5 text-purple-600" />
+                User Activity Logs
+              </DialogTitle>
+              <DialogDescription>
+                Track all user activities and interactions
+              </DialogDescription>
+            </DialogHeader>
+            <div className="overflow-auto max-h-[60vh]">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Time</TableHead>
+                    <TableHead>User</TableHead>
+                    <TableHead>Role</TableHead>
+                    <TableHead>Action</TableHead>
+                    <TableHead>Details</TableHead>
+                    <TableHead>Tab</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {userActivityLogs.slice(0, 100).map(log => (
+                    <TableRow key={log.id}>
+                      <TableCell className="text-xs">
+                        {new Date(log.timestamp).toLocaleString()}
+                      </TableCell>
+                      <TableCell className="font-medium">{log.userName}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline">{log.userRole}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge className={
+                          log.action.includes('SIGN_IN') ? 'bg-green-100 text-green-800' :
+                          log.action.includes('SIGN_OUT') ? 'bg-red-100 text-red-800' :
+                          log.action.includes('TAB') ? 'bg-blue-100 text-blue-800' :
+                          'bg-gray-100 text-gray-800'
+                        }>
+                          {log.action}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-sm">{log.details}</TableCell>
+                      <TableCell className="text-xs text-gray-500">{log.tabVisited}</TableCell>
+                    </TableRow>
+                  ))}
+                  {userActivityLogs.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center py-8 text-gray-500">
+                        No activity logs yet
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
 
       {/* Session Timeout Warning Modal */}
       <Dialog open={showSessionWarning} onOpenChange={setShowSessionWarning}>
