@@ -3377,6 +3377,193 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
     }
   }
 
+  // Save appointment to database
+  const saveAppointmentToDB = async (appointment: Appointment) => {
+    try {
+      const response = await fetch('/api/data', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'appointment', data: appointment })
+      })
+      const result = await response.json()
+      if (!result.success) console.error('Failed to save appointment:', result.error)
+      return result
+    } catch (error) {
+      console.error('Failed to save appointment:', error)
+      return { success: false }
+    }
+  }
+
+  // Save lab request to database
+  const saveLabRequestToDB = async (labRequest: LabRequest) => {
+    try {
+      const response = await fetch('/api/data', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'labRequest', data: labRequest })
+      })
+      const result = await response.json()
+      if (!result.success) console.error('Failed to save lab request:', result.error)
+      return result
+    } catch (error) {
+      console.error('Failed to save lab request:', error)
+      return { success: false }
+    }
+  }
+
+  // Save lab result to database
+  const saveLabResultToDB = async (labResult: LabResult) => {
+    try {
+      const response = await fetch('/api/data', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'labResult', data: labResult })
+      })
+      const result = await response.json()
+      if (!result.success) console.error('Failed to save lab result:', result.error)
+      return result
+    } catch (error) {
+      console.error('Failed to save lab result:', error)
+      return { success: false }
+    }
+  }
+
+  // Save prescription to database
+  const savePrescriptionToDB = async (prescription: Prescription) => {
+    try {
+      const response = await fetch('/api/data', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'prescription', data: prescription })
+      })
+      const result = await response.json()
+      if (!result.success) console.error('Failed to save prescription:', result.error)
+      return result
+    } catch (error) {
+      console.error('Failed to save prescription:', error)
+      return { success: false }
+    }
+  }
+
+  // Save queue entry to database
+  const saveQueueEntryToDB = async (queueEntry: QueueEntry) => {
+    try {
+      const response = await fetch('/api/data', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'queueEntry', data: queueEntry })
+      })
+      const result = await response.json()
+      if (!result.success) console.error('Failed to save queue entry:', result.error)
+      return result
+    } catch (error) {
+      console.error('Failed to save queue entry:', error)
+      return { success: false }
+    }
+  }
+
+  // Save announcement to database
+  const saveAnnouncementToDB = async (announcement: Announcement) => {
+    try {
+      const response = await fetch('/api/data', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'announcement', data: announcement })
+      })
+      const result = await response.json()
+      if (!result.success) console.error('Failed to save announcement:', result.error)
+      return result
+    } catch (error) {
+      console.error('Failed to save announcement:', error)
+      return { success: false }
+    }
+  }
+
+  // Save voice note to database
+  const saveVoiceNoteToDB = async (voiceNote: VoiceNote) => {
+    try {
+      const response = await fetch('/api/data', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'voiceNote', data: voiceNote })
+      })
+      const result = await response.json()
+      if (!result.success) console.error('Failed to save voice note:', result.error)
+      return result
+    } catch (error) {
+      console.error('Failed to save voice note:', error)
+      return { success: false }
+    }
+  }
+
+  // Save medical certificate to database
+  const saveMedicalCertificateToDB = async (certificate: MedicalCertificate) => {
+    try {
+      const response = await fetch('/api/data', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'medicalCertificate', data: certificate })
+      })
+      const result = await response.json()
+      if (!result.success) console.error('Failed to save medical certificate:', result.error)
+      return result
+    } catch (error) {
+      console.error('Failed to save medical certificate:', error)
+      return { success: false }
+    }
+  }
+
+  // Save referral letter to database
+  const saveReferralLetterToDB = async (referral: ReferralLetter) => {
+    try {
+      const response = await fetch('/api/data', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'referralLetter', data: referral })
+      })
+      const result = await response.json()
+      if (!result.success) console.error('Failed to save referral letter:', result.error)
+      return result
+    } catch (error) {
+      console.error('Failed to save referral letter:', error)
+      return { success: false }
+    }
+  }
+
+  // Save discharge summary to database
+  const saveDischargeSummaryToDB = async (discharge: DischargeSummary) => {
+    try {
+      const response = await fetch('/api/data', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'dischargeSummary', data: discharge })
+      })
+      const result = await response.json()
+      if (!result.success) console.error('Failed to save discharge summary:', result.error)
+      return result
+    } catch (error) {
+      console.error('Failed to save discharge summary:', error)
+      return { success: false }
+    }
+  }
+
+  // Save drug to database
+  const saveDrugToDB = async (drug: Drug) => {
+    try {
+      const response = await fetch('/api/data', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'drug', data: drug })
+      })
+      const result = await response.json()
+      if (!result.success) console.error('Failed to save drug:', result.error)
+      return result
+    } catch (error) {
+      console.error('Failed to save drug:', error)
+      return { success: false }
+    }
+  }
+
   // ============== STAFF MANAGEMENT FUNCTIONS ==============
   // Auto-generate password for new staff
   const generateStaffPassword = (name: string): string => {
@@ -4150,7 +4337,7 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
   }
 
   // Nurse sends patient file to doctor
-  const sendToDoctor = () => {
+  const sendToDoctor = async () => {
     if (!user) {
       alert('You must be logged in to perform this action')
       return
@@ -4174,8 +4361,15 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
     setConsultations([newConsultation, ...consultations])
     setShowSendToDoctorDialog(false)
     setSendToDoctorForm({ patientId: '', doctorId: '3', chiefComplaint: '', signsAndSymptoms: '', notes: '', initials: '', patientType: 'outpatient', wardUnit: '' })
-    // Show success toast
-    showToast(`Patient file sent to doctor successfully!`, 'success')
+    
+    // Save to database
+    const result = await saveConsultationToDB(newConsultation)
+    if (result.success) {
+      showToast(`Patient file sent to doctor successfully!`, 'success')
+    } else {
+      showToast('Consultation created locally but failed to save to database.', 'warning')
+    }
+    
     // Dispatch real-time event for other tabs/users
     const patientForNotif = patients.find(p => p.id === sendToDoctorForm.patientId)
     window.dispatchEvent(new CustomEvent('patientFileSent', {
@@ -4315,6 +4509,8 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
       setConsultations(prev => prev.map(c => 
         c.id === consultation.id ? { ...c, status: 'in_consultation' as const, reviewedAt: new Date().toISOString() } : c
       ))
+      // Update in database
+      updateInDB('consultation', consultation.id, { status: 'in_consultation', reviewedAt: new Date().toISOString() })
       setShowConsultationDialog(true)
     } catch (error) {
       console.error('Error starting consultation:', error)
@@ -4346,7 +4542,7 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
   }
 
   // Doctor completes consultation
-  const completeConsultation = () => {
+  const completeConsultation = async () => {
     if (!consultationForm.finalDiagnosis && !consultationForm.provisionalDiagnosis) {
       alert('Please enter a diagnosis')
       return
@@ -4361,55 +4557,61 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
     if (consultationForm.admitPatient) {
       const patientToUpdate = patients.find(p => p.id === consultationForm.patientId)
       if (patientToUpdate) {
+        const updatedPatientData = {
+          currentUnit: consultationForm.admissionWard,
+          admissionDate: new Date().toISOString(),
+          bedNumber: consultationForm.bedNumber ? parseInt(consultationForm.bedNumber) : undefined
+        }
         setPatients(patients.map(p => {
           if (p.id === consultationForm.patientId) {
-            return {
-              ...p,
-              currentUnit: consultationForm.admissionWard,
-              admissionDate: new Date().toISOString(),
-              bedNumber: consultationForm.bedNumber ? parseInt(consultationForm.bedNumber) : undefined
-            }
+            return { ...p, ...updatedPatientData }
           }
           return p
         }))
+        // Update patient in database
+        await updatePatientToDB(consultationForm.patientId, updatedPatientData)
       }
+    }
+
+    const updatedConsultationData = {
+      historyOfPresentIllness: consultationForm.historyOfPresentIllness,
+      pastMedicalHistory: consultationForm.pastMedicalHistory,
+      generalExamination: consultationForm.generalExamination,
+      systemExamination: consultationForm.systemExamination,
+      investigationsRequested: consultationForm.investigationsRequested,
+      scanRequested: consultationForm.scanRequested,
+      scanFindings: consultationForm.scanFindings,
+      provisionalDiagnosis: consultationForm.provisionalDiagnosis,
+      finalDiagnosis: consultationForm.finalDiagnosis,
+      hasPrescription: consultationForm.hasPrescription,
+      prescriptionItems: consultationForm.prescriptionItems,
+      treatmentPlan: consultationForm.treatmentPlan,
+      advice: consultationForm.advice,
+      followUpDate: consultationForm.followUpDate,
+      sendBackTo: consultationForm.sendBackTo,
+      sendBackNotes: consultationForm.referralNotes,
+      status: 'sent_back' as const,
+      completedAt: new Date().toISOString(),
+      // Vital signs from consultation
+      bloodPressureSystolic: consultationForm.bloodPressureSystolic ? parseInt(consultationForm.bloodPressureSystolic) : undefined,
+      bloodPressureDiastolic: consultationForm.bloodPressureDiastolic ? parseInt(consultationForm.bloodPressureDiastolic) : undefined,
+      temperature: consultationForm.temperature ? parseFloat(consultationForm.temperature) : undefined,
+      pulse: consultationForm.pulse ? parseInt(consultationForm.pulse) : undefined,
+      respiratoryRate: consultationForm.respiratoryRate ? parseInt(consultationForm.respiratoryRate) : undefined,
+      weight: consultationForm.weight ? parseFloat(consultationForm.weight) : undefined,
+      height: consultationForm.height ? parseFloat(consultationForm.height) : undefined,
+      oxygenSaturation: consultationForm.oxygenSaturation ? parseFloat(consultationForm.oxygenSaturation) : undefined,
     }
 
     setConsultations(consultations.map(c => {
       if (c.id === consultationForm.consultationId) {
-        return {
-          ...c,
-          historyOfPresentIllness: consultationForm.historyOfPresentIllness,
-          pastMedicalHistory: consultationForm.pastMedicalHistory,
-          generalExamination: consultationForm.generalExamination,
-          systemExamination: consultationForm.systemExamination,
-          investigationsRequested: consultationForm.investigationsRequested,
-          scanRequested: consultationForm.scanRequested,
-          scanFindings: consultationForm.scanFindings,
-          provisionalDiagnosis: consultationForm.provisionalDiagnosis,
-          finalDiagnosis: consultationForm.finalDiagnosis,
-          hasPrescription: consultationForm.hasPrescription,
-          prescriptionItems: consultationForm.prescriptionItems,
-          treatmentPlan: consultationForm.treatmentPlan,
-          advice: consultationForm.advice,
-          followUpDate: consultationForm.followUpDate,
-          sendBackTo: consultationForm.sendBackTo,
-          sendBackNotes: consultationForm.referralNotes,
-          status: 'sent_back' as const,
-          completedAt: new Date().toISOString(),
-          // Vital signs from consultation
-          bloodPressureSystolic: consultationForm.bloodPressureSystolic ? parseInt(consultationForm.bloodPressureSystolic) : undefined,
-          bloodPressureDiastolic: consultationForm.bloodPressureDiastolic ? parseInt(consultationForm.bloodPressureDiastolic) : undefined,
-          temperature: consultationForm.temperature ? parseFloat(consultationForm.temperature) : undefined,
-          pulse: consultationForm.pulse ? parseInt(consultationForm.pulse) : undefined,
-          respiratoryRate: consultationForm.respiratoryRate ? parseInt(consultationForm.respiratoryRate) : undefined,
-          weight: consultationForm.weight ? parseFloat(consultationForm.weight) : undefined,
-          height: consultationForm.height ? parseFloat(consultationForm.height) : undefined,
-          oxygenSaturation: consultationForm.oxygenSaturation ? parseFloat(consultationForm.oxygenSaturation) : undefined,
-        }
+        return { ...c, ...updatedConsultationData }
       }
       return c
     }))
+    
+    // Update consultation in database
+    await updateInDB('consultation', consultationForm.consultationId, updatedConsultationData)
     
     // Add file transfer notification
     const patient = patients.find(p => p.id === consultationForm.patientId)
@@ -4604,7 +4806,7 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
     }
   }
 
-  const createAppointment = () => {
+  const createAppointment = async () => {
     if (!user) {
       alert('You must be logged in to book appointments')
       return
@@ -4629,21 +4831,30 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
     setAppointments([...appointments, newAppointment])
     setShowAppointmentDialog(false)
     setAppointmentForm({ patientId: '', doctorId: '', appointmentDate: '', startTime: '', type: 'General Consultation', reason: '', initials: '' })
+    
+    // Save to database
+    const result = await saveAppointmentToDB(newAppointment)
+    if (!result.success) {
+      showToast('Appointment created locally but failed to save to database.', 'warning')
+    }
   }
 
-  const updateAppointmentStatus = (id: string, status: string) => {
+  const updateAppointmentStatus = async (id: string, status: string) => {
     setAppointments(appointments.map(a => a.id === id ? { ...a, status } : a))
+    await updateInDB('appointment', id, { status })
   }
 
-  const updatePrescriptionStatus = (id: string, status: string) => {
+  const updatePrescriptionStatus = async (id: string, status: string) => {
     setPrescriptions(prescriptions.map(p => p.id === id ? { ...p, status } : p))
+    await updateInDB('prescription', id, { status })
   }
 
-  const updateLabStatus = (id: string, status: string) => {
+  const updateLabStatus = async (id: string, status: string) => {
     setLabRequests(labRequests.map(l => l.id === id ? { ...l, status } : l))
+    await updateInDB('labRequest', id, { status })
   }
 
-  const createRoster = () => {
+  const createRoster = async () => {
     const newRoster: RosterEntry = {
       id: `r${Date.now()}`,
       ...rosterForm
@@ -4651,13 +4862,25 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
     setRosters([...rosters, newRoster])
     setShowRosterDialog(false)
     setRosterForm({ staffId: '', staffName: '', staffRole: 'NURSE', date: '', shift: 'morning', department: 'General', notes: '' })
+    
+    // Save to database (using generic save pattern)
+    try {
+      await fetch('/api/data', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'roster', data: newRoster })
+      })
+    } catch (error) {
+      console.error('Failed to save roster:', error)
+    }
   }
 
-  const deleteRoster = (id: string) => {
+  const deleteRoster = async (id: string) => {
     setRosters(rosters.filter(r => r.id !== id))
+    await deleteFromDB('roster', id)
   }
 
-  const createAnnouncement = () => {
+  const createAnnouncement = async () => {
     const newAnnouncement: Announcement = {
       id: `ann${Date.now()}`,
       ...announcementForm,
@@ -4668,6 +4891,9 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
     setAnnouncements([newAnnouncement, ...announcements])
     setShowAnnouncementDialog(false)
     setAnnouncementForm({ title: '', content: '', type: 'general' })
+    
+    // Save to database
+    await saveAnnouncementToDB(newAnnouncement)
   }
 
   // Create Backup
@@ -5019,7 +5245,7 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
     }
   }
 
-  const sendVoiceNote = () => {
+  const sendVoiceNote = async () => {
     if (!audioBlob) return
     if (!user) {
       alert('You must be logged in to send voice notes')
@@ -5050,6 +5276,9 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
     setTranscriptionError('')
     setRecordingTime(0)
     setVoiceNoteForm({ recipientRole: 'DOCTOR', patientId: '', transcription: '', initials: '' })
+    
+    // Save to database
+    await saveVoiceNoteToDB(newVoiceNote)
   }
 
   // Create new admission
@@ -5282,7 +5511,7 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
   }
 
   // Record vitals
-  const recordVitals = () => {
+  const recordVitals = async () => {
     if (!user) {
       alert('You must be logged in to perform this action')
       return
@@ -5313,6 +5542,9 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
     setVitals([newVital, ...vitals])
     setShowVitalsDialog(false)
     setVitalsForm({ patientId: '', bloodPressureSystolic: '', bloodPressureDiastolic: '', temperature: '', pulse: '', respiratoryRate: '', weight: '', height: '', oxygenSaturation: '', painScore: '', notes: '', initials: '' })
+    
+    // Save to database
+    await saveVitalToDB(newVital)
   }
 
   // Record medication administration
@@ -9323,6 +9555,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                                 setQueueEntries(queueEntries.map(q => 
                                   q.id === entry.id ? { ...q, status: 'in_progress', calledAt: new Date().toISOString() } : q
                                 ))
+                                updateInDB('queueEntry', entry.id, { status: 'in_progress', calledAt: new Date().toISOString() })
                               }}
                             >
                               Call
@@ -9375,6 +9608,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                                 setQueueEntries(queueEntries.map(q => 
                                   q.id === entry.id ? { ...q, status: 'completed', completedAt: new Date().toISOString() } : q
                                 ))
+                                updateInDB('queueEntry', entry.id, { status: 'completed', completedAt: new Date().toISOString() })
                               }}
                             >
                               Complete
@@ -10774,11 +11008,13 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                                             if (newUnit !== patient.currentUnit) {
                                               const confirmTransfer = confirm(`Transfer ${patient.firstName} ${patient.lastName} to ${healthCentreUnits.find(u => u.id === newUnit)?.name}?`)
                                               if (confirmTransfer) {
+                                                const updateData = { currentUnit: newUnit, admissionDate: ['mmw', 'fmw'].includes(newUnit) ? new Date().toISOString() : undefined }
                                                 setPatients(patients.map(p => 
                                                   p.id === patient.id 
-                                                    ? { ...p, currentUnit: newUnit, admissionDate: ['mmw', 'fmw'].includes(newUnit) ? new Date().toISOString() : undefined }
+                                                    ? { ...p, ...updateData }
                                                     : p
                                                 ))
+                                                updateInDB('patient', patient.id, updateData)
                                               }
                                             }
                                           }}
@@ -10806,11 +11042,13 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                                           onClick={() => {
                                             const confirmDischarge = confirm(`Discharge ${patient.firstName} ${patient.lastName}?`)
                                             if (confirmDischarge) {
+                                              const updateData = { currentUnit: undefined, admissionDate: undefined, isActive: false }
                                               setPatients(patients.map(p => 
                                                 p.id === patient.id 
-                                                  ? { ...p, currentUnit: undefined, admissionDate: undefined, isActive: false }
+                                                  ? { ...p, ...updateData }
                                                   : p
                                               ))
+                                              updateInDB('patient', patient.id, updateData)
                                             }
                                           }}
                                         >
@@ -16608,11 +16846,13 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                   createdAt: new Date().toISOString()
                 }
                 setLabResults([newResult, ...labResults])
+                saveLabResultToDB(newResult)
                 setLabRequests(labRequests.map(l => 
                   l.id === labResultForm.labRequestId 
                     ? { ...l, status: 'completed', results: labResultForm.result, resultsEnteredBy: labResultForm.initials }
                     : l
                 ))
+                updateInDB('labRequest', labResultForm.labRequestId, { status: 'completed', results: labResultForm.result, resultsEnteredBy: labResultForm.initials })
                 setShowLabResultDialog(false)
               }}
               className="bg-green-600 hover:bg-green-700"
@@ -17333,6 +17573,8 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                     ? { ...d, quantityInStock: d.quantityInStock - dispenseForm.quantity }
                     : d
                 ))
+                // Update drug stock in database
+                updateInDB('drug', dispenseForm.drugId, { quantityInStock: (drug?.quantityInStock || 0) - dispenseForm.quantity })
                 setShowDispenseDialog(false)
               }}
               className="bg-purple-600 hover:bg-purple-700"
@@ -17419,6 +17661,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                   notes: queueForm.notes
                 }
                 setQueueEntries([...queueEntries, newEntry])
+                saveQueueEntryToDB(newEntry)
                 setShowQueueDialog(false)
                 setQueueForm({ patientId: '', unit: 'opd', priority: 'normal', notes: '' })
               }}
@@ -17545,6 +17788,9 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                 }
                 setMedicalCertificates([newCert, ...medicalCertificates])
                 
+                // Save to database
+                saveMedicalCertificateToDB(newCert)
+                
                 // Generate and print the certificate
                 const response = await fetch('/api/documents', {
                   method: 'POST',
@@ -17661,6 +17907,9 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                   createdAt: new Date().toISOString()
                 }
                 setReferralLetters([newReferral, ...referralLetters])
+                
+                // Save to database
+                saveReferralLetterToDB(newReferral)
                 
                 // Generate and print the referral letter
                 const response = await fetch('/api/documents', {
