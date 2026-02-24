@@ -2583,6 +2583,8 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
   const [sendPatientForm, setSendPatientForm] = useState({ 
     patientId: '', 
     destination: '' as 'nurse' | 'doctor' | 'laboratory' | 'pharmacy' | 'records',
+    staffId: '',
+    staffName: '',
     notes: '',
     priority: 'normal' as 'normal' | 'urgent' | 'emergency'
   })
@@ -2996,11 +2998,30 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
     window.addEventListener('newAdmission', handleNewAdmission as EventListener)
     window.addEventListener('patientDischarged', handlePatientDischarged as EventListener)
 
-    // REAL-TIME polling for all data changes (every 2 seconds) - reflects changes instantly across all dashboards
+    // REAL-TIME SSE Connection - WhatsApp-like instant updates
+    let eventSource: EventSource | null = null
+    try {
+      eventSource = new EventSource('/api/realtime')
+      
+      eventSource.onmessage = (event) => {
+        // Any message received means data changed - reload instantly
+        clearCache()
+        loadDataFromDB(true)
+      }
+      
+      eventSource.onerror = () => {
+        // SSE failed, fallback to polling
+        console.log('SSE connection failed, using polling fallback')
+      }
+    } catch (e) {
+      console.log('SSE not supported, using polling')
+    }
+
+    // Fallback polling (in case SSE fails)
     const pollInterval = setInterval(() => {
       clearCache()
       loadDataFromDB(true)
-    }, 2000)
+    }, 5000) // 5 second fallback polling
 
     // INSTANT polling for pending approvals (every 2 seconds) - Admin only
     let approvalPollInterval: NodeJS.Timeout | null = null
@@ -3089,6 +3110,7 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
       window.removeEventListener('patientDischarged', handlePatientDischarged as EventListener)
       clearInterval(pollInterval)
       if (approvalPollInterval) clearInterval(approvalPollInterval)
+      if (eventSource) eventSource.close()
     }
   }, [user])
 
@@ -4148,8 +4170,8 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
       showToast('You must be logged in to perform this action', 'warning')
       return
     }
-    if (!sendPatientForm.patientId || !sendPatientForm.destination) {
-      showToast('Please select a patient and destination', 'warning')
+    if (!sendPatientForm.patientId || !sendPatientForm.staffId) {
+      showToast('Please select a patient and staff member', 'warning')
       return
     }
 
@@ -4168,8 +4190,8 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
       id: `c${Date.now()}`,
       patientId: sendPatientForm.patientId,
       patient,
-      doctorId: sendPatientForm.destination === 'doctor' ? 'any' : '',
-      doctorName: sendPatientForm.destination === 'doctor' ? 'Pending Assignment' : '',
+      doctorId: sendPatientForm.staffId,
+      doctorName: sendPatientForm.staffName || 'Staff',
       chiefComplaint: `Sent from Records - ${sendPatientForm.notes || 'No complaint specified'}`,
       sentByNurseInitials: senderName,
       status: 'pending_review',
@@ -4205,10 +4227,10 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
 
     // Close dialog and reset form
     setShowSendPatientDialog(false)
-    setSendPatientForm({ patientId: '', destination: '' as any, notes: '', priority: 'normal' })
+    setSendPatientForm({ patientId: '', destination: '' as any, staffId: '', staffName: '', notes: '', priority: 'normal' })
 
     // Show success message
-    showToast(`✅ ${patientName} sent to ${destinationName} successfully!`, 'success')
+    showToast(`✅ ${patientName} sent to ${sendPatientForm.staffName} (${destinationName}) successfully!`, 'success')
 
     // Dispatch event for real-time notification
     window.dispatchEvent(new CustomEvent('patientFileSent', {
@@ -4216,6 +4238,7 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
         patientName,
         fromRole: user?.role,
         toRole: sendPatientForm.destination.toUpperCase(),
+        toStaff: sendPatientForm.staffName,
         notes: sendPatientForm.notes
       }
     }))
@@ -7432,11 +7455,13 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                                       size="sm" 
                                       variant="ghost" 
                                       className="text-green-600 hover:text-green-700 hover:bg-green-50"
-                                      title="Send to Department"
+                                      title="Send to Staff"
                                       onClick={() => {
                                         setSendPatientForm({
                                           patientId: p.id,
                                           destination: '' as any,
+                                          staffId: '',
+                                          staffName: '',
                                           notes: '',
                                           priority: 'normal'
                                         })
@@ -15533,14 +15558,14 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
 
       {/* Send Patient to Department Dialog - Records Officer */}
       <Dialog open={showSendPatientDialog} onOpenChange={setShowSendPatientDialog}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Send className="h-5 w-5 text-green-600" />
-              Send Patient to Department
+              Send Patient to Staff
             </DialogTitle>
             <DialogDescription>
-              Route this patient to the appropriate department for care
+              Route this patient to a specific staff member for care
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
@@ -15562,47 +15587,183 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
               ) : null
             })()}
 
-            {/* Destination Selection */}
-            <div className="space-y-2">
-              <Label>Send To *</Label>
-              <Select 
-                value={sendPatientForm.destination} 
-                onValueChange={v => setSendPatientForm({ ...sendPatientForm, destination: v as any })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select destination" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="nurse">
-                    <div className="flex items-center gap-2">
-                      <Activity className="h-4 w-4 text-teal-600" />
-                      <span>Nurse Station</span>
-                      <span className="text-xs text-gray-400">- For vitals & initial assessment</span>
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="doctor">
-                    <div className="flex items-center gap-2">
-                      <Stethoscope className="h-4 w-4 text-green-600" />
-                      <span>Doctor</span>
-                      <span className="text-xs text-gray-400">- For consultation</span>
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="laboratory">
-                    <div className="flex items-center gap-2">
-                      <Microscope className="h-4 w-4 text-pink-600" />
-                      <span>Laboratory</span>
-                      <span className="text-xs text-gray-400">- For tests</span>
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="pharmacy">
-                    <div className="flex items-center gap-2">
-                      <Pill className="h-4 w-4 text-orange-600" />
-                      <span>Pharmacy</span>
-                      <span className="text-xs text-gray-400">- For medication</span>
-                    </div>
-                  </SelectItem>
-                </SelectContent>
-              </Select>
+            {/* Staff Selection by Role */}
+            <div className="space-y-3">
+              <Label>Select Staff Member *</Label>
+              
+              {/* Doctors */}
+              <div className="border rounded-lg overflow-hidden">
+                <div className="bg-green-50 px-3 py-2 border-b flex items-center gap-2">
+                  <Stethoscope className="h-4 w-4 text-green-600" />
+                  <span className="font-medium text-green-800">Doctors</span>
+                  <Badge variant="outline" className="ml-auto text-xs">{systemUsers.filter(u => u.role === 'DOCTOR' && u.isActive).length}</Badge>
+                </div>
+                <div className="max-h-32 overflow-y-auto">
+                  {systemUsers.filter(u => u.role === 'DOCTOR' && u.isActive).length > 0 ? (
+                    systemUsers.filter(u => u.role === 'DOCTOR' && u.isActive).map(staff => (
+                      <button
+                        key={staff.id}
+                        type="button"
+                        onClick={() => setSendPatientForm({ ...sendPatientForm, destination: 'doctor', staffId: staff.id, staffName: staff.name })}
+                        className={cn(
+                          "w-full px-3 py-2 text-left text-sm hover:bg-green-50 flex items-center gap-2 border-b last:border-b-0",
+                          sendPatientForm.staffId === staff.id && "bg-green-100"
+                        )}
+                      >
+                        <Avatar className="h-6 w-6">
+                          <AvatarFallback className="text-xs bg-green-200 text-green-800">
+                            {staff.initials || staff.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <span>{staff.name}</span>
+                        {staff.department && <span className="text-xs text-gray-400">({staff.department})</span>}
+                        {sendPatientForm.staffId === staff.id && <CheckCircle className="h-4 w-4 text-green-600 ml-auto" />}
+                      </button>
+                    ))
+                  ) : (
+                    <p className="px-3 py-2 text-sm text-gray-500 italic">No doctors available</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Nurses */}
+              <div className="border rounded-lg overflow-hidden">
+                <div className="bg-teal-50 px-3 py-2 border-b flex items-center gap-2">
+                  <Activity className="h-4 w-4 text-teal-600" />
+                  <span className="font-medium text-teal-800">Nurses</span>
+                  <Badge variant="outline" className="ml-auto text-xs">{systemUsers.filter(u => u.role === 'NURSE' && u.isActive).length}</Badge>
+                </div>
+                <div className="max-h-32 overflow-y-auto">
+                  {systemUsers.filter(u => u.role === 'NURSE' && u.isActive).length > 0 ? (
+                    systemUsers.filter(u => u.role === 'NURSE' && u.isActive).map(staff => (
+                      <button
+                        key={staff.id}
+                        type="button"
+                        onClick={() => setSendPatientForm({ ...sendPatientForm, destination: 'nurse', staffId: staff.id, staffName: staff.name })}
+                        className={cn(
+                          "w-full px-3 py-2 text-left text-sm hover:bg-teal-50 flex items-center gap-2 border-b last:border-b-0",
+                          sendPatientForm.staffId === staff.id && "bg-teal-100"
+                        )}
+                      >
+                        <Avatar className="h-6 w-6">
+                          <AvatarFallback className="text-xs bg-teal-200 text-teal-800">
+                            {staff.initials || staff.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <span>{staff.name}</span>
+                        {staff.department && <span className="text-xs text-gray-400">({staff.department})</span>}
+                        {sendPatientForm.staffId === staff.id && <CheckCircle className="h-4 w-4 text-teal-600 ml-auto" />}
+                      </button>
+                    ))
+                  ) : (
+                    <p className="px-3 py-2 text-sm text-gray-500 italic">No nurses available</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Laboratory */}
+              <div className="border rounded-lg overflow-hidden">
+                <div className="bg-pink-50 px-3 py-2 border-b flex items-center gap-2">
+                  <Microscope className="h-4 w-4 text-pink-600" />
+                  <span className="font-medium text-pink-800">Laboratory</span>
+                  <Badge variant="outline" className="ml-auto text-xs">{systemUsers.filter(u => u.role === 'LAB_TECHNICIAN' && u.isActive).length}</Badge>
+                </div>
+                <div className="max-h-32 overflow-y-auto">
+                  {systemUsers.filter(u => u.role === 'LAB_TECHNICIAN' && u.isActive).length > 0 ? (
+                    systemUsers.filter(u => u.role === 'LAB_TECHNICIAN' && u.isActive).map(staff => (
+                      <button
+                        key={staff.id}
+                        type="button"
+                        onClick={() => setSendPatientForm({ ...sendPatientForm, destination: 'laboratory', staffId: staff.id, staffName: staff.name })}
+                        className={cn(
+                          "w-full px-3 py-2 text-left text-sm hover:bg-pink-50 flex items-center gap-2 border-b last:border-b-0",
+                          sendPatientForm.staffId === staff.id && "bg-pink-100"
+                        )}
+                      >
+                        <Avatar className="h-6 w-6">
+                          <AvatarFallback className="text-xs bg-pink-200 text-pink-800">
+                            {staff.initials || staff.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <span>{staff.name}</span>
+                        {staff.department && <span className="text-xs text-gray-400">({staff.department})</span>}
+                        {sendPatientForm.staffId === staff.id && <CheckCircle className="h-4 w-4 text-pink-600 ml-auto" />}
+                      </button>
+                    ))
+                  ) : (
+                    <p className="px-3 py-2 text-sm text-gray-500 italic">No lab technicians available</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Pharmacy */}
+              <div className="border rounded-lg overflow-hidden">
+                <div className="bg-orange-50 px-3 py-2 border-b flex items-center gap-2">
+                  <Pill className="h-4 w-4 text-orange-600" />
+                  <span className="font-medium text-orange-800">Pharmacy</span>
+                  <Badge variant="outline" className="ml-auto text-xs">{systemUsers.filter(u => u.role === 'PHARMACIST' && u.isActive).length}</Badge>
+                </div>
+                <div className="max-h-32 overflow-y-auto">
+                  {systemUsers.filter(u => u.role === 'PHARMACIST' && u.isActive).length > 0 ? (
+                    systemUsers.filter(u => u.role === 'PHARMACIST' && u.isActive).map(staff => (
+                      <button
+                        key={staff.id}
+                        type="button"
+                        onClick={() => setSendPatientForm({ ...sendPatientForm, destination: 'pharmacy', staffId: staff.id, staffName: staff.name })}
+                        className={cn(
+                          "w-full px-3 py-2 text-left text-sm hover:bg-orange-50 flex items-center gap-2 border-b last:border-b-0",
+                          sendPatientForm.staffId === staff.id && "bg-orange-100"
+                        )}
+                      >
+                        <Avatar className="h-6 w-6">
+                          <AvatarFallback className="text-xs bg-orange-200 text-orange-800">
+                            {staff.initials || staff.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <span>{staff.name}</span>
+                        {staff.department && <span className="text-xs text-gray-400">({staff.department})</span>}
+                        {sendPatientForm.staffId === staff.id && <CheckCircle className="h-4 w-4 text-orange-600 ml-auto" />}
+                      </button>
+                    ))
+                  ) : (
+                    <p className="px-3 py-2 text-sm text-gray-500 italic">No pharmacists available</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Records */}
+              <div className="border rounded-lg overflow-hidden">
+                <div className="bg-cyan-50 px-3 py-2 border-b flex items-center gap-2">
+                  <FileText className="h-4 w-4 text-cyan-600" />
+                  <span className="font-medium text-cyan-800">Records</span>
+                  <Badge variant="outline" className="ml-auto text-xs">{systemUsers.filter(u => u.role === 'RECORDS_OFFICER' && u.isActive).length}</Badge>
+                </div>
+                <div className="max-h-32 overflow-y-auto">
+                  {systemUsers.filter(u => u.role === 'RECORDS_OFFICER' && u.isActive).length > 0 ? (
+                    systemUsers.filter(u => u.role === 'RECORDS_OFFICER' && u.isActive).map(staff => (
+                      <button
+                        key={staff.id}
+                        type="button"
+                        onClick={() => setSendPatientForm({ ...sendPatientForm, destination: 'records', staffId: staff.id, staffName: staff.name })}
+                        className={cn(
+                          "w-full px-3 py-2 text-left text-sm hover:bg-cyan-50 flex items-center gap-2 border-b last:border-b-0",
+                          sendPatientForm.staffId === staff.id && "bg-cyan-100"
+                        )}
+                      >
+                        <Avatar className="h-6 w-6">
+                          <AvatarFallback className="text-xs bg-cyan-200 text-cyan-800">
+                            {staff.initials || staff.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <span>{staff.name}</span>
+                        {sendPatientForm.staffId === staff.id && <CheckCircle className="h-4 w-4 text-cyan-600 ml-auto" />}
+                      </button>
+                    ))
+                  ) : (
+                    <p className="px-3 py-2 text-sm text-gray-500 italic">No records officers available</p>
+                  )}
+                </div>
+              </div>
             </div>
 
             {/* Priority */}
@@ -15660,16 +15821,16 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
           <DialogFooter>
             <Button variant="outline" onClick={() => {
               setShowSendPatientDialog(false)
-              setSendPatientForm({ patientId: '', destination: '' as any, notes: '', priority: 'normal' })
+              setSendPatientForm({ patientId: '', destination: '' as any, staffId: '', staffName: '', notes: '', priority: 'normal' })
             }}>
               Cancel
             </Button>
             <Button 
               onClick={sendPatientToDepartment}
-              disabled={!sendPatientForm.patientId || !sendPatientForm.destination}
+              disabled={!sendPatientForm.patientId || !sendPatientForm.staffId}
               className="bg-green-600 hover:bg-green-700"
             >
-              <Send className="h-4 w-4 mr-2" /> Send Patient
+              <Send className="h-4 w-4 mr-2" /> Send to {sendPatientForm.staffName || 'Staff'}
             </Button>
           </DialogFooter>
         </DialogContent>

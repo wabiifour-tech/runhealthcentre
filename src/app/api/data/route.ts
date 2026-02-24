@@ -8,6 +8,23 @@ import { authenticateRequest } from '@/lib/auth-middleware'
 
 const logger = createLogger('DataAPI')
 
+// Real-time broadcast helper
+async function broadcastChange(eventType: string, dataType: string, data?: any) {
+  try {
+    await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || ''}/api/realtime`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+        event: eventType, 
+        data: { type: dataType, item: data, timestamp: Date.now() }
+      })
+    })
+  } catch (e) {
+    // Silent fail - don't break operations if broadcast fails
+    logger.debug('Broadcast failed', { error: String(e) })
+  }
+}
+
 // In-memory data store for demo mode
 const demoData: Record<string, any[]> = {
   patients: [],
@@ -253,6 +270,8 @@ export async function POST(request: NextRequest) {
             }
           })
           logger.info('Patient created', { hospitalNumber, ruhcCode })
+          // Broadcast to all connected clients
+          broadcastChange('patient_created', 'patient', patient)
           return successResponse({ data: patient })
         }
 
@@ -261,6 +280,7 @@ export async function POST(request: NextRequest) {
             data: { ...data, recordedAt: now, id: generateId() }
           })
           logger.info('Vital signs recorded', { patientId: data.patientId })
+          broadcastChange('vital_created', 'vital', vital)
           return successResponse({ data: vital })
         }
 
@@ -269,6 +289,7 @@ export async function POST(request: NextRequest) {
             data: { ...data, createdAt: now, id: generateId() }
           })
           logger.info('Consultation created', { patientId: data.patientId })
+          broadcastChange('consultation_created', 'consultation', consultation)
           return successResponse({ data: consultation })
         }
 
@@ -277,6 +298,7 @@ export async function POST(request: NextRequest) {
             data: { ...data, createdAt: now, id: generateId() }
           })
           logger.info('Drug added', { name: data.name })
+          broadcastChange('drug_created', 'drug', drug)
           return successResponse({ data: drug })
         }
 
@@ -285,6 +307,7 @@ export async function POST(request: NextRequest) {
             data: { ...data, createdAt: now, id: generateId() }
           })
           logger.info('Lab test added', { name: data.name })
+          broadcastChange('labTest_created', 'labTest', labTest)
           return successResponse({ data: labTest })
         }
 
@@ -293,6 +316,7 @@ export async function POST(request: NextRequest) {
             data: { ...data, requestedAt: now, id: generateId() }
           })
           logger.info('Lab request created', { patientId: data.patientId })
+          broadcastChange('labRequest_created', 'labRequest', labRequest)
           return successResponse({ data: labRequest })
         }
 
@@ -301,6 +325,7 @@ export async function POST(request: NextRequest) {
             data: { ...data, createdAt: now, id: generateId() }
           })
           logger.info('Lab result added', { requestId: data.requestId })
+          broadcastChange('labResult_created', 'labResult', labResult)
           return successResponse({ data: labResult })
         }
 
@@ -309,6 +334,7 @@ export async function POST(request: NextRequest) {
             data: { ...data, checkedInAt: now, id: generateId() }
           })
           logger.info('Queue entry created', { patientId: data.patientId })
+          broadcastChange('queueEntry_created', 'queueEntry', queueEntry)
           return successResponse({ data: queueEntry })
         }
 
@@ -317,6 +343,7 @@ export async function POST(request: NextRequest) {
             data: { ...data, createdAt: now, id: generateId() }
           })
           logger.info('Appointment created', { patientId: data.patientId })
+          broadcastChange('appointment_created', 'appointment', appointment)
           return successResponse({ data: appointment })
         }
 
@@ -325,6 +352,7 @@ export async function POST(request: NextRequest) {
             data: { ...data, createdAt: now, id: generateId() }
           })
           logger.info('Admission created', { patientId: data.patientId })
+          broadcastChange('admission_created', 'admission', admission)
           return successResponse({ data: admission })
         }
 
@@ -333,6 +361,7 @@ export async function POST(request: NextRequest) {
             data: { ...data, createdAt: now, id: generateId() }
           })
           logger.info('Prescription created', { patientId: data.patientId })
+          broadcastChange('prescription_created', 'prescription', prescription)
           return successResponse({ data: prescription })
         }
 
@@ -341,6 +370,7 @@ export async function POST(request: NextRequest) {
             data: { ...data, createdAt: now, id: generateId() }
           })
           logger.info('Medical certificate created', { patientId: data.patientId })
+          broadcastChange('medicalCertificate_created', 'medicalCertificate', cert)
           return successResponse({ data: cert })
         }
 
@@ -349,6 +379,7 @@ export async function POST(request: NextRequest) {
             data: { ...data, createdAt: now, id: generateId() }
           })
           logger.info('Referral letter created', { patientId: data.patientId })
+          broadcastChange('referralLetter_created', 'referralLetter', referral)
           return successResponse({ data: referral })
         }
 
@@ -357,6 +388,7 @@ export async function POST(request: NextRequest) {
             data: { ...data, createdAt: now, id: generateId() }
           })
           logger.info('Discharge summary created', { patientId: data.patientId })
+          broadcastChange('dischargeSummary_created', 'dischargeSummary', discharge)
           return successResponse({ data: discharge })
         }
 
@@ -365,6 +397,7 @@ export async function POST(request: NextRequest) {
             data: { ...data, createdAt: now, id: generateId() }
           })
           logger.info('Announcement created', { title: data.title })
+          broadcastChange('announcement_created', 'announcement', announcement)
           return successResponse({ data: announcement })
         }
 
@@ -373,6 +406,7 @@ export async function POST(request: NextRequest) {
             data: { ...data, createdAt: now, id: generateId() }
           })
           logger.info('Voice note created', { patientId: data.patientId })
+          broadcastChange('voiceNote_created', 'voiceNote', voiceNote)
           return successResponse({ data: voiceNote })
         }
 
@@ -473,6 +507,7 @@ export async function PUT(request: NextRequest) {
             data: { ...data, lastEditedAt: new Date().toISOString() }
           })
           logger.info('Patient updated', { patientId: id })
+          broadcastChange('patient_updated', 'patient', patient)
           return successResponse({ data: patient })
         }
 
@@ -481,6 +516,7 @@ export async function PUT(request: NextRequest) {
             where: { id },
             data
           })
+          broadcastChange('vital_updated', 'vital', vital)
           return successResponse({ data: vital })
         }
 
@@ -490,6 +526,7 @@ export async function PUT(request: NextRequest) {
             data
           })
           logger.info('Consultation updated', { consultationId: id })
+          broadcastChange('consultation_updated', 'consultation', consultation)
           return successResponse({ data: consultation })
         }
 
@@ -498,6 +535,7 @@ export async function PUT(request: NextRequest) {
             where: { id },
             data
           })
+          broadcastChange('drug_updated', 'drug', drug)
           return successResponse({ data: drug })
         }
 
@@ -507,6 +545,7 @@ export async function PUT(request: NextRequest) {
             data
           })
           logger.info('Lab request updated', { requestId: id })
+          broadcastChange('labRequest_updated', 'labRequest', labRequest)
           return successResponse({ data: labRequest })
         }
 
@@ -515,6 +554,7 @@ export async function PUT(request: NextRequest) {
             where: { id },
             data
           })
+          broadcastChange('labResult_updated', 'labResult', labResult)
           return successResponse({ data: labResult })
         }
 
@@ -523,6 +563,7 @@ export async function PUT(request: NextRequest) {
             where: { id },
             data
           })
+          broadcastChange('queueEntry_updated', 'queueEntry', queueEntry)
           return successResponse({ data: queueEntry })
         }
 
@@ -532,6 +573,7 @@ export async function PUT(request: NextRequest) {
             data
           })
           logger.info('Appointment updated', { appointmentId: id })
+          broadcastChange('appointment_updated', 'appointment', appointment)
           return successResponse({ data: appointment })
         }
 
@@ -541,6 +583,7 @@ export async function PUT(request: NextRequest) {
             data: { ...data, updatedAt: new Date().toISOString() }
           })
           logger.info('Admission updated', { admissionId: id })
+          broadcastChange('admission_updated', 'admission', admission)
           return successResponse({ data: admission })
         }
 
@@ -549,6 +592,7 @@ export async function PUT(request: NextRequest) {
             where: { id },
             data
           })
+          broadcastChange('prescription_updated', 'prescription', prescription)
           return successResponse({ data: prescription })
         }
 
@@ -557,6 +601,7 @@ export async function PUT(request: NextRequest) {
             where: { id },
             data
           })
+          broadcastChange('announcement_updated', 'announcement', announcement)
           return successResponse({ data: announcement })
         }
 
@@ -619,47 +664,61 @@ export async function DELETE(request: NextRequest) {
         case 'patient':
           await p.patients.delete({ where: { id } })
           logger.info('Patient deleted', { patientId: id })
+          broadcastChange('patient_deleted', 'patient', { id })
           break
         case 'vital':
           await p.vital_signs.delete({ where: { id } })
+          broadcastChange('vital_deleted', 'vital', { id })
           break
         case 'consultation':
           await p.consultations.delete({ where: { id } })
+          broadcastChange('consultation_deleted', 'consultation', { id })
           break
         case 'drug':
           await p.drugs.update({ where: { id }, data: { isActive: false } })
           logger.info('Drug deactivated', { drugId: id })
+          broadcastChange('drug_deleted', 'drug', { id })
           break
         case 'labTest':
           await p.lab_tests.update({ where: { id }, data: { isActive: false } })
+          broadcastChange('labTest_deleted', 'labTest', { id })
           break
         case 'labRequest':
           await p.lab_requests.delete({ where: { id } })
+          broadcastChange('labRequest_deleted', 'labRequest', { id })
           break
         case 'labResult':
           await p.lab_results.delete({ where: { id } })
+          broadcastChange('labResult_deleted', 'labResult', { id })
           break
         case 'queueEntry':
           await p.queue_entries.delete({ where: { id } })
+          broadcastChange('queueEntry_deleted', 'queueEntry', { id })
           break
         case 'appointment':
           await p.appointments.delete({ where: { id } })
           logger.info('Appointment deleted', { appointmentId: id })
+          broadcastChange('appointment_deleted', 'appointment', { id })
           break
         case 'admission':
           await p.admissions.delete({ where: { id } })
+          broadcastChange('admission_deleted', 'admission', { id })
           break
         case 'prescription':
           await p.prescriptions.delete({ where: { id } })
+          broadcastChange('prescription_deleted', 'prescription', { id })
           break
         case 'announcement':
           await p.announcements.delete({ where: { id } })
+          broadcastChange('announcement_deleted', 'announcement', { id })
           break
         case 'voiceNote':
           await p.voice_notes.delete({ where: { id } })
+          broadcastChange('voiceNote_deleted', 'voiceNote', { id })
           break
         case 'medicalCertificate':
           await p.medical_certificates.delete({ where: { id } })
+          broadcastChange('medicalCertificate_deleted', 'medicalCertificate', { id })
           break
         case 'referralLetter':
           await p.referral_letters.delete({ where: { id } })
