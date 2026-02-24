@@ -20,6 +20,15 @@ import { verifyPassword, hashPassword, isPasswordExpired, getDaysUntilExpiry, va
 import { checkLoginRateLimit, recordLoginFailure, clearRateLimit, formatRemainingTime } from '@/lib/rate-limiter'
 import { useSessionTimeout, getSessionTimeout, setSessionTimeout, SESSION_TIMEOUT_OPTIONS, formatSessionTime } from '@/lib/session'
 import { 
+  initOfflineDB, saveLocal, getAllLocal, STORES, type StoreName,
+  queueForSync, getPendingSyncCount
+} from '@/lib/offline-db'
+import { 
+  offlineFirstSave, offlineFirstUpdate, offlineFirstDelete,
+  initSyncManager, startBackgroundSync, stopBackgroundSync,
+  subscribeToSyncStatus, processSyncQueue, type SyncStatus
+} from '@/lib/sync-manager'
+import { 
   LogOut, Users, Calendar, Stethoscope, Pill, Microscope, Receipt, 
   Shield, Activity, Search, Plus, Eye, Clock, Menu, Home,
   UserPlus, Calculator, Mic, MicOff, Play, Pause, Send, Download,
@@ -27,7 +36,7 @@ import {
   Heart, Baby, Weight, Syringe, Settings, User, ChevronRight,
   Smartphone, Monitor, AlertTriangle, CheckCircle, Key, Lock, Building2,
   XCircle, BookOpen, BookMarked, Cross, Bookmark, Sparkles, Sun,
-  Timer, LogIn, Phone, Mail, ShieldCheck, Edit2
+  Timer, LogIn, Phone, Mail, ShieldCheck, Edit2, Cloud, CloudOff, RefreshCw, Wifi, WifiOff
 } from 'lucide-react'
 import { 
   PatientVisitsChart, 
@@ -1747,6 +1756,11 @@ export default function HMSApp() {
   const [referralLetters, setReferralLetters] = useState<ReferralLetter[]>([])
   const [dischargeSummaries, setDischargeSummaries] = useState<DischargeSummary[]>([])
   
+  // Offline-First Sync Status
+  const [syncStatus, setSyncStatus] = useState<SyncStatus>('synced')
+  const [syncPendingCount, setSyncPendingCount] = useState<number>(0)
+  const [offlineReady, setOfflineReady] = useState<boolean>(false)
+  
   // System users - loaded from database via API
   const [systemUsers, setSystemUsers] = useState<SystemUser[]>([])
   const [prevPendingCount, setPrevPendingCount] = useState<number>(0)
@@ -3143,8 +3157,9 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
     initApp()
   }, [])
 
-  // Load all data from database via API
-  const loadDataFromDB = async () => {
+  // Load all data from database via API (with offline-first fallback)
+  const loadDataFromDB = async (silent: boolean = false) => {
+    // 1. Try to load from database first
     try {
       const response = await fetch('/api/data?type=all')
       const result = await response.json()
@@ -3158,6 +3173,7 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
                 dischargeSummaries: dbDischarge, announcements: dbAnnouncements,
                 voiceNotes: dbVoiceNotes, users: dbUsers } = result.data
         
+        // Update React state
         if (dbPatients) setPatients(dbPatients)
         if (dbVitals) setVitals(dbVitals)
         if (dbConsultations) setConsultations(dbConsultations)
@@ -3186,17 +3202,130 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
           setPrevPendingCount(pendingCount)
         }
         
+        // 2. Save to IndexedDB for offline access
+        if (offlineReady) {
+          try {
+            if (dbPatients) dbPatients.forEach((p: any) => saveLocal(STORES.PATIENTS, p))
+            if (dbVitals) dbVitals.forEach((v: any) => saveLocal(STORES.VITALS, v))
+            if (dbConsultations) dbConsultations.forEach((c: any) => saveLocal(STORES.CONSULTATIONS, c))
+            if (dbAppointments) dbAppointments.forEach((a: any) => saveLocal(STORES.APPOINTMENTS, a))
+            if (dbLabRequests) dbLabRequests.forEach((l: any) => saveLocal(STORES.LAB_REQUESTS, l))
+            if (dbLabResults) dbLabResults.forEach((l: any) => saveLocal(STORES.LAB_RESULTS, l))
+            if (dbQueue) dbQueue.forEach((q: any) => saveLocal(STORES.QUEUE_ENTRIES, q))
+            if (dbAdmissions) dbAdmissions.forEach((a: any) => saveLocal(STORES.ADMISSIONS, a))
+            if (dbPrescriptions) dbPrescriptions.forEach((p: any) => saveLocal(STORES.PRESCRIPTIONS, p))
+            if (dbCerts) dbCerts.forEach((c: any) => saveLocal(STORES.MEDICAL_CERTIFICATES, c))
+            if (dbReferrals) dbReferrals.forEach((r: any) => saveLocal(STORES.REFERRAL_LETTERS, r))
+            if (dbDischarge) dbDischarge.forEach((d: any) => saveLocal(STORES.DISCHARGE_SUMMARIES, d))
+            if (dbAnnouncements) dbAnnouncements.forEach((a: any) => saveLocal(STORES.ANNOUNCEMENTS, a))
+            if (dbVoiceNotes) dbVoiceNotes.forEach((v: any) => saveLocal(STORES.VOICE_NOTES, v))
+            console.log('Data cached locally for offline access')
+          } catch (cacheError) {
+            console.warn('Failed to cache data locally:', cacheError)
+          }
+        }
+        
         console.log('Data loaded from database')
+        setSyncStatus('synced')
+        return true
       }
     } catch (error) {
       console.error('Failed to load data from database:', error)
+      
+      // 3. If database fails, load from IndexedDB
+      if (offlineReady) {
+        console.log('Loading from local cache...')
+        try {
+          const [localPatients, localVitals, localConsultations, localAppointments,
+                 localLabRequests, localLabResults, localQueue, localAdmissions,
+                 localPrescriptions, localCerts, localReferrals, localDischarge,
+                 localAnnouncements, localVoiceNotes] = await Promise.all([
+            getAllLocal(STORES.PATIENTS),
+            getAllLocal(STORES.VITALS),
+            getAllLocal(STORES.CONSULTATIONS),
+            getAllLocal(STORES.APPOINTMENTS),
+            getAllLocal(STORES.LAB_REQUESTS),
+            getAllLocal(STORES.LAB_RESULTS),
+            getAllLocal(STORES.QUEUE_ENTRIES),
+            getAllLocal(STORES.ADMISSIONS),
+            getAllLocal(STORES.PRESCRIPTIONS),
+            getAllLocal(STORES.MEDICAL_CERTIFICATES),
+            getAllLocal(STORES.REFERRAL_LETTERS),
+            getAllLocal(STORES.DISCHARGE_SUMMARIES),
+            getAllLocal(STORES.ANNOUNCEMENTS),
+            getAllLocal(STORES.VOICE_NOTES)
+          ])
+          
+          if (localPatients.length > 0) setPatients(localPatients)
+          if (localVitals.length > 0) setVitals(localVitals)
+          if (localConsultations.length > 0) setConsultations(localConsultations)
+          if (localAppointments.length > 0) setAppointments(localAppointments)
+          if (localLabRequests.length > 0) setLabRequests(localLabRequests)
+          if (localLabResults.length > 0) setLabResults(localLabResults)
+          if (localQueue.length > 0) setQueueEntries(localQueue)
+          if (localAdmissions.length > 0) setAdmissions(localAdmissions)
+          if (localPrescriptions.length > 0) setPrescriptions(localPrescriptions)
+          if (localCerts.length > 0) setMedicalCertificates(localCerts)
+          if (localReferrals.length > 0) setReferralLetters(localReferrals)
+          if (localDischarge.length > 0) setDischargeSummaries(localDischarge)
+          if (localAnnouncements.length > 0) setAnnouncements(localAnnouncements)
+          if (localVoiceNotes.length > 0) setVoiceNotes(localVoiceNotes)
+          
+          console.log('Data loaded from local cache')
+          if (!silent) showToast('Working offline - data loaded from local storage', 'warning')
+          setSyncStatus('offline')
+        } catch (localError) {
+          console.error('Failed to load from local cache:', localError)
+        }
+      }
     }
+    return false
   }
 
-  // Load data on mount
+  // Initialize offline database and sync manager on mount
   useEffect(() => {
-    loadDataFromDB()
+    const initOffline = async () => {
+      try {
+        await initOfflineDB()
+        setOfflineReady(true)
+        console.log('Offline database initialized')
+        
+        // Initialize sync manager
+        await initSyncManager()
+        
+        // Start background sync
+        startBackgroundSync(15000) // Sync every 15 seconds
+        
+        // Subscribe to sync status changes
+        const unsubscribe = subscribeToSyncStatus((status, count) => {
+          setSyncStatus(status)
+          setSyncPendingCount(count)
+        })
+        
+        // Load data
+        await loadDataFromDB()
+        
+        return unsubscribe
+      } catch (error) {
+        console.error('Failed to initialize offline mode:', error)
+        // Still try to load data
+        loadDataFromDB()
+      }
+    }
+    
+    initOffline()
+    
+    return () => {
+      stopBackgroundSync()
+    }
   }, [])
+
+  // Manual sync function
+  const handleManualSync = async () => {
+    setSyncStatus('syncing')
+    await processSyncQueue()
+    await loadDataFromDB(true)
+  }
 
   // Handle approve user from popup
   const handleApproveUser = async (userToApprove: SystemUser) => {
@@ -6743,6 +6872,42 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
               </div>
             )}
           </div>
+          
+          {/* Sync Status Indicator */}
+          <div className={cn(
+            "flex items-center gap-2 px-2 py-1.5 rounded-lg mb-2 text-xs",
+            syncStatus === 'synced' && "bg-green-500/20 text-green-200",
+            syncStatus === 'syncing' && "bg-blue-500/20 text-blue-200",
+            syncStatus === 'pending' && "bg-yellow-500/20 text-yellow-200",
+            syncStatus === 'offline' && "bg-orange-500/20 text-orange-200",
+            syncStatus === 'error' && "bg-red-500/20 text-red-200"
+          )}>
+            {syncStatus === 'synced' && <CheckCircle className="h-3.5 w-3.5" />}
+            {syncStatus === 'syncing' && <RefreshCw className="h-3.5 w-3.5 animate-spin" />}
+            {syncStatus === 'pending' && <Clock className="h-3.5 w-3.5" />}
+            {syncStatus === 'offline' && <WifiOff className="h-3.5 w-3.5" />}
+            {syncStatus === 'error' && <AlertTriangle className="h-3.5 w-3.5" />}
+            {sidebarOpen && (
+              <span className="flex-1">
+                {syncStatus === 'synced' && "All synced"}
+                {syncStatus === 'syncing' && "Syncing..."}
+                {syncStatus === 'pending' && `${syncPendingCount} pending`}
+                {syncStatus === 'offline' && "Offline mode"}
+                {syncStatus === 'error' && "Sync error"}
+              </span>
+            )}
+            {(syncStatus === 'pending' || syncStatus === 'offline' || syncStatus === 'error') && sidebarOpen && (
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="h-6 w-6 p-0 hover:bg-white/10"
+                onClick={handleManualSync}
+              >
+                <RefreshCw className="h-3 w-3" />
+              </Button>
+            )}
+          </div>
+          
           <div className="space-y-2">
             <Button
               variant="ghost"
