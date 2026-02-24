@@ -2037,6 +2037,7 @@ export default function HMSApp() {
   const [labResults, setLabResults] = useState<LabResult[]>([])
   const [dispensedDrugs, setDispensedDrugs] = useState<DispensedDrug[]>([])
   const [queueEntries, setQueueEntries] = useState<QueueEntry[]>([])
+  const [queueFilterUnit, setQueueFilterUnit] = useState<string>('all')
   const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([])
   const [medicalCertificates, setMedicalCertificates] = useState<MedicalCertificate[]>([])
   const [referralLetters, setReferralLetters] = useState<ReferralLetter[]>([])
@@ -3715,26 +3716,64 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
     let eventSource: EventSource | null = null
     try {
       eventSource = new EventSource('/api/realtime')
-      
+
+      eventSource.addEventListener('connected', () => {
+        console.log('Real-time connected')
+      })
+
+      // Handle specific data change events
+      const handleDataChange = (dataType: string) => {
+        clearCache()
+        loadDataFromDB(true)
+        // Show contextual notification based on user role
+        if (user?.role === 'DOCTOR' || user?.role === 'NURSE') {
+          const notifications: Record<string, string> = {
+            consultation: '📋 New consultation update',
+            patient: '👤 Patient data updated',
+            queueEntry: ' QUEUE updated',
+            labResult: '🔬 Lab results available',
+            prescription: '💊 Prescription update',
+            vital: '📊 Vital signs updated',
+            announcement: '📢 New announcement',
+            roster: '📅 Duty roster updated',
+            attendance: '⏰ Attendance update'
+          }
+          if (notifications[dataType]) {
+            showToast(notifications[dataType], 'info')
+          }
+        }
+      }
+
+      // Listen for specific events from the server
+      const eventTypes = ['patient_created', 'patient_updated', 'consultation_created', 'consultation_updated',
+                         'queueEntry_created', 'queueEntry_updated', 'labResult_created', 'prescription_created',
+                         'vital_created', 'announcement_created', 'roster_created', 'attendance_created']
+
+      eventTypes.forEach(eventType => {
+        eventSource?.addEventListener(eventType, () => {
+          const dataType = eventType.split('_')[0]
+          handleDataChange(dataType)
+        })
+      })
+
       eventSource.onmessage = (event) => {
-        // Any message received means data changed - reload instantly
+        // Generic message - reload data
         clearCache()
         loadDataFromDB(true)
       }
-      
+
       eventSource.onerror = () => {
-        // SSE failed, fallback to polling
         console.log('SSE connection failed, using polling fallback')
       }
     } catch (e) {
       console.log('SSE not supported, using polling')
     }
 
-    // Fallback polling (in case SSE fails)
+    // Fallback polling (in case SSE fails) - longer interval to reduce load
     const pollInterval = setInterval(() => {
       clearCache()
       loadDataFromDB(true)
-    }, 5000) // 5 second fallback polling
+    }, 15000) // 15 second fallback polling
 
     // INSTANT polling for pending approvals (every 2 seconds) - Admin only
     let approvalPollInterval: NodeJS.Timeout | null = null
@@ -10815,20 +10854,21 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                     <div className="flex items-center gap-4 flex-wrap">
                       <span className="font-medium text-gray-700">Filter by Department:</span>
                       <div className="flex gap-2 flex-wrap">
-                        <Button 
-                          size="sm" 
-                          variant="outline"
-                          className="bg-blue-50"
-                          onClick={() => {/* Show all */}}
+                        <Button
+                          size="sm"
+                          variant={queueFilterUnit === 'all' ? 'default' : 'outline'}
+                          className={queueFilterUnit === 'all' ? 'bg-blue-600' : 'bg-blue-50'}
+                          onClick={() => setQueueFilterUnit('all')}
                         >
                           All Departments
                         </Button>
                         {healthCentreUnits.map(unit => (
-                          <Button 
+                          <Button
                             key={unit.id}
-                            size="sm" 
-                            variant="outline"
-                            onClick={() => {/* Filter by unit */}}
+                            size="sm"
+                            variant={queueFilterUnit === unit.id ? 'default' : 'outline'}
+                            className={queueFilterUnit === unit.id ? 'bg-blue-600' : ''}
+                            onClick={() => setQueueFilterUnit(unit.id)}
                           >
                             {unit.shortName}
                           </Button>
@@ -10838,7 +10878,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                   </CardContent>
                 </Card>
               )}
-              
+
               {/* Queue Stats */}
               <div className="grid grid-cols-3 gap-4">
                 <Card className="bg-yellow-50 border-yellow-200">
@@ -10846,7 +10886,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-sm text-yellow-700">Waiting</p>
-                        <p className="text-2xl font-bold text-yellow-800">{queueEntries.filter(q => q.status === 'waiting').length}</p>
+                        <p className="text-2xl font-bold text-yellow-800">{queueEntries.filter(q => q.status === 'waiting' && (queueFilterUnit === 'all' || q.unit === queueFilterUnit)).length}</p>
                       </div>
                       <Clock className="h-8 w-8 text-yellow-500" />
                     </div>
@@ -10857,7 +10897,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-sm text-blue-700">In Progress</p>
-                        <p className="text-2xl font-bold text-blue-800">{queueEntries.filter(q => q.status === 'in_progress').length}</p>
+                        <p className="text-2xl font-bold text-blue-800">{queueEntries.filter(q => q.status === 'in_progress' && (queueFilterUnit === 'all' || q.unit === queueFilterUnit)).length}</p>
                       </div>
                       <Activity className="h-8 w-8 text-blue-500" />
                     </div>
@@ -10868,14 +10908,14 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-sm text-green-700">Completed Today</p>
-                        <p className="text-2xl font-bold text-green-800">{queueEntries.filter(q => q.status === 'completed').length}</p>
+                        <p className="text-2xl font-bold text-green-800">{queueEntries.filter(q => q.status === 'completed' && (queueFilterUnit === 'all' || q.unit === queueFilterUnit)).length}</p>
                       </div>
                       <CheckCircle className="h-8 w-8 text-green-500" />
                     </div>
                   </CardContent>
                 </Card>
               </div>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {/* Waiting */}
                 <Card className="shadow-md border-yellow-200">
@@ -10885,18 +10925,18 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                         <Clock className="h-5 w-5 text-yellow-600" />
                         Waiting
                       </span>
-                      <Badge className="bg-yellow-500 text-white">{queueEntries.filter(q => q.status === 'waiting').length}</Badge>
+                      <Badge className="bg-yellow-500 text-white">{queueEntries.filter(q => q.status === 'waiting' && (queueFilterUnit === 'all' || q.unit === queueFilterUnit)).length}</Badge>
                     </CardTitle>
                     <CardDescription>Patients waiting to be seen</CardDescription>
                   </CardHeader>
                   <CardContent className="p-4 space-y-2 max-h-96 overflow-y-auto">
-                    {queueEntries.filter(q => q.status === 'waiting').length === 0 ? (
+                    {queueEntries.filter(q => q.status === 'waiting' && (queueFilterUnit === 'all' || q.unit === queueFilterUnit)).length === 0 ? (
                       <div className="text-center py-8 text-gray-500">
                         <Clock className="h-12 w-12 mx-auto mb-2 opacity-30" />
                         <p>No patients waiting</p>
                       </div>
                     ) : (
-                      queueEntries.filter(q => q.status === 'waiting').map(entry => {
+                      queueEntries.filter(q => q.status === 'waiting' && (queueFilterUnit === 'all' || q.unit === queueFilterUnit)).map(entry => {
                         const patient = patients.find(p => p.id === entry.patientId) || entry.patient
                         return (
                           <div key={entry.id} className="p-3 rounded-lg border bg-white hover:shadow-md transition-shadow">
@@ -10913,24 +10953,37 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                             </div>
                             {canEdit('queue') && (
                               <div className="mt-3 flex gap-2">
-                                <Button 
-                                  size="sm" 
+                                <Button
+                                  size="sm"
                                   className="flex-1 bg-green-600 hover:bg-green-700"
-                                  onClick={() => {
-                                    setQueueEntries(queueEntries.map(q => 
+                                  onClick={async () => {
+                                    setQueueEntries(queueEntries.map(q =>
                                       q.id === entry.id ? { ...q, status: 'in_progress', calledAt: new Date().toISOString() } : q
                                     ))
-                                    updateInDB('queueEntry', entry.id, { status: 'in_progress', calledAt: new Date().toISOString() })
+                                    await updateInDB('queueEntry', entry.id, { status: 'in_progress', calledAt: new Date().toISOString() })
                                     showToast(`Calling ${patient?.firstName} ${patient?.lastName}`, 'success')
+                                    // Broadcast real-time update
+                                    fetch('/api/realtime', {
+                                      method: 'POST',
+                                      headers: { 'Content-Type': 'application/json' },
+                                      body: JSON.stringify({ event: 'queueEntry_updated', data: { id: entry.id, status: 'in_progress' } })
+                                    })
                                   }}
                                 >
                                   <Volume2 className="h-4 w-4 mr-1" /> Call
                                 </Button>
-                                <Select onValueChange={(v) => {
+                                <Select onValueChange={async (v) => {
                                   // Move to department
-                                  setQueueEntries(queueEntries.map(q => 
+                                  setQueueEntries(queueEntries.map(q =>
                                     q.id === entry.id ? { ...q, unit: v } : q
                                   ))
+                                  await updateInDB('queueEntry', entry.id, { unit: v })
+                                  // Broadcast real-time update
+                                  fetch('/api/realtime', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ event: 'queueEntry_updated', data: { id: entry.id, unit: v } })
+                                    })
                                 }}>
                                   <SelectTrigger className="w-32 h-8">
                                     <SelectValue placeholder="Send to..." />
@@ -10958,18 +11011,18 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                         <Activity className="h-5 w-5 text-blue-600" />
                         In Progress
                       </span>
-                      <Badge className="bg-blue-500 text-white">{queueEntries.filter(q => q.status === 'in_progress').length}</Badge>
+                      <Badge className="bg-blue-500 text-white">{queueEntries.filter(q => q.status === 'in_progress' && (queueFilterUnit === 'all' || q.unit === queueFilterUnit)).length}</Badge>
                     </CardTitle>
                     <CardDescription>Currently being attended to</CardDescription>
                   </CardHeader>
                   <CardContent className="p-4 space-y-2 max-h-96 overflow-y-auto">
-                    {queueEntries.filter(q => q.status === 'in_progress').length === 0 ? (
+                    {queueEntries.filter(q => q.status === 'in_progress' && (queueFilterUnit === 'all' || q.unit === queueFilterUnit)).length === 0 ? (
                       <div className="text-center py-8 text-gray-500">
                         <Activity className="h-12 w-12 mx-auto mb-2 opacity-30" />
                         <p>No patients in progress</p>
                       </div>
                     ) : (
-                      queueEntries.filter(q => q.status === 'in_progress').map(entry => {
+                      queueEntries.filter(q => q.status === 'in_progress' && (queueFilterUnit === 'all' || q.unit === queueFilterUnit)).map(entry => {
                         const patient = patients.find(p => p.id === entry.patientId) || entry.patient
                         return (
                           <div key={entry.id} className="p-3 rounded-lg border bg-blue-50 border-blue-200">
@@ -10983,27 +11036,34 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                               </div>
                             </div>
                             <div className="mt-2 flex gap-2">
-                              <Button 
-                                size="sm" 
+                              <Button
+                                size="sm"
                                 variant="outline"
                                 className="flex-1"
                                 onClick={() => {
                                   // View patient details - role-based
-                                  showToast('View patient details', 'info')
+                                  setSelectedPatient(patient)
+                                  setActiveTab('patient-detail')
                                 }}
                               >
                                 <Eye className="h-4 w-4 mr-1" /> View
                               </Button>
                               {canEdit('queue') && (
-                                <Button 
-                                  size="sm" 
+                                <Button
+                                  size="sm"
                                   className="flex-1 bg-green-600 hover:bg-green-700"
-                                  onClick={() => {
-                                    setQueueEntries(queueEntries.map(q => 
+                                  onClick={async () => {
+                                    setQueueEntries(queueEntries.map(q =>
                                       q.id === entry.id ? { ...q, status: 'completed', completedAt: new Date().toISOString() } : q
                                     ))
-                                    updateInDB('queueEntry', entry.id, { status: 'completed', completedAt: new Date().toISOString() })
+                                    await updateInDB('queueEntry', entry.id, { status: 'completed', completedAt: new Date().toISOString() })
                                     showToast(`Completed: ${patient?.firstName} ${patient?.lastName}`, 'success')
+                                    // Broadcast real-time update
+                                    fetch('/api/realtime', {
+                                      method: 'POST',
+                                      headers: { 'Content-Type': 'application/json' },
+                                      body: JSON.stringify({ event: 'queueEntry_updated', data: { id: entry.id, status: 'completed' } })
+                                    })
                                   }}
                                 >
                                   <CheckCircle className="h-4 w-4 mr-1" /> Complete
