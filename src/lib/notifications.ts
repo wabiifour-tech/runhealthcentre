@@ -173,21 +173,39 @@ export async function sendSMS(phoneNumber: string, message: string): Promise<{ s
 }
 
 // Send email notification
-export async function sendEmail(to: string, subject: string, body: string, attachments?: any[]): Promise<{ success: boolean; messageId?: string; error?: string }> {
+export async function sendEmail(
+  to: string | string[], 
+  subject: string, 
+  body: string, 
+  options?: {
+    type?: 'appointment' | 'lab_result' | 'prescription' | 'billing' | 'welcome' | 'queue' | 'discharge' | 'custom'
+    patientName?: string
+    data?: Record<string, any>
+    attachments?: Array<{ filename: string; content: string; contentType: string }>
+  }
+): Promise<{ success: boolean; messageId?: string; error?: string }> {
   try {
-    const response = await fetch('/api/email', {
+    const response = await fetch('/api/notifications', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ to, subject, body, attachments })
+      body: JSON.stringify({ 
+        to, 
+        subject, 
+        body,
+        type: options?.type || 'custom',
+        patientName: options?.patientName,
+        data: options?.data,
+        attachments: options?.attachments
+      })
     })
     
     const result = await response.json()
     
     if (result.success) {
-      console.log(`Email sent to ${to}: ${subject}`)
-      return { success: true, messageId: result.messageId }
+      console.log(`Email sent to ${Array.isArray(to) ? to.join(', ') : to}: ${subject}`)
+      return { success: true, messageId: result.data?.id }
     } else {
-      console.error(`Email failed to ${to}:`, result.error)
+      console.error(`Email failed to ${Array.isArray(to) ? to.join(', ') : to}:`, result.error)
       return { success: false, error: result.error }
     }
   } catch (error: any) {
