@@ -2088,10 +2088,9 @@ export default function HMSApp() {
     address: ''
   })
   
-  // Audit Log
-  const [auditLogs, setAuditLogs] = useState<AuditLog[]>([])
+  // Audit Log - Additional state
   const [blockedIPs, setBlockedIPs] = useState<{ ip: string; attempts: number; blockedUntil: string }[]>([])
-  const [ipWhitelist, setIpWhitelist] = useState<IPWhitelistEntry[]>([])
+  const [ipWhitelist, setIpWhitelist] = useState<{ ip: string; description?: string; addedBy?: string }[]>([])
   const [newWhitelistIP, setNewWhitelistIP] = useState('')
   
   // Computed audit stats
@@ -2811,7 +2810,6 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
   const [showAttendanceDialog, setShowAttendanceDialog] = useState(false)
   const [showEquipmentDialog, setShowEquipmentDialog] = useState(false)
   const [showAmbulanceDialog, setShowAmbulanceDialog] = useState(false)
-  const [showMessageDialog, setShowMessageDialog] = useState(false)
   const [showInsuranceDialog, setShowInsuranceDialog] = useState(false)
   const [showSettingsDialog, setShowSettingsDialog] = useState(false)
   
@@ -2982,7 +2980,6 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
   const [attendanceForm, setAttendanceForm] = useState({ staffId: '', staffName: '', staffRole: 'NURSE' as UserRole, status: 'present' as 'present' | 'absent' | 'late' | 'on_leave', notes: '' })
   const [equipmentForm, setEquipmentForm] = useState({ id: '', name: '', category: '', location: '', status: 'working' as 'working' | 'needs_repair' | 'under_maintenance' | 'retired', notes: '' })
   const [ambulanceForm, setAmbulanceForm] = useState({ patientName: '', patientPhone: '', pickupLocation: '', destination: '', reason: '', driverName: '' })
-  const [messageForm, setMessageForm] = useState({ recipientId: '', recipientRole: 'DOCTOR' as UserRole, message: '', isBroadcast: false })
   const [insuranceForm, setInsuranceForm] = useState({ patientId: '', insuranceProvider: '', policyNumber: '', claimAmount: 0, diagnosis: '', services: '' })
   
   // Voice recording
