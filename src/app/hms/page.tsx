@@ -6644,6 +6644,8 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
     { id: 'dashboard', label: 'Dashboard', icon: Home },
     ...(canView('admissions') ? [{ id: 'admissions', label: 'Admissions', icon: Building2 }] : []),
     ...(canView('patients') ? [{ id: 'patients', label: 'Patients', icon: Users }] : []),
+    // Patient Files - for NURSE to see patients sent from Records and track file transfers
+    ...(user?.role === 'NURSE' || user?.role === 'MATRON' ? [{ id: 'patientFiles', label: 'Patient Files', icon: FileText }] : []),
     ...(user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN' || user?.role === 'DOCTOR' ? [{ id: 'consultations', label: 'Consultations', icon: Stethoscope }] : []), // Doctors only
     ...(canView('appointments') ? [{ id: 'appointments', label: 'Appointments', icon: Calendar }] : []),
     ...(canView('queue') ? [{ id: 'queue', label: 'Patient Queue', icon: Users }] : []),
@@ -8761,6 +8763,320 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                   </div>
                 </CardContent>
               </Card>
+            </div>
+          )}
+
+          {/* Patient Files - For Nurses to track patient file transfers */}
+          {activeTab === 'patientFiles' && (user?.role === 'NURSE' || user?.role === 'MATRON') && (
+            <div className="space-y-6">
+              <div className="flex justify-between items-center">
+                <h3 className="text-lg font-semibold">Patient File Management</h3>
+                <Badge className="bg-teal-100 text-teal-800">
+                  {consultations.filter(c => c.referredTo === 'nurse' && c.status === 'pending_review').length} pending from Records
+                </Badge>
+              </div>
+
+              {/* Tabs for different file categories */}
+              <Tabs defaultValue="fromRecords" className="w-full">
+                <TabsList className="grid w-full grid-cols-3">
+                  <TabsTrigger value="fromRecords" className="flex items-center gap-2">
+                    <FileText className="h-4 w-4" />
+                    From Records
+                    {consultations.filter(c => c.referredTo === 'nurse' && c.status === 'pending_review').length > 0 && (
+                      <Badge className="bg-orange-500 text-white ml-1">
+                        {consultations.filter(c => c.referredTo === 'nurse' && c.status === 'pending_review').length}
+                      </Badge>
+                    )}
+                  </TabsTrigger>
+                  <TabsTrigger value="toDoctor" className="flex items-center gap-2">
+                    <Stethoscope className="h-4 w-4" />
+                    Sent to Doctor
+                  </TabsTrigger>
+                  <TabsTrigger value="beingReviewed" className="flex items-center gap-2">
+                    <Eye className="h-4 w-4" />
+                    Being Reviewed
+                  </TabsTrigger>
+                </TabsList>
+
+                {/* Patients Received from Records */}
+                <TabsContent value="fromRecords" className="mt-4">
+                  <Card className="shadow-md border-l-4 border-l-cyan-500">
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <FileText className="h-5 w-5 text-cyan-600" />
+                        Patients Received from Records
+                      </CardTitle>
+                      <CardDescription>
+                        Patients sent by Records Officer awaiting your attention
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      {consultations.filter(c => c.referredTo === 'nurse' && c.status === 'pending_review').length === 0 ? (
+                        <div className="text-center py-12 text-gray-500">
+                          <FileText className="h-16 w-16 mx-auto mb-4 text-gray-300" />
+                          <p className="text-lg">No patients from Records</p>
+                          <p className="text-sm">Patients sent by Records Officer will appear here</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          {consultations.filter(c => c.referredTo === 'nurse' && c.status === 'pending_review').map(consultation => {
+                            const patient = patients.find(p => p.id === consultation.patientId) || consultation.patient
+                            return (
+                              <div key={consultation.id} className="p-4 rounded-lg border bg-cyan-50 hover:bg-white transition-colors">
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-4">
+                                    <Avatar className="h-12 w-12">
+                                      <AvatarFallback className={getAvatarColor((patient?.firstName || '') + ' ' + (patient?.lastName || ''))}>
+                                        {patient ? getInitials(patient.firstName, patient.lastName) : '??'}
+                                      </AvatarFallback>
+                                    </Avatar>
+                                    <div>
+                                      <p className="font-semibold text-gray-800">
+                                        {patient ? getFullName(patient.firstName, patient.lastName, patient.middleName, patient.title) : 'Unknown Patient'}
+                                      </p>
+                                      <div className="flex items-center gap-2 flex-wrap mt-1">
+                                        <Badge className="bg-gradient-to-r from-blue-600 to-teal-500 text-white text-xs">
+                                          {patient?.ruhcCode}
+                                        </Badge>
+                                        {patient?.currentUnit && (
+                                          <Badge className={cn("text-white text-xs", healthCentreUnits.find(u => u.id === patient.currentUnit)?.color)}>
+                                            {healthCentreUnits.find(u => u.id === patient.currentUnit)?.shortName}
+                                          </Badge>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </div>
+                                  <div className="text-right">
+                                    <p className="text-sm text-gray-500">From: <Badge className="bg-cyan-100 text-cyan-800">Records</Badge></p>
+                                    <p className="text-xs text-gray-400">{formatDateTime(consultation.createdAt)}</p>
+                                  </div>
+                                </div>
+                                <div className="mt-3 p-3 bg-white rounded-lg border">
+                                  <p className="text-sm"><strong>Notes:</strong> {consultation.chiefComplaint?.replace('Sent from Records - ', '') || consultation.referralNotes || 'No notes'}</p>
+                                </div>
+                                <div className="mt-3 flex justify-end gap-2">
+                                  <Button 
+                                    variant="outline"
+                                    onClick={() => { setSelectedPatient(patient || null); setActiveTab('patient-detail') }}
+                                  >
+                                    <Eye className="h-4 w-4 mr-2" /> View Patient
+                                  </Button>
+                                  <Button 
+                                    className="bg-green-600 hover:bg-green-700"
+                                    onClick={() => {
+                                      setSendToDoctorForm({
+                                        ...sendToDoctorForm,
+                                        patientId: consultation.patientId,
+                                        chiefComplaint: consultation.chiefComplaint?.replace('Sent from Records - ', '') || '',
+                                        signsAndSymptoms: '',
+                                        notes: consultation.referralNotes || '',
+                                        initials: ''
+                                      })
+                                      setShowSendToDoctorDialog(true)
+                                    }}
+                                  >
+                                    <Stethoscope className="h-4 w-4 mr-2" /> Send to Doctor
+                                  </Button>
+                                  <Button 
+                                    className="bg-teal-600 hover:bg-teal-700"
+                                    onClick={() => {
+                                      setVitalsForm({ ...vitalsForm, patientId: consultation.patientId })
+                                      setShowVitalsDialog(true)
+                                    }}
+                                  >
+                                    <Activity className="h-4 w-4 mr-2" /> Record Vitals
+                                  </Button>
+                                </div>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+
+                {/* Patients Sent to Doctor */}
+                <TabsContent value="toDoctor" className="mt-4">
+                  <Card className="shadow-md border-l-4 border-l-green-500">
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <Stethoscope className="h-5 w-5 text-green-600" />
+                        Patients Sent to Doctor
+                      </CardTitle>
+                      <CardDescription>
+                        Patients you've sent to doctors awaiting consultation
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      {consultations.filter(c => 
+                        c.sentByNurseInitials?.includes(user?.name || '') && 
+                        c.status === 'pending_review' && 
+                        c.referredTo !== 'nurse'
+                      ).length === 0 ? (
+                        <div className="text-center py-12 text-gray-500">
+                          <Stethoscope className="h-16 w-16 mx-auto mb-4 text-gray-300" />
+                          <p className="text-lg">No patients sent to doctors</p>
+                          <p className="text-sm">Patients you send to doctors will appear here</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          {consultations.filter(c => 
+                            c.sentByNurseInitials?.includes(user?.name || '') && 
+                            c.status === 'pending_review' && 
+                            c.referredTo !== 'nurse'
+                          ).map(consultation => {
+                            const patient = patients.find(p => p.id === consultation.patientId) || consultation.patient
+                            return (
+                              <div key={consultation.id} className="p-4 rounded-lg border bg-green-50 hover:bg-white transition-colors">
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-4">
+                                    <Avatar className="h-12 w-12">
+                                      <AvatarFallback className={getAvatarColor((patient?.firstName || '') + ' ' + (patient?.lastName || ''))}>
+                                        {patient ? getInitials(patient.firstName, patient.lastName) : '??'}
+                                      </AvatarFallback>
+                                    </Avatar>
+                                    <div>
+                                      <p className="font-semibold text-gray-800">
+                                        {patient ? getFullName(patient.firstName, patient.lastName, patient.middleName, patient.title) : 'Unknown Patient'}
+                                      </p>
+                                      <Badge className="bg-gradient-to-r from-blue-600 to-teal-500 text-white text-xs">
+                                        {patient?.ruhcCode}
+                                      </Badge>
+                                    </div>
+                                  </div>
+                                  <div className="text-right">
+                                    <p className="text-sm text-gray-500">To: <Badge className="bg-green-100 text-green-800">{consultation.doctorName || 'Doctor'}</Badge></p>
+                                    <p className="text-xs text-gray-400">Sent: {formatDateTime(consultation.sentAt || consultation.createdAt)}</p>
+                                  </div>
+                                </div>
+                                <div className="mt-3 p-3 bg-white rounded-lg border">
+                                  <p className="text-sm"><strong>Chief Complaint:</strong> {consultation.chiefComplaint}</p>
+                                  {consultation.signsAndSymptoms && (
+                                    <p className="text-sm mt-1"><strong>Signs & Symptoms:</strong> {consultation.signsAndSymptoms}</p>
+                                  )}
+                                </div>
+                                <div className="mt-3 flex justify-end gap-2">
+                                  <Badge className="bg-yellow-100 text-yellow-800">
+                                    <Clock className="h-3 w-3 mr-1" /> Awaiting Doctor
+                                  </Badge>
+                                </div>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+
+                {/* Patients Being Reviewed */}
+                <TabsContent value="beingReviewed" className="mt-4">
+                  <Card className="shadow-md border-l-4 border-l-purple-500">
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <Eye className="h-5 w-5 text-purple-600" />
+                        Patients Being Reviewed
+                      </CardTitle>
+                      <CardDescription>
+                        Patients sent back by doctor for follow-up, pharmacy, lab, or other actions
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      {consultations.filter(c => 
+                        c.sendBackTo?.includes('nurse') && 
+                        (c.status === 'sent_back' || c.status === 'completed')
+                      ).length === 0 ? (
+                        <div className="text-center py-12 text-gray-500">
+                          <Eye className="h-16 w-16 mx-auto mb-4 text-gray-300" />
+                          <p className="text-lg">No patients being reviewed</p>
+                          <p className="text-sm">Patients sent back by doctors will appear here</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          {consultations.filter(c => 
+                            c.sendBackTo?.includes('nurse') && 
+                            (c.status === 'sent_back' || c.status === 'completed')
+                          ).map(consultation => {
+                            const patient = patients.find(p => p.id === consultation.patientId) || consultation.patient
+                            return (
+                              <div key={consultation.id} className="p-4 rounded-lg border bg-purple-50 hover:bg-white transition-colors">
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-4">
+                                    <Avatar className="h-12 w-12">
+                                      <AvatarFallback className={getAvatarColor((patient?.firstName || '') + ' ' + (patient?.lastName || ''))}>
+                                        {patient ? getInitials(patient.firstName, patient.lastName) : '??'}
+                                      </AvatarFallback>
+                                    </Avatar>
+                                    <div>
+                                      <p className="font-semibold text-gray-800">
+                                        {patient ? getFullName(patient.firstName, patient.lastName, patient.middleName, patient.title) : 'Unknown Patient'}
+                                      </p>
+                                      <Badge className="bg-gradient-to-r from-blue-600 to-teal-500 text-white text-xs">
+                                        {patient?.ruhcCode}
+                                      </Badge>
+                                    </div>
+                                  </div>
+                                  <div className="text-right">
+                                    <p className="text-sm text-gray-500">From: <Badge className="bg-green-100 text-green-800">{consultation.doctorInitials || 'Doctor'}</Badge></p>
+                                    <p className="text-xs text-gray-400">{formatDateTime(consultation.completedAt || consultation.createdAt)}</p>
+                                  </div>
+                                </div>
+                                <div className="mt-3 p-3 bg-white rounded-lg border">
+                                  <p className="text-sm"><strong>Diagnosis:</strong> {consultation.finalDiagnosis || consultation.provisionalDiagnosis || 'N/A'}</p>
+                                  {consultation.sendBackNotes && (
+                                    <p className="text-sm mt-1"><strong>Doctor Notes:</strong> {consultation.sendBackNotes}</p>
+                                  )}
+                                  {consultation.treatmentPlan && (
+                                    <p className="text-sm mt-1"><strong>Treatment Plan:</strong> {consultation.treatmentPlan}</p>
+                                  )}
+                                </div>
+                                <div className="mt-3 flex flex-wrap gap-2">
+                                  {consultation.sendBackTo?.map(dest => (
+                                    <Badge key={dest} className={
+                                      dest === 'pharmacy' ? 'bg-purple-100 text-purple-800' :
+                                      dest === 'laboratory' ? 'bg-pink-100 text-pink-800' :
+                                      dest === 'records' ? 'bg-gray-100 text-gray-800' :
+                                      'bg-teal-100 text-teal-800'
+                                    }>
+                                      {dest.charAt(0).toUpperCase() + dest.slice(1)}
+                                    </Badge>
+                                  ))}
+                                </div>
+                                <div className="mt-3 flex justify-end gap-2">
+                                  <Button 
+                                    variant="outline"
+                                    onClick={() => { setSelectedPatient(patient || null); setActiveTab('patient-detail') }}
+                                  >
+                                    <Eye className="h-4 w-4 mr-2" /> View Details
+                                  </Button>
+                                  <Button 
+                                    className="bg-teal-600 hover:bg-teal-700"
+                                    onClick={() => {
+                                      setVitalsForm({ ...vitalsForm, patientId: consultation.patientId })
+                                      setShowVitalsDialog(true)
+                                    }}
+                                  >
+                                    <Activity className="h-4 w-4 mr-2" /> Record Vitals
+                                  </Button>
+                                  {consultation.sendBackTo?.includes('pharmacy') && (
+                                    <Button 
+                                      className="bg-purple-600 hover:bg-purple-700"
+                                      onClick={() => setActiveTab('pharmacy')}
+                                    >
+                                      <Pill className="h-4 w-4 mr-2" /> To Pharmacy
+                                    </Button>
+                                  )}
+                                </div>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+              </Tabs>
             </div>
           )}
 
