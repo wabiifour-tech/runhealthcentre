@@ -6333,19 +6333,23 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
     
     const permissions: Record<string, UserRole[]> = {
       patients: ['SUPER_ADMIN', 'ADMIN', 'RECORDS_OFFICER'], // Only Records, Admin, SuperAdmin can register/edit patients
-      appointments: ['SUPER_ADMIN', 'ADMIN', 'NURSE', 'RECORDS_OFFICER'],
+      appointments: ['SUPER_ADMIN', 'ADMIN', 'NURSE', 'MATRON', 'RECORDS_OFFICER'],
       pharmacy: ['SUPER_ADMIN', 'ADMIN', 'PHARMACIST'],
-      laboratory: ['SUPER_ADMIN', 'ADMIN', 'LAB_TECHNICIAN'],
-      rosters: ['SUPER_ADMIN', 'ADMIN'],
-      announcements: ['SUPER_ADMIN', 'ADMIN'],
-      vitals: ['SUPER_ADMIN', 'ADMIN', 'NURSE'],
-      medications: ['SUPER_ADMIN', 'ADMIN', 'NURSE'],
-      wards: ['SUPER_ADMIN', 'ADMIN'],
-      admissions: ['SUPER_ADMIN', 'ADMIN', 'DOCTOR', 'NURSE'],
-      queue: ['SUPER_ADMIN', 'ADMIN', 'RECORDS_OFFICER'], // Only Records can manage queue
+      laboratory: ['SUPER_ADMIN', 'ADMIN', 'LAB_TECHNICIAN', 'MATRON'], // Matron can view lab results
+      rosters: ['SUPER_ADMIN', 'ADMIN', 'MATRON'],
+      announcements: ['SUPER_ADMIN', 'ADMIN', 'MATRON'],
+      vitals: ['SUPER_ADMIN', 'ADMIN', 'NURSE', 'MATRON'],
+      medications: ['SUPER_ADMIN', 'ADMIN', 'NURSE', 'MATRON'],
+      wards: ['SUPER_ADMIN', 'ADMIN', 'MATRON'],
+      admissions: ['SUPER_ADMIN', 'ADMIN', 'DOCTOR', 'NURSE', 'MATRON'],
+      queue: ['SUPER_ADMIN', 'ADMIN', 'RECORDS_OFFICER', 'MATRON'], // Matron can view queue
       inventory: ['SUPER_ADMIN', 'ADMIN', 'PHARMACIST'],
-      certificates: ['SUPER_ADMIN', 'ADMIN', 'DOCTOR', 'RECORDS_OFFICER'],
-      reports: ['SUPER_ADMIN', 'ADMIN', 'DOCTOR', 'RECORDS_OFFICER'],
+      certificates: ['SUPER_ADMIN', 'ADMIN', 'MATRON'],
+      reports: ['SUPER_ADMIN', 'ADMIN', 'DOCTOR', 'MATRON'],
+      voiceNotes: ['SUPER_ADMIN', 'ADMIN', 'NURSE', 'MATRON'],
+      messages: ['SUPER_ADMIN', 'ADMIN', 'NURSE', 'MATRON', 'DOCTOR', 'PHARMACIST', 'LAB_TECHNICIAN', 'RECORDS_OFFICER'],
+      calculator: ['SUPER_ADMIN', 'ADMIN', 'NURSE', 'MATRON', 'DOCTOR'],
+      billing: ['SUPER_ADMIN', 'ADMIN', 'MATRON'],
     }
     return permissions[module]?.includes(user?.role as UserRole) || false
   }
@@ -6360,22 +6364,22 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
     { id: 'dashboard', label: 'Dashboard', icon: Home },
     ...(canView('admissions') ? [{ id: 'admissions', label: 'Admissions', icon: Building2 }] : []),
     ...(canView('patients') ? [{ id: 'patients', label: 'Patients', icon: Users }] : []),
-    ...(canView('consultations') ? [{ id: 'consultations', label: 'Consultations', icon: Stethoscope }] : []),
+    ...(user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN' || user?.role === 'DOCTOR' ? [{ id: 'consultations', label: 'Consultations', icon: Stethoscope }] : []), // Doctors only
     ...(canView('appointments') ? [{ id: 'appointments', label: 'Appointments', icon: Calendar }] : []),
     ...(canView('queue') ? [{ id: 'queue', label: 'Patient Queue', icon: Users }] : []),
     ...(canView('vitals') ? [{ id: 'vitals', label: 'Vital Signs', icon: Activity }] : []),
-    // Tasks - for nurses to manage patient interventions
+    // Tasks - for nurses and matron to manage patient interventions
     ...(user?.role === 'NURSE' || user?.role === 'MATRON' || user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN' ? [{ id: 'tasks', label: 'Tasks & Alarms', icon: Bell }] : []),
     ...(canView('medications') ? [{ id: 'medications', label: 'Medications', icon: Pill }] : []),
     ...(canView('pharmacy') ? [{ id: 'pharmacy', label: 'Pharmacy', icon: Pill }] : []),
     ...(canView('laboratory') ? [{ id: 'laboratory', label: 'Laboratory', icon: Microscope }] : []),
     ...(canView('inventory') ? [{ id: 'inventory', label: 'Inventory', icon: ClipboardList }] : []),
-    // New navigation items
+    // Admin only sections
     ...(user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN' ? [{ id: 'users', label: 'Staff Management', icon: Users }] : []),
     ...(user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN' ? [{ id: 'payments', label: 'Payments', icon: Receipt }] : []),
     ...(user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN' ? [{ id: 'expenses', label: 'Expenses', icon: Receipt }] : []),
     ...(user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN' ? [{ id: 'attendance', label: 'Staff Attendance', icon: Clock }] : []),
-    ...(user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN' || user?.role === 'NURSE' ? [{ id: 'ambulance', label: 'Ambulance', icon: Activity }] : []),
+    ...(user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN' || user?.role === 'NURSE' || user?.role === 'MATRON' ? [{ id: 'ambulance', label: 'Ambulance', icon: Activity }] : []),
     ...(canView('reports') ? [{ id: 'reports', label: 'Reports', icon: FileText }] : []),
     ...(canView('rosters') ? [{ id: 'rosters', label: 'Duty Roster', icon: ClipboardList }] : []),
     ...(canView('announcements') ? [{ id: 'announcements', label: 'Announcements', icon: Bell }] : []),
@@ -6389,37 +6393,37 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
     // ========== NEW FEATURE NAVIGATION ==========
     // Bed Management
     ...(user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN' || user?.role === 'NURSE' || user?.role === 'MATRON' ? [{ id: 'bedManagement', label: 'Bed Management', icon: Building2 }] : []),
-    // Operating Theatre
+    // Operating Theatre - Doctors only
     ...(user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN' || user?.role === 'DOCTOR' ? [{ id: 'theatre', label: 'Operating Theatre', icon: Stethoscope }] : []),
     // Immunization
-    ...(user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN' || user?.role === 'NURSE' ? [{ id: 'immunization', label: 'Immunization', icon: Syringe }] : []),
+    ...(user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN' || user?.role === 'NURSE' || user?.role === 'MATRON' ? [{ id: 'immunization', label: 'Immunization', icon: Syringe }] : []),
     // Antenatal
-    ...(user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN' || user?.role === 'NURSE' || user?.role === 'DOCTOR' ? [{ id: 'antenatal', label: 'Antenatal Care', icon: Heart }] : []),
-    // Patient Wallet
+    ...(user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN' || user?.role === 'NURSE' || user?.role === 'MATRON' || user?.role === 'DOCTOR' ? [{ id: 'antenatal', label: 'Antenatal Care', icon: Heart }] : []),
+    // Patient Wallet - Admin only
     ...(user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN' ? [{ id: 'wallets', label: 'Patient Wallets', icon: Receipt }] : []),
-    // NHIA Claims
+    // NHIA Claims - Admin only
     ...(user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN' ? [{ id: 'nhia', label: 'NHIA Claims', icon: FileText }] : []),
     // Queue Display (TV Mode)
-    ...(user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN' || user?.role === 'NURSE' ? [{ id: 'queueDisplay', label: 'Queue Display (TV)', icon: Monitor }] : []),
-    // Blood Bank
+    ...(user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN' || user?.role === 'NURSE' || user?.role === 'MATRON' ? [{ id: 'queueDisplay', label: 'Queue Display (TV)', icon: Monitor }] : []),
+    // Blood Bank - Lab and Doctors only
     ...(user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN' || user?.role === 'DOCTOR' || user?.role === 'LAB_TECHNICIAN' ? [{ id: 'bloodBank', label: 'Blood Bank', icon: Activity }] : []),
     // Oxygen Tracking
-    ...(user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN' || user?.role === 'NURSE' ? [{ id: 'oxygen', label: 'Oxygen Tracking', icon: Activity }] : []),
-    // Medical Assets
+    ...(user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN' || user?.role === 'NURSE' || user?.role === 'MATRON' ? [{ id: 'oxygen', label: 'Oxygen Tracking', icon: Activity }] : []),
+    // Medical Assets - Admin only
     ...(user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN' ? [{ id: 'assets', label: 'Medical Assets', icon: Settings }] : []),
     // Shift Swaps
     ...(user?.role !== 'PATIENT' ? [{ id: 'shiftSwaps', label: 'Shift Swaps', icon: ClipboardList }] : []),
     // Certifications
     ...(user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN' || user?.role === 'MATRON' ? [{ id: 'certifications', label: 'Staff Certifications', icon: Shield }] : []),
-    // Data Backup
+    // Data Backup - SuperAdmin only
     ...(user?.role === 'SUPER_ADMIN' ? [{ id: 'backup', label: 'Data Backup', icon: Download }] : []),
     // App Settings - SUPER_ADMIN ONLY
     ...(user?.role === 'SUPER_ADMIN' ? [{ id: 'appSettings', label: 'App Settings', icon: Settings }] : []),
-    // Analytics Dashboard
+    // Analytics Dashboard - Admin only
     ...(user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN' ? [{ id: 'analytics', label: 'Analytics', icon: Activity }] : []),
-    // Government Reports
+    // Government Reports - Admin only
     ...(user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN' ? [{ id: 'govReports', label: 'Gov. Reports', icon: FileText }] : []),
-    // Telemedicine
+    // Telemedicine - Doctors only
     ...(user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN' || user?.role === 'DOCTOR' ? [{ id: 'telemedicine', label: 'Telemedicine', icon: Smartphone }] : []),
     // Open Heavens Devotional - Available to all
     { id: 'openHeavens', label: 'Open Heavens', icon: Heart },
@@ -6430,8 +6434,8 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
     // Emergency - Available to all
     { id: 'emergency', label: 'Emergency', icon: AlertTriangle },
     // Student Health Dashboard
-    ...(user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN' || user?.role === 'DOCTOR' ? [{ id: 'studentHealth', label: 'Student Health', icon: Users }] : []),
-    // Health Campaigns
+    ...(user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN' || user?.role === 'DOCTOR' || user?.role === 'MATRON' ? [{ id: 'studentHealth', label: 'Student Health', icon: Users }] : []),
+    // Health Campaigns - Admin only
     ...(user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN' ? [{ id: 'campaigns', label: 'Health Campaigns', icon: Calendar }] : []),
     // Mental Health Resources
     { id: 'mentalHealth', label: 'Mental Health', icon: Heart },
