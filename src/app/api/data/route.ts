@@ -193,8 +193,8 @@ export async function GET(request: NextRequest) {
               p.discharge_summaries.findMany({ orderBy: { createdAt: 'desc' } }),
               p.announcements.findMany({ orderBy: { createdAt: 'desc' } }),
               p.voice_notes.findMany({ orderBy: { createdAt: 'desc' } }),
-              p.users.findMany({ 
-                select: { id: true, email: true, name: true, role: true, department: true, initials: true, isActive: true, isFirstLogin: true },
+              p.users.findMany({
+                select: { id: true, email: true, name: true, role: true, department: true, initials: true, isActive: true, isFirstLogin: true, profilePhoto: true, approvalStatus: true, createdAt: true, phone: true, dateOfBirth: true },
                 orderBy: { createdAt: 'desc' }
               }),
               p.rosters.findMany({ orderBy: { date: 'desc' } }),

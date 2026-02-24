@@ -69,6 +69,8 @@ interface User {
   department?: string
   dateOfBirth?: string
   initials?: string
+  profilePhoto?: string
+  phone?: string
 }
 
 interface Patient {
@@ -2473,12 +2475,13 @@ export default function HMSApp() {
   
   // Verify shift against roster
   const verifyShiftWithRoster = (shift: string): boolean => {
-    const today = new Date().toISOString().split('T')[0] // YYYY-MM-DD format
+    const today = new Date()
+    const dayOfWeek = today.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase()
     
     // Check if user has a roster entry for today
-    const userRoster = rosters.find(r => 
+    const userRoster = rosterEntries.find(r => 
       r.staffId === user?.id && 
-      r.date === today
+      r.day.toLowerCase() === dayOfWeek
     )
     
     if (userRoster) {
@@ -2535,13 +2538,16 @@ export default function HMSApp() {
   }
   
   // Sign in attendance
-  const signInAttendance = async () => {
-    if (!user) {
-      showToast('You must be logged in to sign in', 'warning')
-      return
-    }
+  const signInAttendance = () => {
+    if (!user) return
     if (!capturedPhoto) {
       showToast('Please capture a photo first', 'warning')
+      return
+    }
+    
+    // Verify shift
+    if (!verifyShiftWithRoster(selectedShift)) {
+      showToast('This shift does not match your roster assignment', 'warning')
       return
     }
     
@@ -2550,7 +2556,7 @@ export default function HMSApp() {
     const timeString = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
     
     // Determine status based on time and shift
-    let status: 'present' | 'late' | 'absent' | 'on_leave' = 'present'
+    let status: 'present' | 'late' = 'present'
     const hour = now.getHours()
     
     if (selectedShift === 'morning' && hour >= 8) status = 'late'
@@ -2570,73 +2576,40 @@ export default function HMSApp() {
       deviceId: navigator.userAgent.slice(0, 100)
     }
     
-    // Update state
     setAttendanceRecords(prev => [...prev, record])
     setAttendanceSignInRecord(record)
     setAttendanceSignedInToday(true)
     setShowAttendanceDialog(false)
     setCapturedPhoto(null)
-    stopCamera()
     
-    // Log activity
     logUserActivity('ATTENDANCE_SIGN_IN', `Signed in for ${selectedShift} shift at ${timeString}`, 'attendance', 'Sign In')
+    showToast(`Signed in successfully for ${selectedShift} shift`, 'success')
     
     // Save to localStorage
     try {
       const saved = JSON.parse(localStorage.getItem('hms_attendance') || '[]')
       localStorage.setItem('hms_attendance', JSON.stringify([...saved, record]))
     } catch (e) {
-      console.log('Could not save attendance to localStorage')
+      console.log('Could not save attendance')
     }
-    
-    // Save to database
-    try {
-      await fetch('/api/data', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type: 'attendance', data: record })
-      })
-    } catch (e) {
-      console.log('Could not save attendance to database')
-    }
-    
-    showToast(`✅ Signed in successfully for ${selectedShift} shift at ${timeString}`, 'success')
   }
   
   // Sign out attendance
   const signOutAttendance = () => {
-    if (!user || !attendanceSignInRecord) {
-      showToast('No active sign-in record found', 'warning')
-      return
-    }
-    
-    // Reset photo state
-    setCapturedPhoto(null)
-    setSignOutPhoto(null)
-    
-    // Show sign out dialog first, then start camera
-    setShowSignOutDialog(true)
+    if (!user || !attendanceSignInRecord) return
     
     // Start camera for sign out photo
-    setTimeout(() => {
-      startCamera()
-    }, 100)
+    startCamera()
+    
+    // Show sign out dialog
+    setShowSignOutDialog(true)
   }
   
   const [showSignOutDialog, setShowSignOutDialog] = useState(false)
   const [signOutPhoto, setSignOutPhoto] = useState<string | null>(null)
   
-  const confirmSignOut = async () => {
-    if (!user || !attendanceSignInRecord) {
-      showToast('No active sign-in record found', 'warning')
-      return
-    }
-    
-    const photoToUse = capturedPhoto || signOutPhoto
-    if (!photoToUse) {
-      showToast('Please capture a photo to confirm sign out', 'warning')
-      return
-    }
+  const confirmSignOut = () => {
+    if (!user || !attendanceSignInRecord) return
     
     const now = new Date()
     const timeString = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
@@ -2647,15 +2620,12 @@ export default function HMSApp() {
         return {
           ...r,
           signOutTime: timeString,
-          signOutPhoto: photoToUse,
+          signOutPhoto: signOutPhoto || capturedPhoto,
           clockOut: timeString
         }
       }
       return r
     })
-    
-    // Find the updated record
-    const updatedRecord = updatedRecords.find(r => r.id === attendanceSignInRecord.id)
     
     setAttendanceRecords(updatedRecords)
     setAttendanceSignInRecord(null)
@@ -2665,30 +2635,14 @@ export default function HMSApp() {
     setSignOutPhoto(null)
     stopCamera()
     
-    // Log activity
     logUserActivity('ATTENDANCE_SIGN_OUT', `Signed out at ${timeString}`, 'attendance', 'Sign Out')
+    showToast('Signed out successfully. Goodbye!', 'success')
     
     // Update localStorage
     try {
       localStorage.setItem('hms_attendance', JSON.stringify(updatedRecords))
     } catch (e) {
-      console.log('Could not save attendance to localStorage')
-    }
-    
-    // Update in database
-    if (updatedRecord) {
-      try {
-        await fetch('/api/data', {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ type: 'attendance', id: updatedRecord.id, data: updatedRecord })
-        })
-      } catch (e) {
-        console.log('Could not update attendance in database')
-      }
-    }
-    
-    showToast(`👋 Signed out successfully at ${timeString}. Goodbye!`, 'success')
+      console.log('Could not save attendance')
     }
   }
   
@@ -3917,7 +3871,7 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
                 medicalCertificates: dbCerts, referralLetters: dbReferrals,
                 dischargeSummaries: dbDischarge, announcements: dbAnnouncements,
                 voiceNotes: dbVoiceNotes, users: dbUsers, rosters: dbRosters, attendance: dbAttendance } = result.data
-        
+
         // Update React state
         if (dbPatients) setPatients(dbPatients)
         if (dbVitals) setVitals(dbVitals)
@@ -11456,10 +11410,12 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                   <Table>
                     <TableHeader>
                       <TableRow>
+                        <TableHead>Photo</TableHead>
                         <TableHead>Name</TableHead>
                         <TableHead>Email</TableHead>
                         <TableHead>Role</TableHead>
                         <TableHead>Department</TableHead>
+                        <TableHead>Phone</TableHead>
                         <TableHead>Approval</TableHead>
                         <TableHead>Status</TableHead>
                         <TableHead>Actions</TableHead>
@@ -11468,10 +11424,21 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                     <TableBody>
                       {systemUsers.map(u => (
                         <TableRow key={u.id} className={(u as any).approvalStatus === 'PENDING' ? 'bg-yellow-50' : ''}>
+                          <TableCell>
+                            <Avatar className="h-10 w-10">
+                              {(u as any).profilePhoto ? (
+                                <AvatarImage src={(u as any).profilePhoto} alt={u.name} />
+                              ) : null}
+                              <AvatarFallback className={getAvatarColor(u.name)}>
+                                {getInitials(u.name.split(' ')[0], u.name.split(' ')[1] || '')}
+                              </AvatarFallback>
+                            </Avatar>
+                          </TableCell>
                           <TableCell className="font-medium">{u.name}</TableCell>
                           <TableCell>{u.email}</TableCell>
                           <TableCell><Badge className={getRoleBadgeColor(u.role)}>{getRoleDisplayName(u.role)}</Badge></TableCell>
                           <TableCell>{u.department || '-'}</TableCell>
+                          <TableCell>{(u as any).phone || '-'}</TableCell>
                           <TableCell>
                             <Badge className={
                               (u as any).approvalStatus === 'PENDING' ? 'bg-yellow-100 text-yellow-800' :
@@ -17722,27 +17689,39 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
         </DialogContent>
       </Dialog>
 
-      {/* Other Dialogs (Roster, Announcement, Voice Note, Calculator, Export) - keeping same as before for brevity */}
+      {/* Roster Dialog */}
       <Dialog open={showRosterDialog} onOpenChange={setShowRosterDialog}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader><DialogTitle>Add Duty Roster Entry</DialogTitle></DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label>Staff Name</Label>
-              <Input value={rosterForm.staffName} onChange={e => setRosterForm({ ...rosterForm, staffName: e.target.value })} placeholder="Enter staff name" />
+              <Label>Select Staff Member</Label>
+              <Select value={rosterForm.staffId} onValueChange={v => {
+                const selectedUser = systemUsers.find(u => u.id === v)
+                if (selectedUser) {
+                  setRosterForm({
+                    ...rosterForm,
+                    staffId: v,
+                    staffName: selectedUser.name,
+                    staffRole: selectedUser.role,
+                    department: selectedUser.department || 'General'
+                  })
+                }
+              }}>
+                <SelectTrigger><SelectValue placeholder="Select staff member" /></SelectTrigger>
+                <SelectContent>
+                  {systemUsers.filter(u => u.isActive && (u as any).approvalStatus === 'APPROVED').map(u => (
+                    <SelectItem key={u.id} value={u.id}>
+                      {u.name} ({getRoleDisplayName(u.role)})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Role</Label>
-                <Select value={rosterForm.staffRole} onValueChange={v => setRosterForm({ ...rosterForm, staffRole: v as UserRole })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="DOCTOR">Doctor</SelectItem>
-                    <SelectItem value="NURSE">Nurse</SelectItem>
-                    <SelectItem value="PHARMACIST">Pharmacist</SelectItem>
-                    <SelectItem value="LAB_TECHNICIAN">Lab Technician</SelectItem>
-                  </SelectContent>
-                </Select>
+                <Input value={getRoleDisplayName(rosterForm.staffRole)} disabled className="bg-gray-100" />
               </div>
               <div className="space-y-2"><Label>Date</Label><Input type="date" value={rosterForm.date} onChange={e => setRosterForm({ ...rosterForm, date: e.target.value })} /></div>
             </div>
@@ -17752,26 +17731,27 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                 <Select value={rosterForm.shift} onValueChange={v => setRosterForm({ ...rosterForm, shift: v as 'morning' | 'afternoon' | 'night' })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="morning">Morning</SelectItem>
-                    <SelectItem value="afternoon">Afternoon</SelectItem>
-                    <SelectItem value="night">Night</SelectItem>
+                    <SelectItem value="morning">🌅 Morning (6AM - 2PM)</SelectItem>
+                    <SelectItem value="afternoon">☀️ Afternoon (2PM - 10PM)</SelectItem>
+                    <SelectItem value="night">🌙 Night (10PM - 6AM)</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-2">
                 <Label>Department</Label>
-                <Select value={rosterForm.department} onValueChange={v => setRosterForm({ ...rosterForm, department: v })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {departments.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                <Input value={rosterForm.department} disabled className="bg-gray-100" />
               </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Notes (Optional)</Label>
+              <Input value={rosterForm.notes || ''} onChange={e => setRosterForm({ ...rosterForm, notes: e.target.value })} placeholder="Any special instructions..." />
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowRosterDialog(false)}>Cancel</Button>
-            <Button onClick={createRoster}>Add Entry</Button>
+            <Button onClick={createRoster} className="bg-blue-600 hover:bg-blue-700" disabled={!rosterForm.staffId || !rosterForm.date}>
+              Add Entry
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

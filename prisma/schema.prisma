@@ -19,6 +19,7 @@ model users {
   initials        String?
   phone           String?
   dateOfBirth     DateTime?
+  profilePhoto    String?
   isActive        Boolean   @default(true)
   isFirstLogin    Boolean   @default(true)
   approvalStatus  String    @default("PENDING") // PENDING, APPROVED, REJECTED
