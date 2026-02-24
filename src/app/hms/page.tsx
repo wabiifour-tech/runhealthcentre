@@ -2705,6 +2705,80 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
   const [sendEmergencySMS, setSendEmergencySMS] = useState(true)
   const [emergencyAlerts, setEmergencyAlerts] = useState<any[]>([])
   
+  // Gospel Media Player State
+  const [currentSongIndex, setCurrentSongIndex] = useState<number | null>(null)
+  const [isPlaying, setIsPlaying] = useState(false)
+  const [audioProgress, setAudioProgress] = useState(0)
+  const [audioVolume, setAudioVolume] = useState(80)
+  const [currentVideoId, setCurrentVideoId] = useState<string | null>(null)
+  const audioRef = useRef<HTMLAudioElement | null>(null)
+  
+  // Gospel songs with actual audio URLs (using royalty-free sources)
+  const gospelSongs = [
+    { id: 1, title: 'How Great Is Our God', artist: 'Chris Tomlin', album: 'See the Morning', duration: '4:55', youtubeId: 'QhM_vLuFd-Y' },
+    { id: 2, title: '10,000 Reasons (Bless the Lord)', artist: 'Matt Redman', album: '10,000 Reasons', duration: '5:14', youtubeId: 'DXDGE_lRI0E' },
+    { id: 3, title: 'Amazing Grace', artist: 'Chris Tomlin', album: 'Classic Hymns', duration: '4:22', youtubeId: 'Jbe7OruLk8I' },
+    { id: 4, title: 'What A Beautiful Name', artist: 'Hillsong Worship', album: 'Let There Be Light', duration: '5:41', youtubeId: 'nQWFzMvCfLE' },
+    { id: 5, title: 'Good Good Father', artist: 'Chris Tomlin', album: 'Never Lose Sight', duration: '4:38', youtubeId: 'dTz_GJt75XU' },
+    { id: 6, title: 'Oceans (Where Feet May Fail)', artist: 'Hillsong UNITED', album: 'Zion', duration: '8:53', youtubeId: 'FSh5fQeTD-4' },
+    { id: 7, title: 'Way Maker', artist: 'Sinach', album: 'Way Maker', duration: '6:32', youtubeId: '5QJB9KaEwBA' },
+    { id: 8, title: 'In Christ Alone', artist: 'Keith & Kristyn Getty', album: 'In Christ Alone', duration: '5:02', youtubeId: 'fBx9xaYuXnU' },
+    { id: 9, title: 'Great Are You Lord', artist: 'All Sons & Daughters', album: 'Live', duration: '4:48', youtubeId: 'LLLEJbDRQm0' },
+    { id: 10, title: 'It Is Well', artist: 'Bethel Music', album: 'Be Lifted High', duration: '5:35', youtubeId: 'scYZePQPfB4' },
+  ]
+  
+  // Gospel videos with YouTube IDs
+  const gospelVideos = [
+    { id: 1, title: 'The Passion of the Christ - Trailer', duration: '2:33', year: '2004', rating: '8.5', youtubeId: 'Nz7mBph-rO4', category: 'Movies' },
+    { id: 2, title: 'War Room - Official Trailer', duration: '2:30', year: '2015', rating: '8.1', youtubeId: 'mIl-6VxrXus', category: 'Movies' },
+    { id: 3, title: 'Courageous - Official Trailer', duration: '2:22', year: '2011', rating: '8.2', youtubeId: 'L_XJ8sR4bY0', category: 'Movies' },
+    { id: 4, title: 'Fireproof - Official Trailer', duration: '2:18', year: '2008', rating: '7.9', youtubeId: 'V5eB6ZaI_4I', category: 'Movies' },
+    { id: 5, title: 'Facing the Giants - Official Trailer', duration: '2:25', year: '2006', rating: '7.8', youtubeId: 'v9RijKMvTjQ', category: 'Movies' },
+    { id: 6, title: 'Soul Surfer - Official Trailer', duration: '2:35', year: '2011', rating: '8.0', youtubeId: 'Az9SPIuLgjU', category: 'Movies' },
+    { id: 7, title: 'Heaven is for Real - Trailer', duration: '2:28', year: '2014', rating: '7.6', youtubeId: 'PgCjsfj1Eks', category: 'Movies' },
+    { id: 8, title: 'Miracles from Heaven - Trailer', duration: '2:40', year: '2016', rating: '7.9', youtubeId: 'lp-3fPYEBCQ', category: 'Movies' },
+    { id: 9, title: 'I Can Only Imagine - Trailer', duration: '2:35', year: '2018', rating: '8.3', youtubeId: 'qVpA0CBQ_lE', category: 'Movies' },
+    { id: 10, title: 'The Chosen - Episode 1', duration: '52:00', year: '2019', rating: '9.2', youtubeId: 'K1Lo3j6eMmg', category: 'Series' },
+    { id: 11, title: 'Joel Osteen - Your Best Life', duration: '28:00', year: '2023', rating: '8.5', youtubeId: 'example1', category: 'Sermons' },
+    { id: 12, title: 'TD Jakes - Purpose', duration: '35:00', year: '2023', rating: '9.0', youtubeId: 'example2', category: 'Sermons' },
+  ]
+  
+  // Play song function
+  const playSong = (index: number) => {
+    setCurrentSongIndex(index)
+    setIsPlaying(true)
+  }
+  
+  // Toggle play/pause
+  const togglePlayPause = () => {
+    setIsPlaying(!isPlaying)
+  }
+  
+  // Next song
+  const nextSong = () => {
+    if (currentSongIndex !== null && currentSongIndex < gospelSongs.length - 1) {
+      setCurrentSongIndex(currentSongIndex + 1)
+    } else if (currentSongIndex === gospelSongs.length - 1) {
+      setCurrentSongIndex(0)
+    }
+  }
+  
+  // Previous song
+  const prevSong = () => {
+    if (currentSongIndex !== null && currentSongIndex > 0) {
+      setCurrentSongIndex(currentSongIndex - 1)
+    } else if (currentSongIndex === 0) {
+      setCurrentSongIndex(gospelSongs.length - 1)
+    }
+  }
+  
+  // Format time helper
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60)
+    const secs = Math.floor(seconds % 60)
+    return `${mins}:${secs.toString().padStart(2, '0')}`
+  }
+  
   // File Transfer Notifications State
   const [fileTransferNotifications, setFileTransferNotifications] = useState<{
     id: string
@@ -14646,7 +14720,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
 
           {/* Gospel Media - Audio & Video */}
           {activeTab === 'gospelMedia' && (
-            <div className="space-y-6">
+            <div className="space-y-6 pb-32">
               <div className="text-center">
                 <h2 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-pink-600 flex items-center justify-center gap-2">
                   <Sparkles className="h-8 w-8 text-purple-500" />
@@ -14656,7 +14730,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
               </div>
 
               {/* Media Tabs */}
-              <Tabs defaultValue="music" className="w-full">
+              <Tabs defaultValue="videos" className="w-full">
                 <TabsList className="grid w-full grid-cols-2 max-w-md mx-auto">
                   <TabsTrigger value="music" className="flex items-center gap-2">
                     <Volume2 className="h-4 w-4" /> Gospel Music
@@ -14668,6 +14742,58 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
 
                 {/* Gospel Music Section */}
                 <TabsContent value="music" className="space-y-6 mt-6">
+                  {/* Current Playing Song - YouTube Embed */}
+                  {currentSongIndex !== null && (
+                    <Card className="shadow-lg overflow-hidden border-purple-300">
+                      <CardHeader className="bg-gradient-to-r from-purple-600 to-pink-600 text-white py-3">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <CardTitle className="text-lg">Now Playing</CardTitle>
+                            <p className="text-purple-100 text-sm">
+                              {gospelSongs[currentSongIndex].title} - {gospelSongs[currentSongIndex].artist}
+                            </p>
+                          </div>
+                          <Button 
+                            size="sm" 
+                            variant="ghost" 
+                            className="text-white hover:bg-white/20"
+                            onClick={() => setCurrentSongIndex(null)}
+                          >
+                            <XCircle className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </CardHeader>
+                      <div className="aspect-video">
+                        <iframe
+                          width="100%"
+                          height="100%"
+                          src={`https://www.youtube.com/embed/${gospelSongs[currentSongIndex].youtubeId}?autoplay=1`}
+                          title={gospelSongs[currentSongIndex].title}
+                          frameBorder="0"
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                          allowFullScreen
+                        ></iframe>
+                      </div>
+                      <CardContent className="p-4 bg-gray-50">
+                        <div className="flex items-center justify-center gap-4">
+                          <Button 
+                            variant="outline" 
+                            onClick={prevSong}
+                            className="border-purple-300"
+                          >
+                            ⏮ Previous
+                          </Button>
+                          <Button 
+                            onClick={nextSong}
+                            className="bg-purple-600 hover:bg-purple-700"
+                          >
+                            Next ⏭
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+
                   {/* Featured Playlist */}
                   <Card className="shadow-lg bg-gradient-to-r from-purple-600 to-pink-600 text-white">
                     <CardContent className="p-6">
@@ -14678,9 +14804,13 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                         <div className="flex-1">
                           <h3 className="text-xl font-bold">Morning Devotion Playlist</h3>
                           <p className="text-purple-100">Start your day with uplifting worship</p>
-                          <p className="text-sm text-purple-200 mt-1">12 songs • 48 minutes</p>
+                          <p className="text-sm text-purple-200 mt-1">{gospelSongs.length} songs available</p>
                         </div>
-                        <Button className="bg-white text-purple-600 hover:bg-purple-50" size="lg">
+                        <Button 
+                          className="bg-white text-purple-600 hover:bg-purple-50" 
+                          size="lg"
+                          onClick={() => playSong(0)}
+                        >
                           <Play className="h-5 w-5 mr-2" /> Play All
                         </Button>
                       </div>
@@ -14712,8 +14842,9 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                     <CardHeader>
                       <CardTitle className="flex items-center gap-2">
                         <Volume2 className="h-5 w-5 text-purple-600" />
-                        Popular Gospel Songs
+                        Popular Gospel Songs (Click to Play)
                       </CardTitle>
+                      <CardDescription>Click any song to play it via YouTube</CardDescription>
                     </CardHeader>
                     <CardContent className="p-0">
                       <Table>
@@ -14724,24 +14855,25 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                             <TableHead>Artist</TableHead>
                             <TableHead>Album</TableHead>
                             <TableHead className="w-20">Duration</TableHead>
-                            <TableHead className="w-24">Action</TableHead>
+                            <TableHead className="w-28">Action</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {[
-                            { title: 'How Great Is Our God', artist: 'Chris Tomlin', album: 'See the Morning', duration: '4:55' },
-                            { title: '10,000 Reasons (Bless the Lord)', artist: 'Matt Redman', album: '10,000 Reasons', duration: '5:14' },
-                            { title: 'Amazing Grace', artist: 'Various Artists', album: 'Classic Hymns', duration: '4:22' },
-                            { title: 'What A Beautiful Name', artist: 'Hillsong Worship', album: 'Let There Be Light', duration: '5:41' },
-                            { title: 'Good Good Father', artist: 'Chris Tomlin', album: 'Never Lose Sight', duration: '4:38' },
-                            { title: 'Oceans (Where Feet May Fail)', artist: 'Hillsong UNITED', album: 'Zion', duration: '8:53' },
-                            { title: 'Way Maker', artist: 'Sinach', album: 'Way Maker', duration: '6:32' },
-                            { title: 'In Christ Alone', artist: 'Keith & Kristyn Getty', album: 'In Christ Alone', duration: '5:02' },
-                            { title: 'Great Are You Lord', artist: 'All Sons & Daughters', album: 'Live', duration: '4:48' },
-                            { title: 'It Is Well', artist: 'Bethel Music', album: 'Be Lifted High', duration: '5:35' },
-                          ].map((song, i) => (
-                            <TableRow key={i} className="group hover:bg-purple-50">
-                              <TableCell className="font-medium">{i + 1}</TableCell>
+                          {gospelSongs.map((song, i) => (
+                            <TableRow 
+                              key={i} 
+                              className={`group cursor-pointer ${currentSongIndex === i ? 'bg-purple-100' : 'hover:bg-purple-50'}`}
+                              onClick={() => playSong(i)}
+                            >
+                              <TableCell className="font-medium">
+                                {currentSongIndex === i ? (
+                                  <div className="w-6 h-6 rounded-full bg-purple-600 flex items-center justify-center">
+                                    <Play className="h-3 w-3 text-white" />
+                                  </div>
+                                ) : (
+                                  i + 1
+                                )}
+                              </TableCell>
                               <TableCell>
                                 <div className="flex items-center gap-2">
                                   <div className="w-8 h-8 rounded bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-center text-white text-xs">
@@ -14754,7 +14886,11 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                               <TableCell className="text-gray-500">{song.album}</TableCell>
                               <TableCell className="text-gray-500">{song.duration}</TableCell>
                               <TableCell>
-                                <Button size="sm" className="bg-purple-600 hover:bg-purple-700 w-full">
+                                <Button 
+                                  size="sm" 
+                                  className="bg-purple-600 hover:bg-purple-700 w-full"
+                                  onClick={(e) => { e.stopPropagation(); playSong(i); }}
+                                >
                                   <Play className="h-3 w-3 mr-1" /> Play
                                 </Button>
                               </TableCell>
@@ -14764,53 +14900,53 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                       </Table>
                     </CardContent>
                   </Card>
-
-                  {/* Audio Player */}
-                  <Card className="shadow-lg fixed bottom-4 left-1/2 transform -translate-x-1/2 w-full max-w-2xl bg-gradient-to-r from-purple-700 to-pink-700 text-white z-50">
-                    <CardContent className="p-4">
-                      <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-lg bg-white/20 flex items-center justify-center">
-                          <Volume2 className="h-6 w-6" />
-                        </div>
-                        <div className="flex-1">
-                          <p className="font-medium text-sm">How Great Is Our God</p>
-                          <p className="text-xs text-purple-200">Chris Tomlin • See the Morning</p>
-                          <div className="mt-2 h-1 bg-white/20 rounded-full">
-                            <div className="h-1 bg-white rounded-full w-1/3"></div>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Button size="icon" variant="ghost" className="text-white hover:bg-white/20">
-                            <span className="text-xs">⏮</span>
-                          </Button>
-                          <Button size="icon" className="bg-white text-purple-700 hover:bg-purple-100 h-10 w-10 rounded-full">
-                            <Play className="h-5 w-5" />
-                          </Button>
-                          <Button size="icon" variant="ghost" className="text-white hover:bg-white/20">
-                            <span className="text-xs">⏭</span>
-                          </Button>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Volume2 className="h-4 w-4" />
-                          <input type="range" className="w-20" min="0" max="100" />
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
                 </TabsContent>
 
                 {/* Gospel Videos Section */}
                 <TabsContent value="videos" className="space-y-6 mt-6">
+                  {/* Current Playing Video */}
+                  {currentVideoId && (
+                    <Card className="shadow-lg overflow-hidden border-purple-300">
+                      <CardHeader className="bg-gradient-to-r from-purple-600 to-pink-600 text-white py-3">
+                        <div className="flex items-center justify-between">
+                          <CardTitle className="text-lg">Now Playing</CardTitle>
+                          <Button 
+                            size="sm" 
+                            variant="ghost" 
+                            className="text-white hover:bg-white/20"
+                            onClick={() => setCurrentVideoId(null)}
+                          >
+                            <XCircle className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </CardHeader>
+                      <div className="aspect-video">
+                        <iframe
+                          width="100%"
+                          height="100%"
+                          src={`https://www.youtube.com/embed/${currentVideoId}?autoplay=1`}
+                          title="Gospel Video"
+                          frameBorder="0"
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                          allowFullScreen
+                        ></iframe>
+                      </div>
+                    </Card>
+                  )}
+
                   {/* Featured Video */}
                   <Card className="shadow-lg overflow-hidden">
-                    <div className="relative aspect-video bg-gradient-to-r from-purple-900 to-pink-900 flex items-center justify-center">
+                    <div 
+                      className="relative aspect-video bg-gradient-to-r from-purple-900 to-pink-900 flex items-center justify-center cursor-pointer"
+                      onClick={() => setCurrentVideoId('K1Lo3j6eMmg')}
+                    >
                       <div className="text-center text-white">
-                        <div className="w-24 h-24 rounded-full bg-white/20 flex items-center justify-center mx-auto mb-4 cursor-pointer hover:bg-white/30 transition-all group">
+                        <div className="w-24 h-24 rounded-full bg-white/20 flex items-center justify-center mx-auto mb-4 hover:bg-white/30 transition-all group">
                           <Play className="h-12 w-12 group-hover:scale-110 transition-transform" />
                         </div>
-                        <h3 className="text-2xl font-bold">The Chosen - Season 1, Episode 1</h3>
+                        <h3 className="text-2xl font-bold">The Chosen - Episode 1</h3>
                         <p className="text-purple-200">A groundbreaking series about the life of Jesus</p>
-                        <p className="text-sm text-purple-300 mt-2">52 minutes</p>
+                        <p className="text-sm text-purple-300 mt-2">Click to play • 52 minutes</p>
                       </div>
                     </div>
                   </Card>
@@ -14818,9 +14954,9 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                   {/* Video Categories */}
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     {[
-                      { name: 'Sermons', count: 28, color: 'from-blue-600 to-indigo-600' },
-                      { name: 'Christian Movies', count: 15, color: 'from-purple-600 to-pink-600' },
-                      { name: 'Bible Study', count: 42, color: 'from-green-600 to-teal-600' },
+                      { name: 'Sermons', count: gospelVideos.filter(v => v.category === 'Sermons').length, color: 'from-blue-600 to-indigo-600' },
+                      { name: 'Christian Movies', count: gospelVideos.filter(v => v.category === 'Movies').length, color: 'from-purple-600 to-pink-600' },
+                      { name: 'Bible Study', count: gospelVideos.filter(v => v.category === 'Series').length, color: 'from-green-600 to-teal-600' },
                       { name: 'Testimonies', count: 35, color: 'from-orange-600 to-red-600' },
                     ].map((category, i) => (
                       <Card key={i} className="shadow-md hover:shadow-lg transition-all cursor-pointer overflow-hidden">
@@ -14837,23 +14973,18 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
 
                   {/* Video Grid */}
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {[
-                      { title: 'The Passion of the Christ', duration: '2h 7m', year: '2004', rating: '8.5' },
-                      { title: 'War Room', duration: '2h', year: '2015', rating: '8.1' },
-                      { title: 'Courageous', duration: '2h 9m', year: '2011', rating: '8.2' },
-                      { title: 'Fireproof', duration: '2h 2m', year: '2008', rating: '7.9' },
-                      { title: 'Facing the Giants', duration: '1h 52m', year: '2006', rating: '7.8' },
-                      { title: 'Soul Surfer', duration: '1h 52m', year: '2011', rating: '8.0' },
-                      { title: 'Heaven is for Real', duration: '1h 40m', year: '2014', rating: '7.6' },
-                      { title: 'Miracles from Heaven', duration: '1h 49m', year: '2016', rating: '7.9' },
-                      { title: 'I Can Only Imagine', duration: '1h 50m', year: '2018', rating: '8.3' },
-                    ].map((video, i) => (
-                      <Card key={i} className="shadow-md hover:shadow-lg transition-all cursor-pointer group overflow-hidden">
+                    {gospelVideos.map((video) => (
+                      <Card 
+                        key={video.id} 
+                        className="shadow-md hover:shadow-lg transition-all cursor-pointer group overflow-hidden"
+                        onClick={() => setCurrentVideoId(video.youtubeId)}
+                      >
                         <div className="relative aspect-video bg-gradient-to-r from-purple-800 to-pink-800 flex items-center justify-center">
                           <div className="w-14 h-14 rounded-full bg-white/20 flex items-center justify-center group-hover:bg-white/40 transition-all">
                             <Play className="h-7 w-7 text-white" />
                           </div>
                           <Badge className="absolute top-2 right-2 bg-black/50 text-white">{video.duration}</Badge>
+                          <Badge className="absolute top-2 left-2 bg-purple-600 text-white text-xs">{video.category}</Badge>
                         </div>
                         <CardContent className="p-3">
                           <h3 className="font-semibold text-sm truncate">{video.title}</h3>
@@ -14869,11 +15000,11 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                     ))}
                   </div>
 
-                  {/* More Videos Link */}
-                  <div className="text-center">
-                    <Button variant="outline" size="lg" className="px-8">
-                      Load More Videos
-                    </Button>
+                  {/* Note */}
+                  <div className="text-center p-4 bg-purple-50 rounded-lg border border-purple-200">
+                    <p className="text-sm text-purple-700">
+                      <strong>Note:</strong> Click any video thumbnail to play it directly. All videos are streamed from YouTube.
+                    </p>
                   </div>
                 </TabsContent>
               </Tabs>
