@@ -24,14 +24,25 @@ export async function GET() {
       console.log('sentByNurseInitials:', e.message)
     }
 
-    // Check columns
-    const cols = await p.$queryRaw`
-      SELECT column_name FROM information_schema.columns
+    // Check columns - cast to text
+    const cols = await p.$queryRawUnsafe(`
+      SELECT column_name::text FROM information_schema.columns
       WHERE table_name = 'consultations' AND column_name IN ('referredTo', 'sentByNurseInitials')
-    `
+    `)
 
-    // Get recent consultations
-    const recent = await p.$queryRaw`SELECT id, status, "referredTo" FROM consultations ORDER BY "createdAt" DESC LIMIT 5`
+    // Get recent consultations - explicit columns only, cast all to text
+    const recent = await p.$queryRawUnsafe(`
+      SELECT
+        id::text,
+        status::text,
+        "referredTo"::text,
+        "patientId"::text,
+        "chiefComplaint"::text,
+        "createdAt"::text
+      FROM consultations
+      ORDER BY "createdAt" DESC
+      LIMIT 5
+    `)
 
     return NextResponse.json({
       success: true,

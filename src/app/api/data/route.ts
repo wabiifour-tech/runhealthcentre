@@ -116,10 +116,20 @@ export async function GET(request: NextRequest) {
           })
 
         case 'consultations': {
-          // Use raw SQL to ensure we get referredTo column
-          const consultations = await p.$queryRaw`
-            SELECT * FROM consultations ORDER BY "createdAt" DESC
-          `
+          // Use raw SQL to ensure we get referredTo column - explicit columns only
+          const consultations = await p.$queryRawUnsafe(`
+            SELECT
+              id, "patientId", patient, "doctorId", "doctorName", status, "chiefComplaint",
+              "historyOfPresentIllness", "pastMedicalHistory", "signsAndSymptoms",
+              "bloodPressureSystolic", "bloodPressureDiastolic", temperature, pulse,
+              "respiratoryRate", weight, height, "oxygenSaturation",
+              "generalExamination", "systemExamination", "investigationsRequested",
+              "scanRequested", "scanFindings", "provisionalDiagnosis", "finalDiagnosis",
+              "treatmentPlan", prescriptions, "referredTo", "referralTo", "referralNotes",
+              "sendBackTo", "sendBackNotes", "sentByNurseInitials", "sentAt", "createdAt", "updatedAt"
+            FROM consultations
+            ORDER BY "createdAt" DESC
+          `)
           return successResponse({ data: consultations })
         }
 
@@ -232,7 +242,19 @@ export async function GET(request: NextRequest) {
             ])
 
           // Fetch consultations separately with raw SQL to get referredTo
-          const consultations = await p.$queryRaw`SELECT * FROM consultations ORDER BY "createdAt" DESC`
+          const consultations = await p.$queryRawUnsafe(`
+            SELECT
+              id, "patientId", patient, "doctorId", "doctorName", status, "chiefComplaint",
+              "historyOfPresentIllness", "pastMedicalHistory", "signsAndSymptoms",
+              "bloodPressureSystolic", "bloodPressureDiastolic", temperature, pulse,
+              "respiratoryRate", weight, height, "oxygenSaturation",
+              "generalExamination", "systemExamination", "investigationsRequested",
+              "scanRequested", "scanFindings", "provisionalDiagnosis", "finalDiagnosis",
+              "treatmentPlan", prescriptions, "referredTo", "referralTo", "referralNotes",
+              "sendBackTo", "sendBackNotes", "sentByNurseInitials", "sentAt", "createdAt", "updatedAt"
+            FROM consultations
+            ORDER BY "createdAt" DESC
+          `)
 
           logger.debug('Fetched all data', { patientCount: patients.length })
           return successResponse({ 
@@ -377,7 +399,18 @@ export async function POST(request: NextRequest) {
           `
 
           // Fetch the created consultation using raw query
-          const consultations = await p.$queryRaw`SELECT * FROM consultations WHERE id = ${id}`
+          const consultations = await p.$queryRawUnsafe(`
+            SELECT
+              id, "patientId", patient, "doctorId", "doctorName", status, "chiefComplaint",
+              "historyOfPresentIllness", "pastMedicalHistory", "signsAndSymptoms",
+              "bloodPressureSystolic", "bloodPressureDiastolic", temperature, pulse,
+              "respiratoryRate", weight, height, "oxygenSaturation",
+              "generalExamination", "systemExamination", "investigationsRequested",
+              "scanRequested", "scanFindings", "provisionalDiagnosis", "finalDiagnosis",
+              "treatmentPlan", prescriptions, "referredTo", "referralTo", "referralNotes",
+              "sendBackTo", "sendBackNotes", "sentByNurseInitials", "sentAt", "createdAt", "updatedAt"
+            FROM consultations WHERE id = '${id}'
+          `)
           const consultation = Array.isArray(consultations) ? consultations[0] : null
 
           logger.info('Consultation created', { id, referredTo: referredToVal, status: statusVal })
