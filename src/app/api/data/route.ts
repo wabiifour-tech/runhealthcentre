@@ -362,57 +362,64 @@ export async function POST(request: NextRequest) {
           // Always ensure columns exist first
           await ensureConsultationSchema(p)
 
-          // Build safe values
-          const patientJson = data.patient ? JSON.stringify(data.patient) : null
-          const patientIdVal = data.patientId || null
-          const doctorIdVal = data.doctorId || null
-          const doctorNameVal = data.doctorName || null
-          const statusVal = data.status || 'pending'
-          const chiefComplaintVal = data.chiefComplaint || null
-          const signsAndSymptomsVal = data.signsAndSymptoms || null
-          const sentByNurseInitialsVal = data.sentByNurseInitials || null
-          const referredToVal = data.referredTo || null
-          const referralNotesVal = data.referralNotes || null
-          const sentAtVal = data.sentAt || null
+          // Log what we received
+          console.log('[CONSULTATION] Received data:', JSON.stringify({
+            patientId: data.patientId,
+            referredTo: data.referredTo,
+            status: data.status,
+            chiefComplaint: data.chiefComplaint?.substring(0, 50)
+          }))
 
-          // Use raw SQL for all consultations to ensure all fields are saved
-          await p.$executeRaw`
+          // Build safe values - escape single quotes
+          const escapeVal = (val: any) => val ? String(val).replace(/'/g, "''") : null
+          const patientJson = data.patient ? JSON.stringify(data.patient).replace(/'/g, "''") : null
+          const patientIdVal = escapeVal(data.patientId)
+          const doctorIdVal = escapeVal(data.doctorId)
+          const doctorNameVal = escapeVal(data.doctorName)
+          const statusVal = escapeVal(data.status || 'pending')
+          const chiefComplaintVal = escapeVal(data.chiefComplaint)
+          const signsAndSymptomsVal = escapeVal(data.signsAndSymptoms)
+          const sentByNurseInitialsVal = escapeVal(data.sentByNurseInitials)
+          const referredToVal = escapeVal(data.referredTo)
+          const referralNotesVal = escapeVal(data.referralNotes)
+          const sentAtVal = escapeVal(data.sentAt)
+
+          // Use unsafe raw SQL with explicit values
+          const sql = `
             INSERT INTO consultations (
               id, "patientId", patient, "doctorId", "doctorName", status, "chiefComplaint",
               "signsAndSymptoms", "sentByNurseInitials", "referredTo", "referralNotes",
               "sentAt", "createdAt"
             ) VALUES (
-              ${id},
-              ${patientIdVal},
-              ${patientJson},
-              ${doctorIdVal},
-              ${doctorNameVal},
-              ${statusVal},
-              ${chiefComplaintVal},
-              ${signsAndSymptomsVal},
-              ${sentByNurseInitialsVal},
-              ${referredToVal},
-              ${referralNotesVal},
-              ${sentAtVal},
-              ${now}
+              '${id}',
+              ${patientIdVal ? `'${patientIdVal}'` : 'NULL'},
+              ${patientJson ? `'${patientJson}'` : 'NULL'},
+              ${doctorIdVal ? `'${doctorIdVal}'` : 'NULL'},
+              ${doctorNameVal ? `'${doctorNameVal}'` : 'NULL'},
+              '${statusVal}',
+              ${chiefComplaintVal ? `'${chiefComplaintVal}'` : 'NULL'},
+              ${signsAndSymptomsVal ? `'${signsAndSymptomsVal}'` : 'NULL'},
+              ${sentByNurseInitialsVal ? `'${sentByNurseInitialsVal}'` : 'NULL'},
+              ${referredToVal ? `'${referredToVal}'` : 'NULL'},
+              ${referralNotesVal ? `'${referralNotesVal}'` : 'NULL'},
+              ${sentAtVal ? `'${sentAtVal}'` : 'NULL'},
+              '${now}'
             )
           `
 
-          // Fetch the created consultation using raw query
+          console.log('[CONSULTATION] SQL:', sql.substring(0, 200))
+          await p.$executeRawUnsafe(sql)
+
+          // Fetch the created consultation
           const consultations = await p.$queryRawUnsafe(`
             SELECT
               id, "patientId", patient, "doctorId", "doctorName", status, "chiefComplaint",
-              "historyOfPresentIllness", "pastMedicalHistory", "signsAndSymptoms",
-              "bloodPressureSystolic", "bloodPressureDiastolic", temperature, pulse,
-              "respiratoryRate", weight, height, "oxygenSaturation",
-              "generalExamination", "systemExamination", "investigationsRequested",
-              "scanRequested", "scanFindings", "provisionalDiagnosis", "finalDiagnosis",
-              "treatmentPlan", prescriptions, "referredTo", "referralTo", "referralNotes",
-              "sendBackTo", "sendBackNotes", "sentByNurseInitials", "sentAt", "createdAt", "updatedAt"
+              "referredTo", "sentByNurseInitials", "sentAt", "createdAt"
             FROM consultations WHERE id = '${id}'
           `)
           const consultation = Array.isArray(consultations) ? consultations[0] : null
 
+          console.log('[CONSULTATION] Saved:', JSON.stringify(consultation))
           logger.info('Consultation created', { id, referredTo: referredToVal, status: statusVal })
           broadcastChange('consultation_created', 'consultation', consultation)
           return successResponse({ data: consultation || { ...data, id, createdAt: now } })
