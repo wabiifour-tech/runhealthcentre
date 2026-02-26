@@ -16,22 +16,21 @@ export async function POST(request: NextRequest) {
     const patientId = body.patientId || 'test-patient'
     const referredTo = body.referredTo || 'nurse'
     const status = body.status || 'pending_review'
-    const chiefComplaint = body.chiefComplaint || 'Direct test'
-    const staffName = body.staffName || 'Test Staff'
+    const chiefComplaint = (body.chiefComplaint || 'Direct test').replace(/'/g, "''")
+    const staffName = (body.staffName || 'Test Staff').replace(/'/g, "''")
 
-    // Direct insert with hardcoded values to test
-    const sql = `INSERT INTO consultations (id, "patientId", status, "chiefComplaint", "referredTo", "sentByNurseInitials", "createdAt") VALUES ('${id}', '${patientId}', '${status}', '${chiefComplaint.replace(/'/g, "''")}', '${referredTo}', '${staffName.replace(/'/g, "''")}', '${now}')`
+    // Direct insert - include all required columns
+    const sql = `INSERT INTO consultations (id, status, "chiefComplaint", "referredTo", "sentByNurseInitials", "createdAt", "updatedAt") VALUES ('${id}', '${status}', '${chiefComplaint}', '${referredTo}', '${staffName}', '${now}', '${now}')`
     
     console.log('SQL:', sql)
     await p.$executeRawUnsafe(sql)
 
     // Verify
-    const check = await p.$queryRawUnsafe(`SELECT id, "patientId", status, "referredTo", "sentByNurseInitials" FROM consultations WHERE id = '${id}'`)
+    const check = await p.$queryRawUnsafe(`SELECT id, status, "referredTo", "sentByNurseInitials", "createdAt" FROM consultations WHERE id = '${id}'`)
 
     return NextResponse.json({
       success: true,
       id,
-      sql,
       saved: Array.isArray(check) ? check[0] : check
     })
 
@@ -47,17 +46,17 @@ export async function GET() {
 
     const p = prisma as any
 
-    // Get all consultations with referredTo
+    // Get all consultations with referredTo - cast bigint to text
     const all = await p.$queryRawUnsafe(`
-      SELECT id, "patientId", status, "referredTo", "sentByNurseInitials", "createdAt"
+      SELECT id, status, "referredTo"::text, "sentByNurseInitials"::text, "createdAt"::text
       FROM consultations
       ORDER BY "createdAt" DESC
       LIMIT 10
     `)
 
-    // Count by referredTo
+    // Count by referredTo - cast bigint
     const stats = await p.$queryRawUnsafe(`
-      SELECT "referredTo", COUNT(*) as count
+      SELECT "referredTo"::text, COUNT(*)::text as count
       FROM consultations
       GROUP BY "referredTo"
     `)
