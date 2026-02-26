@@ -2095,6 +2095,7 @@ export default function HMSApp() {
   const [showApprovalPopup, setShowApprovalPopup] = useState<boolean>(false)
   const [currentUserForApproval, setCurrentUserForApproval] = useState<SystemUser | null>(null)
   const knownPendingUserIds = useRef<Set<string>>(new Set())
+  const notifiedConsultationIdsRef = useRef<Set<string>>(new Set()) // Track notified patient files
   const [payments, setPayments] = useState<Payment[]>([])
   const [expenses, setExpenses] = useState<Expense[]>([])
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([])
@@ -3875,7 +3876,6 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
 
     // FASTER polling for nurses/matrons to check patient files from records (every 5 seconds)
     let nursePollInterval: NodeJS.Timeout | null = null
-    const notifiedConsultationIds = new Set<string>() // Track which files we've already notified
     if (user && (user.role === 'NURSE' || user.role === 'MATRON')) {
       nursePollInterval = setInterval(async () => {
         try {
@@ -3888,32 +3888,32 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
             // Always update consultations from database
             setConsultations(newConsultations)
             
-            // Check for NEW files from Records that we haven't notified yet
+            // Check for NEW files from Records that we haven't notified yet (using persistent ref)
             const pendingFromRecords = newConsultations.filter((c: any) => 
-              c.referredTo === 'nurse' && c.status === 'pending_review' && !notifiedConsultationIds.has(c.id)
+              c.referredTo === 'nurse' && c.status === 'pending_review' && !notifiedConsultationIdsRef.current.has(c.id)
             )
             
-            // Only notify for truly new files
+            // Only notify for truly new files - ONE TIME for all new files
             if (pendingFromRecords.length > 0) {
-              // Mark these as notified
-              pendingFromRecords.forEach((c: any) => notifiedConsultationIds.add(c.id))
+              // Mark ALL these as notified immediately in the persistent ref
+              pendingFromRecords.forEach((c: any) => notifiedConsultationIdsRef.current.add(c.id))
               
+              // Show ONE toast
               showToast(`📋 ${pendingFromRecords.length} new patient file(s) received from Records!`, 'info')
+              
+              // Play sound ONCE
               playNotificationSound()
               
-              // Create persistent notifications for each new file
-              pendingFromRecords.forEach((c: any) => {
-                createNotification({
-                  userId: user?.id,
-                  type: 'patient_file',
-                  title: 'New Patient File Received',
-                  message: c.chiefComplaint?.replace('Sent from Records - ', '') || 'A new patient file has been sent to you from Records.',
-                  data: {
-                    consultationId: c.id,
-                    patientId: c.patientId,
-                    patient: c.patient
-                  }
-                })
+              // Create ONE notification summarizing all files
+              createNotification({
+                userId: user?.id,
+                type: 'patient_file',
+                title: `${pendingFromRecords.length} New Patient File${pendingFromRecords.length > 1 ? 's' : ''} Received`,
+                message: `You have ${pendingFromRecords.length} new patient file${pendingFromRecords.length > 1 ? 's' : ''} waiting for review.`,
+                data: {
+                  count: pendingFromRecords.length,
+                  consultationIds: pendingFromRecords.map((c: any) => c.id)
+                }
               })
             }
           }
@@ -5559,8 +5559,7 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
       }
     }))
 
-    // Play notification sound
-    playNotificationSound()
+    // Don't play sound here - only the receiver should hear it
   }
 
   // Doctor starts consultation
