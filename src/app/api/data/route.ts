@@ -336,45 +336,53 @@ export async function POST(request: NextRequest) {
 
         case 'consultation': {
           const id = generateId()
-          
-          // Use raw SQL to ensure referredTo is saved (Prisma might not know about new columns)
-          if (data.referredTo) {
-            await p.$executeRawUnsafe(`
-              INSERT INTO consultations (
-                id, "patientId", patient, "doctorId", "doctorName", status, "chiefComplaint",
-                "signsAndSymptoms", "sentByNurseInitials", "referredTo", "referralNotes",
-                "sentAt", "createdAt"
-              ) VALUES (
-                '${id}',
-                ${data.patientId ? `'${data.patientId}'` : 'NULL'},
-                ${data.patient ? `'${JSON.stringify(data.patient).replace(/'/g, "''")}'` : 'NULL'},
-                ${data.doctorId ? `'${data.doctorId}'` : 'NULL'},
-                ${data.doctorName ? `'${data.doctorName.replace(/'/g, "''")}'` : 'NULL'},
-                ${data.status ? `'${data.status}'` : "'pending'"},
-                ${data.chiefComplaint ? `'${data.chiefComplaint.replace(/'/g, "''")}'` : 'NULL'},
-                ${data.signsAndSymptoms ? `'${data.signsAndSymptoms.replace(/'/g, "''")}'` : 'NULL'},
-                ${data.sentByNurseInitials ? `'${data.sentByNurseInitials.replace(/'/g, "''")}'` : 'NULL'},
-                '${data.referredTo}',
-                ${data.referralNotes ? `'${data.referralNotes.replace(/'/g, "''")}'` : 'NULL'},
-                ${data.sentAt ? `'${data.sentAt}'` : 'NULL'},
-                '${now}'
-              )
-            `)
-            
-            // Fetch the created consultation
-            const consultation = await p.consultations.findUnique({ where: { id } })
-            logger.info('Consultation created with referredTo', { id, referredTo: data.referredTo })
-            broadcastChange('consultation_created', 'consultation', consultation)
-            return successResponse({ data: consultation || { ...data, id, createdAt: now } })
-          }
-          
-          // Standard Prisma create for other consultations
-          const consultation = await p.consultations.create({
-            data: { ...data, createdAt: now, id }
-          })
-          logger.info('Consultation created', { patientId: data.patientId })
+
+          // Always ensure columns exist first
+          await ensureConsultationSchema(p)
+
+          // Build safe values
+          const patientJson = data.patient ? JSON.stringify(data.patient) : null
+          const patientIdVal = data.patientId || null
+          const doctorIdVal = data.doctorId || null
+          const doctorNameVal = data.doctorName || null
+          const statusVal = data.status || 'pending'
+          const chiefComplaintVal = data.chiefComplaint || null
+          const signsAndSymptomsVal = data.signsAndSymptoms || null
+          const sentByNurseInitialsVal = data.sentByNurseInitials || null
+          const referredToVal = data.referredTo || null
+          const referralNotesVal = data.referralNotes || null
+          const sentAtVal = data.sentAt || null
+
+          // Use raw SQL for all consultations to ensure all fields are saved
+          await p.$executeRaw`
+            INSERT INTO consultations (
+              id, "patientId", patient, "doctorId", "doctorName", status, "chiefComplaint",
+              "signsAndSymptoms", "sentByNurseInitials", "referredTo", "referralNotes",
+              "sentAt", "createdAt"
+            ) VALUES (
+              ${id},
+              ${patientIdVal},
+              ${patientJson},
+              ${doctorIdVal},
+              ${doctorNameVal},
+              ${statusVal},
+              ${chiefComplaintVal},
+              ${signsAndSymptomsVal},
+              ${sentByNurseInitialsVal},
+              ${referredToVal},
+              ${referralNotesVal},
+              ${sentAtVal},
+              ${now}
+            )
+          `
+
+          // Fetch the created consultation using raw query
+          const consultations = await p.$queryRaw`SELECT * FROM consultations WHERE id = ${id}`
+          const consultation = Array.isArray(consultations) ? consultations[0] : null
+
+          logger.info('Consultation created', { id, referredTo: referredToVal, status: statusVal })
           broadcastChange('consultation_created', 'consultation', consultation)
-          return successResponse({ data: consultation })
+          return successResponse({ data: consultation || { ...data, id, createdAt: now } })
         }
 
         case 'drug': {
