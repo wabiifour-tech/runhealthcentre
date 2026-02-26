@@ -3794,9 +3794,9 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
       loadDataFromDB(true)
     }, 15000) // 15 second fallback polling
 
-    // FASTER polling for nurses to check patient files from records (every 5 seconds)
+    // FASTER polling for nurses/matrons to check patient files from records (every 5 seconds)
     let nursePollInterval: NodeJS.Timeout | null = null
-    if (user && user.role === 'NURSE') {
+    if (user && (user.role === 'NURSE' || user.role === 'MATRON')) {
       nursePollInterval = setInterval(async () => {
         try {
           const response = await fetch('/api/data?type=consultations')
@@ -3804,20 +3804,23 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
           
           if (data.success && data.data) {
             const newConsultations = data.data
+            
+            // Always update consultations from database
+            setConsultations(newConsultations)
+            
+            // Check for new files from Records
             const pendingFromRecords = newConsultations.filter((c: any) => 
               c.referredTo === 'nurse' && c.status === 'pending_review'
             )
             
-            // Check if there are new files we haven't seen
             const currentPendingCount = consultations.filter(c => 
               c.referredTo === 'nurse' && c.status === 'pending_review'
             ).length
             
-            if (pendingFromRecords.length > currentPendingCount && currentPendingCount >= 0) {
-              // New files received!
-              setConsultations(newConsultations)
+            // Show notification if new files received
+            if (pendingFromRecords.length > currentPendingCount) {
               const newFiles = pendingFromRecords.length - currentPendingCount
-              if (newFiles > 0 && currentPendingCount > 0) {
+              if (newFiles > 0) {
                 showToast(`📋 ${newFiles} new patient file(s) received from Records!`, 'info')
                 playNotificationSound()
               }

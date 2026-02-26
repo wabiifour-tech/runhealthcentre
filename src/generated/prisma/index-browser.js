@@ -213,10 +213,12 @@ exports.Prisma.ConsultationsScalarFieldEnum = {
   finalDiagnosis: 'finalDiagnosis',
   treatmentPlan: 'treatmentPlan',
   prescriptions: 'prescriptions',
+  referredTo: 'referredTo',
   referralTo: 'referralTo',
   referralNotes: 'referralNotes',
   sendBackTo: 'sendBackTo',
   sendBackNotes: 'sendBackNotes',
+  sentByNurseInitials: 'sentByNurseInitials',
   sentAt: 'sentAt',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'

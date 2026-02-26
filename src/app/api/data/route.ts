@@ -60,6 +60,31 @@ async function getPrisma() {
   }
 }
 
+// Ensure required columns exist in consultations table
+let schemaChecked = false
+async function ensureConsultationSchema(prisma: any) {
+  if (schemaChecked) return
+  schemaChecked = true
+  
+  try {
+    // Add referredTo column if missing
+    await prisma.$executeRawUnsafe(`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'consultations' AND column_name = 'referredTo') THEN
+          ALTER TABLE consultations ADD COLUMN "referredTo" TEXT;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'consultations' AND column_name = 'sentByNurseInitials') THEN
+          ALTER TABLE consultations ADD COLUMN "sentByNurseInitials" TEXT;
+        END IF;
+      END $$;
+    `)
+    logger.info('Consultation schema verified')
+  } catch (e) {
+    logger.debug('Schema check completed', { error: String(e) })
+  }
+}
+
 // GET - Fetch all data or specific type
 export async function GET(request: NextRequest) {
   try {
@@ -71,6 +96,9 @@ export async function GET(request: NextRequest) {
     if (!prisma) {
       return handleDemoGet(type)
     }
+
+    // Ensure consultation schema has required columns
+    await ensureConsultationSchema(prisma)
 
     // Access models via table names (Prisma 7.x with db pull schema)
     const p = prisma as any
@@ -264,6 +292,9 @@ export async function POST(request: NextRequest) {
     if (!prisma) {
       return handleDemoPost(type, data, now, generateId)
     }
+
+    // Ensure consultation schema has required columns
+    await ensureConsultationSchema(prisma)
 
     const p = prisma as any
 

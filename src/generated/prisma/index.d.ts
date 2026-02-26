@@ -5377,9 +5377,11 @@ export namespace Prisma {
     provisionalDiagnosis: string | null
     finalDiagnosis: string | null
     treatmentPlan: string | null
+    referredTo: string | null
     referralTo: string | null
     referralNotes: string | null
     sendBackNotes: string | null
+    sentByNurseInitials: string | null
     sentAt: Date | null
     createdAt: Date | null
     updatedAt: Date | null
@@ -5409,9 +5411,11 @@ export namespace Prisma {
     provisionalDiagnosis: string | null
     finalDiagnosis: string | null
     treatmentPlan: string | null
+    referredTo: string | null
     referralTo: string | null
     referralNotes: string | null
     sendBackNotes: string | null
+    sentByNurseInitials: string | null
     sentAt: Date | null
     createdAt: Date | null
     updatedAt: Date | null
@@ -5445,10 +5449,12 @@ export namespace Prisma {
     finalDiagnosis: number
     treatmentPlan: number
     prescriptions: number
+    referredTo: number
     referralTo: number
     referralNotes: number
     sendBackTo: number
     sendBackNotes: number
+    sentByNurseInitials: number
     sentAt: number
     createdAt: number
     updatedAt: number
@@ -5480,9 +5486,11 @@ export namespace Prisma {
     provisionalDiagnosis?: true
     finalDiagnosis?: true
     treatmentPlan?: true
+    referredTo?: true
     referralTo?: true
     referralNotes?: true
     sendBackNotes?: true
+    sentByNurseInitials?: true
     sentAt?: true
     createdAt?: true
     updatedAt?: true
@@ -5512,9 +5520,11 @@ export namespace Prisma {
     provisionalDiagnosis?: true
     finalDiagnosis?: true
     treatmentPlan?: true
+    referredTo?: true
     referralTo?: true
     referralNotes?: true
     sendBackNotes?: true
+    sentByNurseInitials?: true
     sentAt?: true
     createdAt?: true
     updatedAt?: true
@@ -5548,10 +5558,12 @@ export namespace Prisma {
     finalDiagnosis?: true
     treatmentPlan?: true
     prescriptions?: true
+    referredTo?: true
     referralTo?: true
     referralNotes?: true
     sendBackTo?: true
     sendBackNotes?: true
+    sentByNurseInitials?: true
     sentAt?: true
     createdAt?: true
     updatedAt?: true
@@ -5658,10 +5670,12 @@ export namespace Prisma {
     finalDiagnosis: string | null
     treatmentPlan: string | null
     prescriptions: JsonValue | null
+    referredTo: string | null
     referralTo: string | null
     referralNotes: string | null
     sendBackTo: JsonValue | null
     sendBackNotes: string | null
+    sentByNurseInitials: string | null
     sentAt: Date | null
     createdAt: Date
     updatedAt: Date
@@ -5712,10 +5726,12 @@ export namespace Prisma {
     finalDiagnosis?: boolean
     treatmentPlan?: boolean
     prescriptions?: boolean
+    referredTo?: boolean
     referralTo?: boolean
     referralNotes?: boolean
     sendBackTo?: boolean
     sendBackNotes?: boolean
+    sentByNurseInitials?: boolean
     sentAt?: boolean
     createdAt?: boolean
     updatedAt?: boolean
@@ -5749,10 +5765,12 @@ export namespace Prisma {
     finalDiagnosis?: boolean
     treatmentPlan?: boolean
     prescriptions?: boolean
+    referredTo?: boolean
     referralTo?: boolean
     referralNotes?: boolean
     sendBackTo?: boolean
     sendBackNotes?: boolean
+    sentByNurseInitials?: boolean
     sentAt?: boolean
     createdAt?: boolean
     updatedAt?: boolean
@@ -5786,10 +5804,12 @@ export namespace Prisma {
     finalDiagnosis?: boolean
     treatmentPlan?: boolean
     prescriptions?: boolean
+    referredTo?: boolean
     referralTo?: boolean
     referralNotes?: boolean
     sendBackTo?: boolean
     sendBackNotes?: boolean
+    sentByNurseInitials?: boolean
     sentAt?: boolean
     createdAt?: boolean
     updatedAt?: boolean
@@ -5823,16 +5843,18 @@ export namespace Prisma {
     finalDiagnosis?: boolean
     treatmentPlan?: boolean
     prescriptions?: boolean
+    referredTo?: boolean
     referralTo?: boolean
     referralNotes?: boolean
     sendBackTo?: boolean
     sendBackNotes?: boolean
+    sentByNurseInitials?: boolean
     sentAt?: boolean
     createdAt?: boolean
     updatedAt?: boolean
   }
 
-  export type consultationsOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "patientId" | "patient" | "doctorId" | "doctorName" | "status" | "chiefComplaint" | "historyOfPresentIllness" | "pastMedicalHistory" | "signsAndSymptoms" | "bloodPressureSystolic" | "bloodPressureDiastolic" | "temperature" | "pulse" | "respiratoryRate" | "weight" | "height" | "oxygenSaturation" | "generalExamination" | "systemExamination" | "investigationsRequested" | "scanRequested" | "scanFindings" | "provisionalDiagnosis" | "finalDiagnosis" | "treatmentPlan" | "prescriptions" | "referralTo" | "referralNotes" | "sendBackTo" | "sendBackNotes" | "sentAt" | "createdAt" | "updatedAt", ExtArgs["result"]["consultations"]>
+  export type consultationsOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "patientId" | "patient" | "doctorId" | "doctorName" | "status" | "chiefComplaint" | "historyOfPresentIllness" | "pastMedicalHistory" | "signsAndSymptoms" | "bloodPressureSystolic" | "bloodPressureDiastolic" | "temperature" | "pulse" | "respiratoryRate" | "weight" | "height" | "oxygenSaturation" | "generalExamination" | "systemExamination" | "investigationsRequested" | "scanRequested" | "scanFindings" | "provisionalDiagnosis" | "finalDiagnosis" | "treatmentPlan" | "prescriptions" | "referredTo" | "referralTo" | "referralNotes" | "sendBackTo" | "sendBackNotes" | "sentByNurseInitials" | "sentAt" | "createdAt" | "updatedAt", ExtArgs["result"]["consultations"]>
 
   export type $consultationsPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     name: "consultations"
@@ -5865,10 +5887,12 @@ export namespace Prisma {
       finalDiagnosis: string | null
       treatmentPlan: string | null
       prescriptions: Prisma.JsonValue | null
+      referredTo: string | null
       referralTo: string | null
       referralNotes: string | null
       sendBackTo: Prisma.JsonValue | null
       sendBackNotes: string | null
+      sentByNurseInitials: string | null
       sentAt: Date | null
       createdAt: Date
       updatedAt: Date
@@ -6322,10 +6346,12 @@ export namespace Prisma {
     readonly finalDiagnosis: FieldRef<"consultations", 'String'>
     readonly treatmentPlan: FieldRef<"consultations", 'String'>
     readonly prescriptions: FieldRef<"consultations", 'Json'>
+    readonly referredTo: FieldRef<"consultations", 'String'>
     readonly referralTo: FieldRef<"consultations", 'String'>
     readonly referralNotes: FieldRef<"consultations", 'String'>
     readonly sendBackTo: FieldRef<"consultations", 'Json'>
     readonly sendBackNotes: FieldRef<"consultations", 'String'>
+    readonly sentByNurseInitials: FieldRef<"consultations", 'String'>
     readonly sentAt: FieldRef<"consultations", 'DateTime'>
     readonly createdAt: FieldRef<"consultations", 'DateTime'>
     readonly updatedAt: FieldRef<"consultations", 'DateTime'>
@@ -26921,10 +26947,12 @@ export namespace Prisma {
     finalDiagnosis: 'finalDiagnosis',
     treatmentPlan: 'treatmentPlan',
     prescriptions: 'prescriptions',
+    referredTo: 'referredTo',
     referralTo: 'referralTo',
     referralNotes: 'referralNotes',
     sendBackTo: 'sendBackTo',
     sendBackNotes: 'sendBackNotes',
+    sentByNurseInitials: 'sentByNurseInitials',
     sentAt: 'sentAt',
     createdAt: 'createdAt',
     updatedAt: 'updatedAt'
@@ -27794,10 +27822,12 @@ export namespace Prisma {
     finalDiagnosis?: StringNullableFilter<"consultations"> | string | null
     treatmentPlan?: StringNullableFilter<"consultations"> | string | null
     prescriptions?: JsonNullableFilter<"consultations">
+    referredTo?: StringNullableFilter<"consultations"> | string | null
     referralTo?: StringNullableFilter<"consultations"> | string | null
     referralNotes?: StringNullableFilter<"consultations"> | string | null
     sendBackTo?: JsonNullableFilter<"consultations">
     sendBackNotes?: StringNullableFilter<"consultations"> | string | null
+    sentByNurseInitials?: StringNullableFilter<"consultations"> | string | null
     sentAt?: DateTimeNullableFilter<"consultations"> | Date | string | null
     createdAt?: DateTimeFilter<"consultations"> | Date | string
     updatedAt?: DateTimeFilter<"consultations"> | Date | string
@@ -27831,10 +27861,12 @@ export namespace Prisma {
     finalDiagnosis?: SortOrderInput | SortOrder
     treatmentPlan?: SortOrderInput | SortOrder
     prescriptions?: SortOrderInput | SortOrder
+    referredTo?: SortOrderInput | SortOrder
     referralTo?: SortOrderInput | SortOrder
     referralNotes?: SortOrderInput | SortOrder
     sendBackTo?: SortOrderInput | SortOrder
     sendBackNotes?: SortOrderInput | SortOrder
+    sentByNurseInitials?: SortOrderInput | SortOrder
     sentAt?: SortOrderInput | SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
@@ -27871,10 +27903,12 @@ export namespace Prisma {
     finalDiagnosis?: StringNullableFilter<"consultations"> | string | null
     treatmentPlan?: StringNullableFilter<"consultations"> | string | null
     prescriptions?: JsonNullableFilter<"consultations">
+    referredTo?: StringNullableFilter<"consultations"> | string | null
     referralTo?: StringNullableFilter<"consultations"> | string | null
     referralNotes?: StringNullableFilter<"consultations"> | string | null
     sendBackTo?: JsonNullableFilter<"consultations">
     sendBackNotes?: StringNullableFilter<"consultations"> | string | null
+    sentByNurseInitials?: StringNullableFilter<"consultations"> | string | null
     sentAt?: DateTimeNullableFilter<"consultations"> | Date | string | null
     createdAt?: DateTimeFilter<"consultations"> | Date | string
     updatedAt?: DateTimeFilter<"consultations"> | Date | string
@@ -27908,10 +27942,12 @@ export namespace Prisma {
     finalDiagnosis?: SortOrderInput | SortOrder
     treatmentPlan?: SortOrderInput | SortOrder
     prescriptions?: SortOrderInput | SortOrder
+    referredTo?: SortOrderInput | SortOrder
     referralTo?: SortOrderInput | SortOrder
     referralNotes?: SortOrderInput | SortOrder
     sendBackTo?: SortOrderInput | SortOrder
     sendBackNotes?: SortOrderInput | SortOrder
+    sentByNurseInitials?: SortOrderInput | SortOrder
     sentAt?: SortOrderInput | SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
@@ -27951,10 +27987,12 @@ export namespace Prisma {
     finalDiagnosis?: StringNullableWithAggregatesFilter<"consultations"> | string | null
     treatmentPlan?: StringNullableWithAggregatesFilter<"consultations"> | string | null
     prescriptions?: JsonNullableWithAggregatesFilter<"consultations">
+    referredTo?: StringNullableWithAggregatesFilter<"consultations"> | string | null
     referralTo?: StringNullableWithAggregatesFilter<"consultations"> | string | null
     referralNotes?: StringNullableWithAggregatesFilter<"consultations"> | string | null
     sendBackTo?: JsonNullableWithAggregatesFilter<"consultations">
     sendBackNotes?: StringNullableWithAggregatesFilter<"consultations"> | string | null
+    sentByNurseInitials?: StringNullableWithAggregatesFilter<"consultations"> | string | null
     sentAt?: DateTimeNullableWithAggregatesFilter<"consultations"> | Date | string | null
     createdAt?: DateTimeWithAggregatesFilter<"consultations"> | Date | string
     updatedAt?: DateTimeWithAggregatesFilter<"consultations"> | Date | string
@@ -30166,10 +30204,12 @@ export namespace Prisma {
     finalDiagnosis?: string | null
     treatmentPlan?: string | null
     prescriptions?: NullableJsonNullValueInput | InputJsonValue
+    referredTo?: string | null
     referralTo?: string | null
     referralNotes?: string | null
     sendBackTo?: NullableJsonNullValueInput | InputJsonValue
     sendBackNotes?: string | null
+    sentByNurseInitials?: string | null
     sentAt?: Date | string | null
     createdAt?: Date | string
     updatedAt?: Date | string
@@ -30203,10 +30243,12 @@ export namespace Prisma {
     finalDiagnosis?: string | null
     treatmentPlan?: string | null
     prescriptions?: NullableJsonNullValueInput | InputJsonValue
+    referredTo?: string | null
     referralTo?: string | null
     referralNotes?: string | null
     sendBackTo?: NullableJsonNullValueInput | InputJsonValue
     sendBackNotes?: string | null
+    sentByNurseInitials?: string | null
     sentAt?: Date | string | null
     createdAt?: Date | string
     updatedAt?: Date | string
@@ -30240,10 +30282,12 @@ export namespace Prisma {
     finalDiagnosis?: NullableStringFieldUpdateOperationsInput | string | null
     treatmentPlan?: NullableStringFieldUpdateOperationsInput | string | null
     prescriptions?: NullableJsonNullValueInput | InputJsonValue
+    referredTo?: NullableStringFieldUpdateOperationsInput | string | null
     referralTo?: NullableStringFieldUpdateOperationsInput | string | null
     referralNotes?: NullableStringFieldUpdateOperationsInput | string | null
     sendBackTo?: NullableJsonNullValueInput | InputJsonValue
     sendBackNotes?: NullableStringFieldUpdateOperationsInput | string | null
+    sentByNurseInitials?: NullableStringFieldUpdateOperationsInput | string | null
     sentAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -30277,10 +30321,12 @@ export namespace Prisma {
     finalDiagnosis?: NullableStringFieldUpdateOperationsInput | string | null
     treatmentPlan?: NullableStringFieldUpdateOperationsInput | string | null
     prescriptions?: NullableJsonNullValueInput | InputJsonValue
+    referredTo?: NullableStringFieldUpdateOperationsInput | string | null
     referralTo?: NullableStringFieldUpdateOperationsInput | string | null
     referralNotes?: NullableStringFieldUpdateOperationsInput | string | null
     sendBackTo?: NullableJsonNullValueInput | InputJsonValue
     sendBackNotes?: NullableStringFieldUpdateOperationsInput | string | null
+    sentByNurseInitials?: NullableStringFieldUpdateOperationsInput | string | null
     sentAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -30314,10 +30360,12 @@ export namespace Prisma {
     finalDiagnosis?: string | null
     treatmentPlan?: string | null
     prescriptions?: NullableJsonNullValueInput | InputJsonValue
+    referredTo?: string | null
     referralTo?: string | null
     referralNotes?: string | null
     sendBackTo?: NullableJsonNullValueInput | InputJsonValue
     sendBackNotes?: string | null
+    sentByNurseInitials?: string | null
     sentAt?: Date | string | null
     createdAt?: Date | string
     updatedAt?: Date | string
@@ -30351,10 +30399,12 @@ export namespace Prisma {
     finalDiagnosis?: NullableStringFieldUpdateOperationsInput | string | null
     treatmentPlan?: NullableStringFieldUpdateOperationsInput | string | null
     prescriptions?: NullableJsonNullValueInput | InputJsonValue
+    referredTo?: NullableStringFieldUpdateOperationsInput | string | null
     referralTo?: NullableStringFieldUpdateOperationsInput | string | null
     referralNotes?: NullableStringFieldUpdateOperationsInput | string | null
     sendBackTo?: NullableJsonNullValueInput | InputJsonValue
     sendBackNotes?: NullableStringFieldUpdateOperationsInput | string | null
+    sentByNurseInitials?: NullableStringFieldUpdateOperationsInput | string | null
     sentAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -30388,10 +30438,12 @@ export namespace Prisma {
     finalDiagnosis?: NullableStringFieldUpdateOperationsInput | string | null
     treatmentPlan?: NullableStringFieldUpdateOperationsInput | string | null
     prescriptions?: NullableJsonNullValueInput | InputJsonValue
+    referredTo?: NullableStringFieldUpdateOperationsInput | string | null
     referralTo?: NullableStringFieldUpdateOperationsInput | string | null
     referralNotes?: NullableStringFieldUpdateOperationsInput | string | null
     sendBackTo?: NullableJsonNullValueInput | InputJsonValue
     sendBackNotes?: NullableStringFieldUpdateOperationsInput | string | null
+    sentByNurseInitials?: NullableStringFieldUpdateOperationsInput | string | null
     sentAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -32905,10 +32957,12 @@ export namespace Prisma {
     finalDiagnosis?: SortOrder
     treatmentPlan?: SortOrder
     prescriptions?: SortOrder
+    referredTo?: SortOrder
     referralTo?: SortOrder
     referralNotes?: SortOrder
     sendBackTo?: SortOrder
     sendBackNotes?: SortOrder
+    sentByNurseInitials?: SortOrder
     sentAt?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
@@ -32938,9 +32992,11 @@ export namespace Prisma {
     provisionalDiagnosis?: SortOrder
     finalDiagnosis?: SortOrder
     treatmentPlan?: SortOrder
+    referredTo?: SortOrder
     referralTo?: SortOrder
     referralNotes?: SortOrder
     sendBackNotes?: SortOrder
+    sentByNurseInitials?: SortOrder
     sentAt?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
@@ -32970,9 +33026,11 @@ export namespace Prisma {
     provisionalDiagnosis?: SortOrder
     finalDiagnosis?: SortOrder
     treatmentPlan?: SortOrder
+    referredTo?: SortOrder
     referralTo?: SortOrder
     referralNotes?: SortOrder
     sendBackNotes?: SortOrder
+    sentByNurseInitials?: SortOrder
     sentAt?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
