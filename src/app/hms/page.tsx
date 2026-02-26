@@ -3061,12 +3061,12 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
     read: boolean
   }[]>([])
   
-  // Function to play notification sound
+  // Function to play notification sound - short and simple
   const playNotificationSound = () => {
     try {
       const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)()
       
-      // Create a more attention-grabbing sound sequence
+      // Simple double beep - like a message notification
       const playBeep = (frequency: number, startTime: number, duration: number) => {
         const oscillator = audioContext.createOscillator()
         const gainNode = audioContext.createGain()
@@ -3077,20 +3077,16 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
         oscillator.frequency.value = frequency
         oscillator.type = 'sine'
         
-        gainNode.gain.setValueAtTime(0.5, audioContext.currentTime + startTime)
+        gainNode.gain.setValueAtTime(0.3, audioContext.currentTime + startTime)
         gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + startTime + duration)
         
         oscillator.start(audioContext.currentTime + startTime)
         oscillator.stop(audioContext.currentTime + startTime + duration)
       }
       
-      // Play a pattern of beeps for attention
-      playBeep(880, 0, 0.15)    // A5
-      playBeep(988, 0.15, 0.15) // B5
-      playBeep(1047, 0.3, 0.3)  // C6
-      playBeep(880, 0.7, 0.15)  // A5
-      playBeep(988, 0.85, 0.15) // B5
-      playBeep(1047, 1.0, 0.3)  // C6
+      // Just 2 short beeps - total 0.4 seconds
+      playBeep(880, 0, 0.1)    // First beep
+      playBeep(988, 0.2, 0.1)  // Second beep
     } catch (e) {
       console.error('Failed to play notification sound:', e)
     }
@@ -3796,6 +3792,7 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
 
     // FASTER polling for nurses/matrons to check patient files from records (every 5 seconds)
     let nursePollInterval: NodeJS.Timeout | null = null
+    const notifiedConsultationIds = new Set<string>() // Track which files we've already notified
     if (user && (user.role === 'NURSE' || user.role === 'MATRON')) {
       nursePollInterval = setInterval(async () => {
         try {
@@ -3808,22 +3805,18 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
             // Always update consultations from database
             setConsultations(newConsultations)
             
-            // Check for new files from Records
+            // Check for NEW files from Records that we haven't notified yet
             const pendingFromRecords = newConsultations.filter((c: any) => 
-              c.referredTo === 'nurse' && c.status === 'pending_review'
+              c.referredTo === 'nurse' && c.status === 'pending_review' && !notifiedConsultationIds.has(c.id)
             )
             
-            const currentPendingCount = consultations.filter(c => 
-              c.referredTo === 'nurse' && c.status === 'pending_review'
-            ).length
-            
-            // Show notification if new files received
-            if (pendingFromRecords.length > currentPendingCount) {
-              const newFiles = pendingFromRecords.length - currentPendingCount
-              if (newFiles > 0) {
-                showToast(`📋 ${newFiles} new patient file(s) received from Records!`, 'info')
-                playNotificationSound()
-              }
+            // Only notify for truly new files
+            if (pendingFromRecords.length > 0) {
+              // Mark these as notified
+              pendingFromRecords.forEach((c: any) => notifiedConsultationIds.add(c.id))
+              
+              showToast(`📋 ${pendingFromRecords.length} new patient file(s) received from Records!`, 'info')
+              playNotificationSound()
             }
           }
         } catch (e) {
