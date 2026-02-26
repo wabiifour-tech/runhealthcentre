@@ -3061,6 +3061,89 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
     read: boolean
   }[]>([])
   
+  // Persistent Notifications State (stored in database)
+  const [persistentNotifications, setPersistentNotifications] = useState<any[]>([])
+  const [unreadNotificationsCount, setUnreadNotificationsCount] = useState(0)
+  
+  // Function to create and save notification to database
+  const createNotification = async (params: {
+    userId?: string
+    type: string
+    title: string
+    message?: string
+    data?: any
+  }) => {
+    try {
+      const response = await fetch('/api/notifications', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(params)
+      })
+      const result = await response.json()
+      
+      if (result.success) {
+        // Add to local state
+        setPersistentNotifications(prev => [result.notification, ...prev])
+        setUnreadNotificationsCount(prev => prev + 1)
+      }
+      
+      return result
+    } catch (error) {
+      console.error('Failed to create notification:', error)
+      return { success: false }
+    }
+  }
+  
+  // Function to load notifications from database
+  const loadNotifications = async (userId?: string) => {
+    try {
+      const url = userId ? `/api/notifications?userId=${userId}` : '/api/notifications'
+      const response = await fetch(url)
+      const result = await response.json()
+      
+      if (result.success) {
+        setPersistentNotifications(result.notifications || [])
+        setUnreadNotificationsCount(parseInt(result.unreadCount || '0'))
+      }
+    } catch (error) {
+      console.error('Failed to load notifications:', error)
+    }
+  }
+  
+  // Function to mark notification as read
+  const markNotificationRead = async (id: string) => {
+    try {
+      await fetch('/api/notifications', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id })
+      })
+      
+      setPersistentNotifications(prev => 
+        prev.map(n => n.id === id ? { ...n, read: true } : n)
+      )
+      setUnreadNotificationsCount(prev => Math.max(0, prev - 1))
+    } catch (error) {
+      console.error('Failed to mark notification as read:', error)
+    }
+  }
+  
+  // Function to mark all notifications as read
+  const markAllNotificationsRead = async (userId: string) => {
+    try {
+      await fetch('/api/notifications', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, markAllRead: true })
+      })
+      
+      setPersistentNotifications(prev => prev.map(n => ({ ...n, read: true })))
+      setUnreadNotificationsCount(0)
+    } catch (error) {
+      console.error('Failed to mark all notifications as read:', error)
+    }
+  }
+  
   // Function to play notification sound - short and simple
   const playNotificationSound = () => {
     try {
@@ -3817,6 +3900,21 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
               
               showToast(`📋 ${pendingFromRecords.length} new patient file(s) received from Records!`, 'info')
               playNotificationSound()
+              
+              // Create persistent notifications for each new file
+              pendingFromRecords.forEach((c: any) => {
+                createNotification({
+                  userId: user?.id,
+                  type: 'patient_file',
+                  title: 'New Patient File Received',
+                  message: c.chiefComplaint?.replace('Sent from Records - ', '') || 'A new patient file has been sent to you from Records.',
+                  data: {
+                    consultationId: c.id,
+                    patientId: c.patientId,
+                    patient: c.patient
+                  }
+                })
+              })
             }
           }
         } catch (e) {
@@ -4018,6 +4116,12 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
         
         console.log('Data loaded from database')
         setSyncStatus('synced')
+        
+        // Load notifications for current user
+        if (user?.id) {
+          loadNotifications(user.id)
+        }
+        
         return true
       }
     } catch (error) {
@@ -5386,6 +5490,21 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
       // Only add to local state after successful database save
       setConsultations(prev => [newConsultation, ...prev])
       showToast(`✅ ${patientName} sent to ${sendPatientForm.staffName} (${destinationName}) successfully!`, 'success')
+      
+      // Create notification for the recipient
+      createNotification({
+        userId: sendPatientForm.staffId,
+        type: 'patient_file',
+        title: `New Patient File from Records`,
+        message: `${patientName} has been sent to you by ${senderName}. ${sendPatientForm.notes ? `Notes: ${sendPatientForm.notes}` : ''}`,
+        data: {
+          patientId: sendPatientForm.patientId,
+          patientName,
+          consultationId: newConsultation.id,
+          destination: sendPatientForm.destination,
+          sentBy: senderName
+        }
+      })
     } else {
       showToast('Failed to send patient file. Please try again.', 'error')
       return // Don't continue if save failed
@@ -6802,6 +6921,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
   // Navigation items
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: Home },
+    { id: 'notifications', label: 'Notifications', icon: Bell },
     ...(canView('admissions') ? [{ id: 'admissions', label: 'Admissions', icon: Building2 }] : []),
     ...(canView('patients') ? [{ id: 'patients', label: 'Patients', icon: Users }] : []),
     // Patient Files - for NURSE to see patients sent from Records and track file transfers
@@ -7742,6 +7862,9 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
             >
               <item.icon className="h-5 w-5 flex-shrink-0" />
               {sidebarOpen && <span className="font-medium">{item.label}</span>}
+              {item.id === 'notifications' && unreadNotificationsCount > 0 && sidebarOpen && (
+                <Badge className="ml-auto bg-red-500 text-white text-xs">{unreadNotificationsCount}</Badge>
+              )}
               {item.id === 'voiceNotes' && stats.unreadVoiceNotes > 0 && sidebarOpen && (
                 <Badge className="ml-auto bg-red-500 text-white text-xs">{stats.unreadVoiceNotes}</Badge>
               )}
@@ -8528,6 +8651,107 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                   </CardContent>
                 </Card>
               )}
+            </div>
+          )}
+
+          {/* Notifications */}
+          {activeTab === 'notifications' && (
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <div>
+                  <h3 className="text-lg font-semibold">Notifications</h3>
+                  <p className="text-sm text-gray-500">View all your notifications and alerts</p>
+                </div>
+                <div className="flex gap-2">
+                  {unreadNotificationsCount > 0 && (
+                    <Button 
+                      variant="outline" 
+                      onClick={() => user?.id && markAllNotificationsRead(user.id)}
+                    >
+                      <CheckCheck className="h-4 w-4 mr-2" /> Mark all as read
+                    </Button>
+                  )}
+                </div>
+              </div>
+
+              {/* Unread count badge */}
+              {unreadNotificationsCount > 0 && (
+                <Card className="bg-blue-50 border-blue-200">
+                  <CardContent className="p-4">
+                    <div className="flex items-center gap-3">
+                      <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
+                        <Bell className="h-5 w-5 text-blue-600" />
+                      </div>
+                      <div>
+                        <p className="font-medium text-blue-800">{unreadNotificationsCount} unread notification{unreadNotificationsCount > 1 ? 's' : ''}</p>
+                        <p className="text-sm text-blue-600">You have new notifications that need your attention</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Notifications List */}
+              <Card className="shadow-md">
+                <CardHeader>
+                  <CardTitle>All Notifications</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {persistentNotifications.length === 0 ? (
+                    <div className="text-center py-12 text-gray-500">
+                      <Bell className="h-16 w-16 mx-auto mb-4 text-gray-300" />
+                      <p className="text-lg">No notifications yet</p>
+                      <p className="text-sm">Notifications will appear here when you receive them</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {persistentNotifications.map((notification) => (
+                        <div 
+                          key={notification.id} 
+                          className={`p-4 rounded-lg border transition-all cursor-pointer hover:shadow-md ${
+                            notification.read 
+                              ? 'bg-gray-50 border-gray-200' 
+                              : 'bg-blue-50 border-blue-300 shadow-sm'
+                          }`}
+                          onClick={() => !notification.read && markNotificationRead(notification.id)}
+                        >
+                          <div className="flex items-start justify-between gap-4">
+                            <div className="flex items-start gap-3">
+                              <div className={`h-10 w-10 rounded-full flex items-center justify-center ${
+                                notification.type === 'patient_file' ? 'bg-teal-100' :
+                                notification.type === 'approval' ? 'bg-purple-100' :
+                                notification.type === 'lab_result' ? 'bg-pink-100' :
+                                notification.type === 'prescription' ? 'bg-orange-100' :
+                                'bg-blue-100'
+                              }`}>
+                                {notification.type === 'patient_file' ? <FileText className="h-5 w-5 text-teal-600" /> :
+                                 notification.type === 'approval' ? <UserCheck className="h-5 w-5 text-purple-600" /> :
+                                 notification.type === 'lab_result' ? <Microscope className="h-5 w-5 text-pink-600" /> :
+                                 notification.type === 'prescription' ? <Pill className="h-5 w-5 text-orange-600" /> :
+                                 <Bell className="h-5 w-5 text-blue-600" />}
+                              </div>
+                              <div>
+                                <p className={`font-medium ${notification.read ? 'text-gray-700' : 'text-gray-900'}`}>
+                                  {notification.title}
+                                </p>
+                                {notification.message && (
+                                  <p className="text-sm text-gray-600 mt-1">{notification.message}</p>
+                                )}
+                                <p className="text-xs text-gray-400 mt-2">
+                                  {notification.createdAt ? new Date(notification.createdAt).toLocaleString() : 'Just now'}
+                                </p>
+                              </div>
+                            </div>
+                            {!notification.read && (
+                              <div className="h-3 w-3 rounded-full bg-blue-500 animate-pulse" />
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
             </div>
           )}
 
