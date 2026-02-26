@@ -389,7 +389,7 @@ export async function POST(request: NextRequest) {
             INSERT INTO consultations (
               id, "patientId", patient, "doctorId", "doctorName", status, "chiefComplaint",
               "signsAndSymptoms", "sentByNurseInitials", "referredTo", "referralNotes",
-              "sentAt", "createdAt"
+              "sentAt", "createdAt", "updatedAt"
             ) VALUES (
               '${id}',
               ${patientIdVal ? `'${patientIdVal}'` : 'NULL'},
@@ -403,6 +403,7 @@ export async function POST(request: NextRequest) {
               ${referredToVal ? `'${referredToVal}'` : 'NULL'},
               ${referralNotesVal ? `'${referralNotesVal}'` : 'NULL'},
               ${sentAtVal ? `'${sentAtVal}'` : 'NULL'},
+              '${now}',
               '${now}'
             )
           `
