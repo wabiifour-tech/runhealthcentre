@@ -3923,6 +3923,58 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
       }, 5000) // Check every 5 seconds
     }
 
+    // Polling for DOCTORS to check for new patient files from nurses (every 5 seconds)
+    let doctorPollInterval: NodeJS.Timeout | null = null
+    const notifiedDoctorConsultationIds = useRef<Set<string>>(new Set())
+    if (user && user.role === 'DOCTOR') {
+      doctorPollInterval = setInterval(async () => {
+        try {
+          const response = await fetch('/api/data?type=consultations')
+          const data = await response.json()
+          
+          if (data.success && data.data) {
+            const newConsultations = data.data
+            
+            // Always update consultations from database
+            setConsultations(newConsultations)
+            
+            // Check for NEW files sent to this doctor or any doctor
+            const pendingForDoctor = newConsultations.filter((c: any) => 
+              (c.referredTo === 'doctor' || c.status === 'pending_review') && 
+              !notifiedDoctorConsultationIds.current.has(c.id) &&
+              (!c.doctorId || c.doctorId === user.id || c.doctorId === '') // For this doctor or any doctor
+            )
+            
+            // Only notify for truly new files
+            if (pendingForDoctor.length > 0) {
+              // Mark these as notified
+              pendingForDoctor.forEach((c: any) => notifiedDoctorConsultationIds.current.add(c.id))
+              
+              // Show ONE toast
+              showToast(`📋 ${pendingForDoctor.length} new patient file${pendingForDoctor.length > 1 ? 's' : ''} received!`, 'info')
+              
+              // Play sound ONCE
+              playNotificationSound()
+              
+              // Create ONE notification
+              createNotification({
+                userId: user?.id,
+                type: 'patient_file',
+                title: `${pendingForDoctor.length} New Patient File${pendingForDoctor.length > 1 ? 's' : ''} Received`,
+                message: `You have ${pendingForDoctor.length} new patient file${pendingForDoctor.length > 1 ? 's' : ''} waiting for consultation.`,
+                data: {
+                  count: pendingForDoctor.length,
+                  consultationIds: pendingForDoctor.map((c: any) => c.id)
+                }
+              })
+            }
+          }
+        } catch (e) {
+          console.log('Doctor polling error:', e)
+        }
+      }, 5000) // Check every 5 seconds
+    }
+
     // INSTANT polling for pending approvals (every 2 seconds) - Admin only
     let approvalPollInterval: NodeJS.Timeout | null = null
     if (user && (user.role === 'SUPER_ADMIN' || user.role === 'ADMIN')) {
@@ -4010,6 +4062,7 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
       window.removeEventListener('patientDischarged', handlePatientDischarged as EventListener)
       clearInterval(pollInterval)
       if (nursePollInterval) clearInterval(nursePollInterval)
+      if (doctorPollInterval) clearInterval(doctorPollInterval)
       if (approvalPollInterval) clearInterval(approvalPollInterval)
       if (eventSource) eventSource.close()
     }
@@ -5394,11 +5447,25 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
       showToast('You must be logged in to perform this action', 'warning')
       return
     }
+    
+    if (!sendToDoctorForm.patientId) {
+      showToast('Please select a patient', 'warning')
+      return
+    }
+    
     const patient = patients.find(p => p.id === sendToDoctorForm.patientId)
+    if (!patient) {
+      showToast('Patient not found', 'warning')
+      return
+    }
+    
     const senderName = getUserDisplayName(user)
+    const patientName = getFullName(patient.firstName, patient.lastName, patient.middleName, patient.title)
     const doctorName = sendToDoctorForm.doctorId === 'any' ? 'Any Available Doctor' : `Dr. ${sendToDoctorForm.doctorName}`
+    const consultationId = `c${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+    
     const newConsultation: Consultation = {
-      id: `c${Date.now()}`,
+      id: consultationId,
       patientId: sendToDoctorForm.patientId,
       patient,
       doctorId: sendToDoctorForm.doctorId === 'any' ? '' : sendToDoctorForm.doctorId,
@@ -5409,19 +5476,42 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
       status: 'pending_review',
       hasPrescription: false,
       createdAt: new Date().toISOString(),
-      sentAt: new Date().toISOString()
+      sentAt: new Date().toISOString(),
+      referredTo: 'doctor', // Mark as sent to doctor
+      referralNotes: sendToDoctorForm.notes
     }
-    setConsultations([newConsultation, ...consultations])
+
+    // Save to database FIRST
+    const result = await saveConsultationToDB(newConsultation)
+    
+    if (result.success) {
+      // Add to local state after successful save
+      setConsultations(prev => [newConsultation, ...prev])
+      showToast(`Patient file sent to ${doctorName} successfully!`, 'success')
+      
+      // Create notification for doctor
+      if (sendToDoctorForm.doctorId && sendToDoctorForm.doctorId !== 'any') {
+        createNotification({
+          userId: sendToDoctorForm.doctorId,
+          type: 'patient_file',
+          title: 'New Patient File from Nurse',
+          message: `${patientName} sent by ${senderName}. Chief complaint: ${sendToDoctorForm.chiefComplaint || 'Not specified'}`,
+          data: {
+            patientId: sendToDoctorForm.patientId,
+            patientName,
+            consultationId,
+            sentBy: senderName
+          }
+        })
+      }
+    } else {
+      showToast('Failed to send patient file. Please try again.', 'error')
+      return
+    }
+
+    // Close dialog and reset form
     setShowSendToDoctorDialog(false)
     setSendToDoctorForm({ patientId: '', doctorId: '', doctorName: '', chiefComplaint: '', signsAndSymptoms: '', notes: '', initials: '', patientType: 'outpatient', wardUnit: '' })
-
-    // Save to database
-    const result = await saveConsultationToDB(newConsultation)
-    if (result.success) {
-      showToast(`Patient file sent to ${doctorName} successfully!`, 'success')
-    } else {
-      showToast('Consultation created locally but failed to save to database.', 'warning')
-    }
 
     // Broadcast real-time update
     fetch('/api/realtime', {
@@ -5431,10 +5521,9 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
     })
 
     // Dispatch real-time event for other tabs/users
-    const patientForNotif = patients.find(p => p.id === sendToDoctorForm.patientId)
     window.dispatchEvent(new CustomEvent('patientFileSent', {
       detail: {
-        patientName: patientForNotif ? getFullName(patientForNotif.firstName, patientForNotif.lastName) : 'Patient',
+        patientName,
         fromRole: user?.role,
         toRole: 'DOCTOR',
         toStaff: doctorName
