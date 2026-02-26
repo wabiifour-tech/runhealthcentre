@@ -115,10 +115,13 @@ export async function GET(request: NextRequest) {
             data: await p.vital_signs.findMany({ orderBy: { recordedAt: 'desc' } }) 
           })
 
-        case 'consultations':
-          return successResponse({ 
-            data: await p.consultations.findMany({ orderBy: { createdAt: 'desc' } }) 
-          })
+        case 'consultations': {
+          // Use raw SQL to ensure we get referredTo column
+          const consultations = await p.$queryRaw`
+            SELECT * FROM consultations ORDER BY "createdAt" DESC
+          `
+          return successResponse({ data: consultations })
+        }
 
         case 'drugs':
           return successResponse({ 
@@ -201,13 +204,12 @@ export async function GET(request: NextRequest) {
           })
 
         case 'all': {
-          const [patients, vitals, consultations, drugs, labTests, labRequests, labResults, 
+          const [patients, vitals, drugs, labTests, labRequests, labResults, 
                   queueEntries, appointments, admissions, prescriptions, medicalCertificates,
                   referralLetters, dischargeSummaries, announcements, voiceNotes, users, rosters, attendance] = 
             await Promise.all([
               p.patients.findMany({ orderBy: { registeredAt: 'desc' } }),
               p.vital_signs.findMany({ orderBy: { recordedAt: 'desc' } }),
-              p.consultations.findMany({ orderBy: { createdAt: 'desc' } }),
               p.drugs.findMany({ where: { isActive: true }, orderBy: { name: 'asc' } }),
               p.lab_tests.findMany({ where: { isActive: true }, orderBy: { name: 'asc' } }),
               p.lab_requests.findMany({ orderBy: { requestedAt: 'desc' } }),
@@ -228,6 +230,9 @@ export async function GET(request: NextRequest) {
               p.rosters.findMany({ orderBy: { date: 'desc' } }),
               p.attendance.findMany({ orderBy: { createdAt: 'desc' } })
             ])
+
+          // Fetch consultations separately with raw SQL to get referredTo
+          const consultations = await p.$queryRaw`SELECT * FROM consultations ORDER BY "createdAt" DESC`
 
           logger.debug('Fetched all data', { patientCount: patients.length })
           return successResponse({ 
@@ -330,8 +335,42 @@ export async function POST(request: NextRequest) {
         }
 
         case 'consultation': {
+          const id = generateId()
+          
+          // Use raw SQL to ensure referredTo is saved (Prisma might not know about new columns)
+          if (data.referredTo) {
+            await p.$executeRawUnsafe(`
+              INSERT INTO consultations (
+                id, "patientId", patient, "doctorId", "doctorName", status, "chiefComplaint",
+                "signsAndSymptoms", "sentByNurseInitials", "referredTo", "referralNotes",
+                "sentAt", "createdAt"
+              ) VALUES (
+                '${id}',
+                ${data.patientId ? `'${data.patientId}'` : 'NULL'},
+                ${data.patient ? `'${JSON.stringify(data.patient).replace(/'/g, "''")}'` : 'NULL'},
+                ${data.doctorId ? `'${data.doctorId}'` : 'NULL'},
+                ${data.doctorName ? `'${data.doctorName.replace(/'/g, "''")}'` : 'NULL'},
+                ${data.status ? `'${data.status}'` : "'pending'"},
+                ${data.chiefComplaint ? `'${data.chiefComplaint.replace(/'/g, "''")}'` : 'NULL'},
+                ${data.signsAndSymptoms ? `'${data.signsAndSymptoms.replace(/'/g, "''")}'` : 'NULL'},
+                ${data.sentByNurseInitials ? `'${data.sentByNurseInitials.replace(/'/g, "''")}'` : 'NULL'},
+                '${data.referredTo}',
+                ${data.referralNotes ? `'${data.referralNotes.replace(/'/g, "''")}'` : 'NULL'},
+                ${data.sentAt ? `'${data.sentAt}'` : 'NULL'},
+                '${now}'
+              )
+            `)
+            
+            // Fetch the created consultation
+            const consultation = await p.consultations.findUnique({ where: { id } })
+            logger.info('Consultation created with referredTo', { id, referredTo: data.referredTo })
+            broadcastChange('consultation_created', 'consultation', consultation)
+            return successResponse({ data: consultation || { ...data, id, createdAt: now } })
+          }
+          
+          // Standard Prisma create for other consultations
           const consultation = await p.consultations.create({
-            data: { ...data, createdAt: now, id: generateId() }
+            data: { ...data, createdAt: now, id }
           })
           logger.info('Consultation created', { patientId: data.patientId })
           broadcastChange('consultation_created', 'consultation', consultation)
