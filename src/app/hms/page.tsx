@@ -3975,6 +3975,88 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
       }, 5000) // Check every 5 seconds
     }
 
+    // Polling for LAB TECHNICIANS to check for new lab requests (every 5 seconds)
+    let labPollInterval: NodeJS.Timeout | null = null
+    const notifiedLabConsultationIds = useRef<Set<string>>(new Set())
+    if (user && user.role === 'LAB_TECHNICIAN') {
+      labPollInterval = setInterval(async () => {
+        try {
+          const response = await fetch('/api/data?type=consultations')
+          const data = await response.json()
+          
+          if (data.success && data.data) {
+            const newConsultations = data.data
+            setConsultations(newConsultations)
+            
+            // Check for files sent back to laboratory
+            const pendingForLab = newConsultations.filter((c: any) => 
+              c.status === 'sent_back' && 
+              c.sendBackTo?.includes('laboratory') && 
+              !notifiedLabConsultationIds.current.has(c.id)
+            )
+            
+            if (pendingForLab.length > 0) {
+              pendingForLab.forEach((c: any) => notifiedLabConsultationIds.current.add(c.id))
+              
+              showToast(`🧪 ${pendingForLab.length} new patient file${pendingForLab.length > 1 ? 's' : ''} for lab tests!`, 'info')
+              playNotificationSound()
+              
+              createNotification({
+                userId: user?.id,
+                type: 'lab_result',
+                title: `${pendingForLab.length} New Lab Request${pendingForLab.length > 1 ? 's' : ''}`,
+                message: `You have ${pendingForLab.length} patient file${pendingForLab.length > 1 ? 's' : ''} waiting for lab tests.`,
+                data: { count: pendingForLab.length, consultationIds: pendingForLab.map((c: any) => c.id) }
+              })
+            }
+          }
+        } catch (e) {
+          console.log('Lab polling error:', e)
+        }
+      }, 5000)
+    }
+
+    // Polling for PHARMACISTS to check for new prescriptions (every 5 seconds)
+    let pharmacyPollInterval: NodeJS.Timeout | null = null
+    const notifiedPharmacyConsultationIds = useRef<Set<string>>(new Set())
+    if (user && user.role === 'PHARMACIST') {
+      pharmacyPollInterval = setInterval(async () => {
+        try {
+          const response = await fetch('/api/data?type=consultations')
+          const data = await response.json()
+          
+          if (data.success && data.data) {
+            const newConsultations = data.data
+            setConsultations(newConsultations)
+            
+            // Check for files sent back to pharmacy
+            const pendingForPharmacy = newConsultations.filter((c: any) => 
+              c.status === 'sent_back' && 
+              c.sendBackTo?.includes('pharmacy') && 
+              !notifiedPharmacyConsultationIds.current.has(c.id)
+            )
+            
+            if (pendingForPharmacy.length > 0) {
+              pendingForPharmacy.forEach((c: any) => notifiedPharmacyConsultationIds.current.add(c.id))
+              
+              showToast(`💊 ${pendingForPharmacy.length} new prescription${pendingForPharmacy.length > 1 ? 's' : ''} to dispense!`, 'info')
+              playNotificationSound()
+              
+              createNotification({
+                userId: user?.id,
+                type: 'prescription',
+                title: `${pendingForPharmacy.length} New Prescription${pendingForPharmacy.length > 1 ? 's' : ''}`,
+                message: `You have ${pendingForPharmacy.length} prescription${pendingForPharmacy.length > 1 ? 's' : ''} waiting to be dispensed.`,
+                data: { count: pendingForPharmacy.length, consultationIds: pendingForPharmacy.map((c: any) => c.id) }
+              })
+            }
+          }
+        } catch (e) {
+          console.log('Pharmacy polling error:', e)
+        }
+      }, 5000)
+    }
+
     // INSTANT polling for pending approvals (every 2 seconds) - Admin only
     let approvalPollInterval: NodeJS.Timeout | null = null
     if (user && (user.role === 'SUPER_ADMIN' || user.role === 'ADMIN')) {
@@ -4063,6 +4145,8 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
       clearInterval(pollInterval)
       if (nursePollInterval) clearInterval(nursePollInterval)
       if (doctorPollInterval) clearInterval(doctorPollInterval)
+      if (labPollInterval) clearInterval(labPollInterval)
+      if (pharmacyPollInterval) clearInterval(pharmacyPollInterval)
       if (approvalPollInterval) clearInterval(approvalPollInterval)
       if (eventSource) eventSource.close()
     }
@@ -5797,8 +5881,12 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
       return c
     }))
 
-    // Update consultation in database
-    await updateInDB('consultation', consultationForm.consultationId, updatedConsultationData)
+    // Update consultation in database and WAIT for it
+    const result = await updateInDB('consultation', consultationForm.consultationId, updatedConsultationData)
+    
+    if (!result.success) {
+      showToast('Warning: File saved locally but failed to sync to database', 'warning')
+    }
 
     // Add file transfer notification
     const patient = patients.find(p => p.id === consultationForm.patientId)
@@ -5823,20 +5911,42 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
       consultationForm.referralNotes
     )
 
+    // Create persistent notifications for each destination
+    consultationForm.sendBackTo.forEach(dest => {
+      // Find users with the matching role and create notification
+      const roleMap: Record<string, string> = {
+        'nurse': 'NURSE',
+        'pharmacy': 'PHARMACIST', 
+        'laboratory': 'LAB_TECHNICIAN',
+        'records': 'RECORDS_OFFICER'
+      }
+      
+      createNotification({
+        type: dest === 'pharmacy' ? 'prescription' : dest === 'laboratory' ? 'lab_result' : 'patient_file',
+        title: `New Patient File from Doctor`,
+        message: `${patientName} - ${consultationForm.finalDiagnosis || consultationForm.provisionalDiagnosis}. Please process.`,
+        data: {
+          consultationId: consultationForm.consultationId,
+          patientId: consultationForm.patientId,
+          destination: dest
+        }
+      })
+    })
+
     // Broadcast real-time update to all clients
     fetch('/api/realtime', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         event: 'consultation_updated',
-        data: { id: consultationForm.consultationId, status: 'sent_back', patientName }
+        data: { id: consultationForm.consultationId, status: 'sent_back', patientName, sendBackTo: consultationForm.sendBackTo }
       })
     })
 
     setShowConsultationDialog(false)
     showToast('Consultation completed and file sent!', 'success')
 
-    // Dispatch real-time event
+    // Dispatch real-time event (don't play sound here - receiver will hear it)
     window.dispatchEvent(new CustomEvent('consultationCompleted', {
       detail: {
         patientName,

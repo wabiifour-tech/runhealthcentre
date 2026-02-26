@@ -672,11 +672,44 @@ export async function PUT(request: NextRequest) {
         }
 
         case 'consultation': {
-          const consultation = await p.consultations.update({
-            where: { id },
-            data
-          })
-          logger.info('Consultation updated', { consultationId: id })
+          // Ensure columns exist
+          await ensureConsultationSchema(p)
+          
+          // Use raw SQL for update to handle all columns
+          const setClauses: string[] = []
+          const values: any = { id }
+          
+          // Build SET clauses dynamically
+          if (data.status !== undefined) setClauses.push(`status = '${data.status}'`)
+          if (data.referredTo !== undefined) setClauses.push(`"referredTo" = '${data.referredTo}'`)
+          if (data.sendBackTo !== undefined) setClauses.push(`"sendBackTo" = '${JSON.stringify(data.sendBackTo)}'`)
+          if (data.sendBackNotes !== undefined) setClauses.push(`"sendBackNotes" = '${String(data.sendBackNotes).replace(/'/g, "''")}'`)
+          if (data.chiefComplaint !== undefined) setClauses.push(`"chiefComplaint" = '${String(data.chiefComplaint).replace(/'/g, "''")}'`)
+          if (data.finalDiagnosis !== undefined) setClauses.push(`"finalDiagnosis" = '${String(data.finalDiagnosis).replace(/'/g, "''")}'`)
+          if (data.provisionalDiagnosis !== undefined) setClauses.push(`"provisionalDiagnosis" = '${String(data.provisionalDiagnosis).replace(/'/g, "''")}'`)
+          if (data.treatmentPlan !== undefined) setClauses.push(`"treatmentPlan" = '${String(data.treatmentPlan).replace(/'/g, "''")}'`)
+          if (data.prescriptions !== undefined) setClauses.push(`prescriptions = '${JSON.stringify(data.prescriptions).replace(/'/g, "''")}'`)
+          if (data.prescriptionItems !== undefined) setClauses.push(`"prescriptionItems" = '${JSON.stringify(data.prescriptionItems).replace(/'/g, "''")}'`)
+          if (data.hasPrescription !== undefined) setClauses.push(`"hasPrescription" = ${data.hasPrescription}`)
+          if (data.completedAt !== undefined) setClauses.push(`"completedAt" = '${data.completedAt}'`)
+          if (data.sentByNurseInitials !== undefined) setClauses.push(`"sentByNurseInitials" = '${String(data.sentByNurseInitials).replace(/'/g, "''")}'`)
+          if (data.investigationsRequested !== undefined) setClauses.push(`"investigationsRequested" = '${JSON.stringify(data.investigationsRequested).replace(/'/g, "''")}'`)
+          if (data.patient !== undefined) setClauses.push(`patient = '${JSON.stringify(data.patient).replace(/'/g, "''")}'`)
+          
+          setClauses.push(`"updatedAt" = '${new Date().toISOString()}'`)
+          
+          if (setClauses.length > 1) {
+            const sql = `UPDATE consultations SET ${setClauses.join(', ')} WHERE id = '${id}'`
+            await p.$executeRawUnsafe(sql)
+          }
+          
+          // Fetch updated consultation
+          const consultations = await p.$queryRawUnsafe(`
+            SELECT * FROM consultations WHERE id = '${id}'
+          `)
+          const consultation = Array.isArray(consultations) ? consultations[0] : null
+          
+          logger.info('Consultation updated', { consultationId: id, status: data.status, sendBackTo: data.sendBackTo })
           broadcastChange('consultation_updated', 'consultation', consultation)
           return successResponse({ data: consultation })
         }
