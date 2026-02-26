@@ -43,7 +43,7 @@ import {
   Smartphone, Monitor, AlertTriangle, CheckCircle, Key, Lock, Building2,
   XCircle, BookOpen, BookMarked, Cross, Bookmark, Sparkles, Sun,
   Timer, LogIn, Phone, Mail, ShieldCheck, Edit2, Cloud, CloudOff, RefreshCw, Wifi, WifiOff,
-  MessageSquare, AlertCircle, Zap, UserCheck, Fingerprint, Camera, FolderOpen, Undo2
+  MessageSquare, AlertCircle, Zap, UserCheck, Fingerprint, Camera, FolderOpen, Undo2, CheckCheck
 } from 'lucide-react'
 import { 
   PatientVisitsChart, 
@@ -2096,6 +2096,11 @@ export default function HMSApp() {
   const [currentUserForApproval, setCurrentUserForApproval] = useState<SystemUser | null>(null)
   const knownPendingUserIds = useRef<Set<string>>(new Set())
   const notifiedConsultationIdsRef = useRef<Set<string>>(new Set()) // Track notified patient files
+  const notifiedNurseFromDoctorIds = useRef<Set<string>>(new Set()) // Track files from Doctor to Nurse
+  const notifiedDoctorConsultationIds = useRef<Set<string>>(new Set()) // Track files for Doctor
+  const notifiedLabConsultationIds = useRef<Set<string>>(new Set()) // Track files for Lab
+  const notifiedPharmacyConsultationIds = useRef<Set<string>>(new Set()) // Track files for Pharmacy
+  const notifiedRecordsConsultationIds = useRef<Set<string>>(new Set()) // Track files for Records
   const [payments, setPayments] = useState<Payment[]>([])
   const [expenses, setExpenses] = useState<Expense[]>([])
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([])
@@ -3916,6 +3921,28 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
                 }
               })
             }
+            
+            // ALSO check for files sent back from Doctor (after consultation)
+            const pendingFromDoctor = newConsultations.filter((c: any) => 
+              c.status === 'sent_back' && 
+              c.sendBackTo?.includes('nurse') && 
+              !notifiedNurseFromDoctorIds.current.has(c.id)
+            )
+            
+            if (pendingFromDoctor.length > 0) {
+              pendingFromDoctor.forEach((c: any) => notifiedNurseFromDoctorIds.current.add(c.id))
+              
+              showToast(`📋 ${pendingFromDoctor.length} patient file${pendingFromDoctor.length > 1 ? 's' : ''} returned from Doctor!`, 'info')
+              playNotificationSound()
+              
+              createNotification({
+                userId: user?.id,
+                type: 'patient_file',
+                title: `${pendingFromDoctor.length} File${pendingFromDoctor.length > 1 ? 's' : ''} Returned from Doctor`,
+                message: `You have ${pendingFromDoctor.length} patient file${pendingFromDoctor.length > 1 ? 's' : ''} returned from Doctor for follow-up.`,
+                data: { count: pendingFromDoctor.length, consultationIds: pendingFromDoctor.map((c: any) => c.id) }
+              })
+            }
           }
         } catch (e) {
           console.log('Nurse polling error:', e)
@@ -3925,7 +3952,6 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
 
     // Polling for DOCTORS to check for new patient files from nurses (every 5 seconds)
     let doctorPollInterval: NodeJS.Timeout | null = null
-    const notifiedDoctorConsultationIds = useRef<Set<string>>(new Set())
     if (user && user.role === 'DOCTOR') {
       doctorPollInterval = setInterval(async () => {
         try {
@@ -3977,7 +4003,6 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
 
     // Polling for LAB TECHNICIANS to check for new lab requests (every 5 seconds)
     let labPollInterval: NodeJS.Timeout | null = null
-    const notifiedLabConsultationIds = useRef<Set<string>>(new Set())
     if (user && user.role === 'LAB_TECHNICIAN') {
       labPollInterval = setInterval(async () => {
         try {
@@ -4018,7 +4043,6 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
 
     // Polling for PHARMACISTS to check for new prescriptions (every 5 seconds)
     let pharmacyPollInterval: NodeJS.Timeout | null = null
-    const notifiedPharmacyConsultationIds = useRef<Set<string>>(new Set())
     if (user && user.role === 'PHARMACIST') {
       pharmacyPollInterval = setInterval(async () => {
         try {
@@ -4053,6 +4077,46 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
           }
         } catch (e) {
           console.log('Pharmacy polling error:', e)
+        }
+      }, 5000)
+    }
+
+    // Polling for RECORDS OFFICERS to check for files sent back from Doctor (every 5 seconds)
+    let recordsPollInterval: NodeJS.Timeout | null = null
+    if (user && user.role === 'RECORDS_OFFICER') {
+      recordsPollInterval = setInterval(async () => {
+        try {
+          const response = await fetch('/api/data?type=consultations')
+          const data = await response.json()
+          
+          if (data.success && data.data) {
+            const newConsultations = data.data
+            setConsultations(newConsultations)
+            
+            // Check for files sent back to records from Doctor
+            const pendingForRecords = newConsultations.filter((c: any) => 
+              c.status === 'sent_back' && 
+              c.sendBackTo?.includes('records') && 
+              !notifiedRecordsConsultationIds.current.has(c.id)
+            )
+            
+            if (pendingForRecords.length > 0) {
+              pendingForRecords.forEach((c: any) => notifiedRecordsConsultationIds.current.add(c.id))
+              
+              showToast(`📁 ${pendingForRecords.length} patient file${pendingForRecords.length > 1 ? 's' : ''} returned from Doctor!`, 'info')
+              playNotificationSound()
+              
+              createNotification({
+                userId: user?.id,
+                type: 'patient_file',
+                title: `${pendingForRecords.length} Patient File${pendingForRecords.length > 1 ? 's' : ''} Returned`,
+                message: `You have ${pendingForRecords.length} patient file${pendingForRecords.length > 1 ? 's' : ''} returned from Doctor for filing.`,
+                data: { count: pendingForRecords.length, consultationIds: pendingForRecords.map((c: any) => c.id) }
+              })
+            }
+          }
+        } catch (e) {
+          console.log('Records polling error:', e)
         }
       }, 5000)
     }
@@ -4147,6 +4211,7 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
       if (doctorPollInterval) clearInterval(doctorPollInterval)
       if (labPollInterval) clearInterval(labPollInterval)
       if (pharmacyPollInterval) clearInterval(pharmacyPollInterval)
+      if (recordsPollInterval) clearInterval(recordsPollInterval)
       if (approvalPollInterval) clearInterval(approvalPollInterval)
       if (eventSource) eventSource.close()
     }
