@@ -1,0 +1,459 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+  previewFeatures = ["driverAdapters"]
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// User model for authentication and staff management
+model users {
+  id              String    @id
+  email           String    @unique
+  name            String
+  password        String
+  role            String    // SUPER_ADMIN, ADMIN, DOCTOR, NURSE, PHARMACIST, LAB_TECHNICIAN, MATRON, RECORDS_OFFICER
+  department      String?
+  initials        String?
+  phone           String?
+  dateOfBirth     DateTime?
+  profilePhoto    String?
+  isActive        Boolean   @default(true)
+  isFirstLogin    Boolean   @default(true)
+  approvalStatus  String    @default("PENDING") // PENDING, APPROVED, REJECTED
+  lastLogin       DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
+
+// Patient model
+model patients {
+  id                      String    @id
+  hospitalNumber          String?
+  ruhcCode                String    @unique
+  matricNumber            String?
+  firstName               String
+  lastName                String
+  middleName              String?
+  title                   String?
+  dateOfBirth             String?
+  gender                  String?
+  bloodGroup              String?
+  genotype                String?
+  phone                   String?
+  email                   String?
+  address                 String?
+  city                    String?
+  state                   String?
+  lga                     String?
+  nationality             String?
+  religion                String?
+  occupation              String?
+  maritalStatus           String?
+  nokName                 String?
+  nokRelationship         String?
+  nokPhone                String?
+  nokAddress              String?
+  emergencyContactName    String?
+  emergencyContactPhone   String?
+  emergencyContactRelationship String?
+  insuranceNumber         String?
+  insuranceProvider       String?
+  allergies               String?
+  chronicConditions       String?
+  currentMedications      String?
+  currentUnit             String?
+  bedNumber               Int?
+  admissionDate           DateTime?
+  dischargeDate           DateTime?
+  isActive                Boolean   @default(true)
+  registeredAt            DateTime  @default(now())
+  registeredBy            String?
+  lastEditedBy            String?
+  lastEditedAt            DateTime?
+}
+
+// Consultation model
+model consultations {
+  id                      String    @id
+  patientId               String?
+  patient                 Json?
+  doctorId                String?
+  doctorName              String?
+  status                  String    @default("pending") // pending, in_progress, completed, sent_back, pending_review
+  chiefComplaint          String?
+  historyOfPresentIllness String?
+  pastMedicalHistory      String?
+  signsAndSymptoms        String?
+  bloodPressureSystolic   String?
+  bloodPressureDiastolic  String?
+  temperature             String?
+  pulse                   String?
+  respiratoryRate         String?
+  weight                  String?
+  height                  String?
+  oxygenSaturation        String?
+  generalExamination      String?
+  systemExamination       String?
+  investigationsRequested Json?
+  scanRequested           Json?
+  scanFindings            String?
+  provisionalDiagnosis    String?
+  finalDiagnosis          String?
+  treatmentPlan           String?
+  prescriptions           Json?
+  referredTo              String?   // nurse, doctor, lab, pharmacy - who this consultation is sent to
+  referralTo              String?
+  referralNotes           String?
+  sendBackTo              Json?
+  sendBackNotes           String?
+  sentByNurseInitials     String?   // Initials of nurse who sent the file
+  sentAt                  DateTime?
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+}
+
+// Vital signs model
+model vital_signs {
+  id                      String    @id
+  patientId               String?
+  patient                 Json?
+  recordedBy              String?
+  bloodPressureSystolic   String?
+  bloodPressureDiastolic  String?
+  temperature             String?
+  pulse                   String?
+  respiratoryRate         String?
+  weight                  String?
+  height                  String?
+  oxygenSaturation        String?
+  painScore               String?
+  notes                   String?
+  recordedAt              DateTime  @default(now())
+}
+
+// Lab requests model
+model lab_requests {
+  id                      String    @id
+  patientId               String?
+  patient                 Json?
+  requestedBy             String?
+  tests                   Json?
+  status                  String    @default("pending") // pending, in_progress, completed
+  notes                   String?
+  requestedAt             DateTime  @default(now())
+  completedAt             DateTime?
+}
+
+// Lab results model
+model lab_results {
+  id                      String    @id
+  requestId               String?
+  patientId               String?
+  patient                 Json?
+  testName                String?
+  result                  String?
+  notes                   String?
+  performedBy             String?
+  createdAt               DateTime  @default(now())
+}
+
+// Prescriptions model
+model prescriptions {
+  id                      String    @id
+  patientId               String?
+  patient                 Json?
+  prescribedBy            String?
+  medications             Json?
+  status                  String    @default("pending") // pending, dispensed
+  notes                   String?
+  createdAt               DateTime  @default(now())
+  dispensedAt             DateTime?
+}
+
+// Queue entries model
+model queue_entries {
+  id                      String    @id
+  patientId               String?
+  patient                 Json?
+  unit                    String?
+  status                  String    @default("waiting") // waiting, in_progress, completed
+  priority                Int       @default(0)
+  notes                   String?
+  checkedInAt             DateTime  @default(now())
+  seenAt                  DateTime?
+}
+
+// Appointments model
+model appointments {
+  id                      String    @id
+  patientId               String?
+  patient                 Json?
+  doctorId                String?
+  doctorName              String?
+  type                    String?
+  reason                  String?
+  appointmentDate         String?
+  startTime               String?
+  endTime                 String?
+  status                  String    @default("scheduled") // scheduled, completed, cancelled
+  notes                   String?
+  initials                String?
+  createdAt               DateTime  @default(now())
+}
+
+// Admissions model
+model admissions {
+  id                      String    @id
+  patientId               String?
+  patient                 Json?
+  unit                    String?
+  bedNumber               Int?
+  reason                  String?
+  status                  String    @default("admitted") // admitted, discharged
+  admittedAt              DateTime  @default(now())
+  dischargedAt            DateTime?
+  notes                   String?
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+}
+
+// Drugs model
+model drugs {
+  id                      String    @id
+  name                    String
+  category                String?
+  dosageForm              String?
+  strength                String?
+  unit                    String?
+  price                   Float?
+  quantityInStock         Int       @default(0)
+  reorderLevel            Int       @default(10)
+  isActive                Boolean   @default(true)
+  createdAt               DateTime  @default(now())
+}
+
+// Lab tests model
+model lab_tests {
+  id                      String    @id
+  name                    String
+  category                String?
+  price                   Float?
+  turnaroundTime          String?
+  isActive                Boolean   @default(true)
+  createdAt               DateTime  @default(now())
+}
+
+// Announcements model
+model announcements {
+  id                      String    @id
+  title                   String
+  content                 String?
+  type                    String    @default("general") // general, birthday, urgent, event
+  createdBy               String?
+  createdAt               DateTime  @default(now())
+}
+
+// Voice notes model
+model voice_notes {
+  id                      String    @id
+  patientId               String?
+  patient                 Json?
+  recipientRole           String?
+  transcription           String?
+  audioUrl                String?
+  initials                String?
+  createdBy               String?
+  createdAt               DateTime  @default(now())
+}
+
+// Medical certificates model
+model medical_certificates {
+  id                      String    @id
+  patientId               String?
+  patient                 Json?
+  type                    String?
+  diagnosis               String?
+  daysOff                 Int?
+  startDate               String?
+  endDate                 String?
+  notes                   String?
+  issuedBy                String?
+  createdAt               DateTime  @default(now())
+}
+
+// Referral letters model
+model referral_letters {
+  id                      String    @id
+  patientId               String?
+  patient                 Json?
+  referredTo              String?
+  reason                  String?
+  diagnosis               String?
+  notes                   String?
+  issuedBy                String?
+  createdAt               DateTime  @default(now())
+}
+
+// Discharge summaries model
+model discharge_summaries {
+  id                      String    @id
+  patientId               String?
+  patient                 Json?
+  admissionDate           String?
+  dischargeDate           String?
+  diagnosis               String?
+  treatment               String?
+  medications             String?
+  followUp                String?
+  notes                   String?
+  dischargedBy            String?
+  createdAt               DateTime  @default(now())
+}
+
+// Audit logs model
+model audit_logs {
+  id                      String    @id
+  userId                  String?
+  userName                String?
+  action                  String
+  description             String?
+  metadata                Json?
+  timestamp               DateTime  @default(now())
+}
+
+// Duty Roster model
+model rosters {
+  id                      String    @id
+  staffId                 String?
+  staffName               String?
+  staffRole               String?
+  date                    String    // YYYY-MM-DD format
+  shift                   String    // morning, afternoon, night
+  notes                   String?
+  createdBy               String?
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+}
+
+// Attendance model
+model attendance {
+  id                      String    @id
+  staffId                 String?
+  staffName               String?
+  staffRole               String?
+  date                    String    // toDateString format
+  signInTime              String?
+  signInPhoto             String?
+  signOutTime             String?
+  signOutPhoto            String?
+  shift                   String    // morning, afternoon, night
+  status                  String    @default("present") // present, late, absent, on_leave
+  deviceId                String?
+  notes                   String?
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+}
+
+// App settings model
+model app_settings {
+  id                      String    @id
+  
+  // Facility Information
+  facilityName            String    @default("RUN Health Centre")
+  facilityShortName       String    @default("RUHC")
+  facilityCode            String    @default("RUHC-2026")
+  facilityAddress         String?
+  facilityCity            String?
+  facilityState           String?
+  facilityCountry         String    @default("Nigeria")
+  
+  // Contact Information
+  primaryPhone            String?
+  secondaryPhone          String?
+  emergencyPhone          String?
+  emailAddress            String?
+  website                 String?
+  
+  // Branding
+  logoUrl                 String?
+  logoBase64              String?
+  primaryColor            String    @default("#1e40af")
+  secondaryColor          String    @default("#3b82f6")
+  accentColor             String    @default("#10b981")
+  
+  // Operational Settings
+  openingTime             String    @default("08:00")
+  closingTime             String    @default("18:00")
+  workingDays             String    @default("Monday,Friday")
+  timezone                String    @default("Africa/Lagos")
+  currency                String    @default("NGN")
+  currencySymbol          String    @default("₦")
+  
+  // Feature Flags
+  enableOnlineBooking     Boolean   @default(false)
+  enableSmsNotifications  Boolean   @default(false)
+  enableEmailNotifications Boolean  @default(false)
+  enableVoiceNotes        Boolean   @default(true)
+  enableDailyDevotionals  Boolean   @default(true)
+  enableDrugInteractionCheck Boolean @default(true)
+  enableVitalAlerts       Boolean   @default(true)
+  enableAuditLogging      Boolean   @default(true)
+  enableBreakGlass        Boolean   @default(true)
+  enableTwoFactor         Boolean   @default(false)
+  
+  // Custom Messages
+  welcomeMessage          String?
+  headerMessage           String?
+  footerMessage           String?
+  
+  // Security Settings
+  sessionTimeoutMinutes   Int       @default(30)
+  maxLoginAttempts        Int       @default(5)
+  lockoutDurationMinutes  Int       @default(30)
+  passwordMinLength       Int       @default(8)
+  passwordRequireUppercase Boolean  @default(true)
+  passwordRequireLowercase Boolean  @default(true)
+  passwordRequireNumber   Boolean   @default(true)
+  passwordRequireSpecial  Boolean   @default(false)
+  passwordExpiryDays      Int       @default(90)
+  
+  // Audit Log Settings
+  auditLogRetentionDays   Int       @default(90)
+  logPatientAccess        Boolean   @default(true)
+  logDataModifications    Boolean   @default(true)
+  logLoginAttempts        Boolean   @default(true)
+  
+  // Notification Provider Settings
+  smsProvider             String?   // 'twilio', 'africastalking', 'termii', 'custom'
+  smsApiKey               String?
+  smsApiSecret            String?
+  smsSenderId             String?
+  emailProvider           String?   // 'resend', 'sendgrid', 'smtp'
+  emailApiKey             String?
+  smtpHost                String?
+  smtpPort                Int?
+  smtpUser                String?
+  smtpPassword            String?
+  
+  // Role Permissions (JSON string)
+  rolePermissions         String?   // JSON object with permissions per role
+  
+  // Queue Settings
+  queuePrefix             String    @default("RUHC")
+  queueStartNumber        Int       @default(1)
+  queueResetDaily         Boolean   @default(true)
+  
+  // Backup Settings
+  autoBackupEnabled       Boolean   @default(false)
+  backupFrequency         String?   // 'daily', 'weekly', 'monthly'
+  backupRetentionDays     Int       @default(30)
+  lastBackupAt            DateTime?
+  
+  // System
+  lastUpdated             DateTime?
+  updatedBy               String?
+  createdAt               DateTime  @default(now())
+}
