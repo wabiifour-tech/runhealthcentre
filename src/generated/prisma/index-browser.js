@@ -114,412 +114,73 @@ Prisma.NullTypes = NullTypes
  */
 
 exports.Prisma.TransactionIsolationLevel = makeStrictEnum({
-  ReadUncommitted: 'ReadUncommitted',
-  ReadCommitted: 'ReadCommitted',
-  RepeatableRead: 'RepeatableRead',
   Serializable: 'Serializable'
 });
 
-exports.Prisma.UsersScalarFieldEnum = {
+exports.Prisma.UserScalarFieldEnum = {
   id: 'id',
   email: 'email',
-  name: 'name',
   password: 'password',
+  name: 'name',
+  phone: 'phone',
   role: 'role',
-  department: 'department',
-  initials: 'initials',
-  phone: 'phone',
-  dateOfBirth: 'dateOfBirth',
-  profilePhoto: 'profilePhoto',
-  isActive: 'isActive',
-  isFirstLogin: 'isFirstLogin',
-  approvalStatus: 'approvalStatus',
-  lastLogin: 'lastLogin',
-  createdAt: 'createdAt',
-  updatedAt: 'updatedAt'
-};
-
-exports.Prisma.PatientsScalarFieldEnum = {
-  id: 'id',
-  hospitalNumber: 'hospitalNumber',
-  ruhcCode: 'ruhcCode',
-  matricNumber: 'matricNumber',
-  firstName: 'firstName',
-  lastName: 'lastName',
-  middleName: 'middleName',
-  title: 'title',
-  dateOfBirth: 'dateOfBirth',
-  gender: 'gender',
-  bloodGroup: 'bloodGroup',
-  genotype: 'genotype',
-  phone: 'phone',
-  email: 'email',
-  address: 'address',
-  city: 'city',
-  state: 'state',
-  lga: 'lga',
-  nationality: 'nationality',
-  religion: 'religion',
-  occupation: 'occupation',
-  maritalStatus: 'maritalStatus',
-  nokName: 'nokName',
-  nokRelationship: 'nokRelationship',
-  nokPhone: 'nokPhone',
-  nokAddress: 'nokAddress',
-  emergencyContactName: 'emergencyContactName',
-  emergencyContactPhone: 'emergencyContactPhone',
-  emergencyContactRelationship: 'emergencyContactRelationship',
-  insuranceNumber: 'insuranceNumber',
-  insuranceProvider: 'insuranceProvider',
-  allergies: 'allergies',
-  chronicConditions: 'chronicConditions',
-  currentMedications: 'currentMedications',
-  currentUnit: 'currentUnit',
-  bedNumber: 'bedNumber',
-  admissionDate: 'admissionDate',
-  dischargeDate: 'dischargeDate',
-  isActive: 'isActive',
-  registeredAt: 'registeredAt',
-  registeredBy: 'registeredBy',
-  lastEditedBy: 'lastEditedBy',
-  lastEditedAt: 'lastEditedAt'
-};
-
-exports.Prisma.ConsultationsScalarFieldEnum = {
-  id: 'id',
-  patientId: 'patientId',
-  patient: 'patient',
-  doctorId: 'doctorId',
-  doctorName: 'doctorName',
-  status: 'status',
-  chiefComplaint: 'chiefComplaint',
-  historyOfPresentIllness: 'historyOfPresentIllness',
-  pastMedicalHistory: 'pastMedicalHistory',
-  signsAndSymptoms: 'signsAndSymptoms',
-  bloodPressureSystolic: 'bloodPressureSystolic',
-  bloodPressureDiastolic: 'bloodPressureDiastolic',
-  temperature: 'temperature',
-  pulse: 'pulse',
-  respiratoryRate: 'respiratoryRate',
-  weight: 'weight',
-  height: 'height',
-  oxygenSaturation: 'oxygenSaturation',
-  generalExamination: 'generalExamination',
-  systemExamination: 'systemExamination',
-  investigationsRequested: 'investigationsRequested',
-  scanRequested: 'scanRequested',
-  scanFindings: 'scanFindings',
-  provisionalDiagnosis: 'provisionalDiagnosis',
-  finalDiagnosis: 'finalDiagnosis',
-  treatmentPlan: 'treatmentPlan',
-  prescriptions: 'prescriptions',
-  referredTo: 'referredTo',
-  referralTo: 'referralTo',
-  referralNotes: 'referralNotes',
-  sendBackTo: 'sendBackTo',
-  sendBackNotes: 'sendBackNotes',
-  sentByNurseInitials: 'sentByNurseInitials',
-  sentAt: 'sentAt',
-  createdAt: 'createdAt',
-  updatedAt: 'updatedAt'
-};
-
-exports.Prisma.Vital_signsScalarFieldEnum = {
-  id: 'id',
-  patientId: 'patientId',
-  patient: 'patient',
-  recordedBy: 'recordedBy',
-  bloodPressureSystolic: 'bloodPressureSystolic',
-  bloodPressureDiastolic: 'bloodPressureDiastolic',
-  temperature: 'temperature',
-  pulse: 'pulse',
-  respiratoryRate: 'respiratoryRate',
-  weight: 'weight',
-  height: 'height',
-  oxygenSaturation: 'oxygenSaturation',
-  painScore: 'painScore',
-  notes: 'notes',
-  recordedAt: 'recordedAt'
-};
-
-exports.Prisma.Lab_requestsScalarFieldEnum = {
-  id: 'id',
-  patientId: 'patientId',
-  patient: 'patient',
-  requestedBy: 'requestedBy',
-  tests: 'tests',
-  status: 'status',
-  notes: 'notes',
-  requestedAt: 'requestedAt',
-  completedAt: 'completedAt'
-};
-
-exports.Prisma.Lab_resultsScalarFieldEnum = {
-  id: 'id',
-  requestId: 'requestId',
-  patientId: 'patientId',
-  patient: 'patient',
-  testName: 'testName',
-  result: 'result',
-  notes: 'notes',
-  performedBy: 'performedBy',
   createdAt: 'createdAt'
 };
 
-exports.Prisma.PrescriptionsScalarFieldEnum = {
-  id: 'id',
-  patientId: 'patientId',
-  patient: 'patient',
-  prescribedBy: 'prescribedBy',
-  medications: 'medications',
-  status: 'status',
-  notes: 'notes',
-  createdAt: 'createdAt',
-  dispensedAt: 'dispensedAt'
-};
-
-exports.Prisma.Queue_entriesScalarFieldEnum = {
-  id: 'id',
-  patientId: 'patientId',
-  patient: 'patient',
-  unit: 'unit',
-  status: 'status',
-  priority: 'priority',
-  notes: 'notes',
-  checkedInAt: 'checkedInAt',
-  seenAt: 'seenAt'
-};
-
-exports.Prisma.AppointmentsScalarFieldEnum = {
-  id: 'id',
-  patientId: 'patientId',
-  patient: 'patient',
-  doctorId: 'doctorId',
-  doctorName: 'doctorName',
-  type: 'type',
-  reason: 'reason',
-  appointmentDate: 'appointmentDate',
-  startTime: 'startTime',
-  endTime: 'endTime',
-  status: 'status',
-  notes: 'notes',
-  initials: 'initials',
-  createdAt: 'createdAt'
-};
-
-exports.Prisma.AdmissionsScalarFieldEnum = {
-  id: 'id',
-  patientId: 'patientId',
-  patient: 'patient',
-  unit: 'unit',
-  bedNumber: 'bedNumber',
-  reason: 'reason',
-  status: 'status',
-  admittedAt: 'admittedAt',
-  dischargedAt: 'dischargedAt',
-  notes: 'notes',
-  createdAt: 'createdAt',
-  updatedAt: 'updatedAt'
-};
-
-exports.Prisma.DrugsScalarFieldEnum = {
-  id: 'id',
-  name: 'name',
-  category: 'category',
-  dosageForm: 'dosageForm',
-  strength: 'strength',
-  unit: 'unit',
-  price: 'price',
-  quantityInStock: 'quantityInStock',
-  reorderLevel: 'reorderLevel',
-  isActive: 'isActive',
-  createdAt: 'createdAt'
-};
-
-exports.Prisma.Lab_testsScalarFieldEnum = {
-  id: 'id',
-  name: 'name',
-  category: 'category',
-  price: 'price',
-  turnaroundTime: 'turnaroundTime',
-  isActive: 'isActive',
-  createdAt: 'createdAt'
-};
-
-exports.Prisma.AnnouncementsScalarFieldEnum = {
-  id: 'id',
-  title: 'title',
-  content: 'content',
-  type: 'type',
-  createdBy: 'createdBy',
-  createdAt: 'createdAt'
-};
-
-exports.Prisma.Voice_notesScalarFieldEnum = {
-  id: 'id',
-  patientId: 'patientId',
-  patient: 'patient',
-  recipientRole: 'recipientRole',
-  transcription: 'transcription',
-  audioUrl: 'audioUrl',
-  initials: 'initials',
-  createdBy: 'createdBy',
-  createdAt: 'createdAt'
-};
-
-exports.Prisma.Medical_certificatesScalarFieldEnum = {
-  id: 'id',
-  patientId: 'patientId',
-  patient: 'patient',
-  type: 'type',
-  diagnosis: 'diagnosis',
-  daysOff: 'daysOff',
-  startDate: 'startDate',
-  endDate: 'endDate',
-  notes: 'notes',
-  issuedBy: 'issuedBy',
-  createdAt: 'createdAt'
-};
-
-exports.Prisma.Referral_lettersScalarFieldEnum = {
-  id: 'id',
-  patientId: 'patientId',
-  patient: 'patient',
-  referredTo: 'referredTo',
-  reason: 'reason',
-  diagnosis: 'diagnosis',
-  notes: 'notes',
-  issuedBy: 'issuedBy',
-  createdAt: 'createdAt'
-};
-
-exports.Prisma.Discharge_summariesScalarFieldEnum = {
-  id: 'id',
-  patientId: 'patientId',
-  patient: 'patient',
-  admissionDate: 'admissionDate',
-  dischargeDate: 'dischargeDate',
-  diagnosis: 'diagnosis',
-  treatment: 'treatment',
-  medications: 'medications',
-  followUp: 'followUp',
-  notes: 'notes',
-  dischargedBy: 'dischargedBy',
-  createdAt: 'createdAt'
-};
-
-exports.Prisma.Audit_logsScalarFieldEnum = {
+exports.Prisma.DoctorScalarFieldEnum = {
   id: 'id',
   userId: 'userId',
-  userName: 'userName',
-  action: 'action',
-  description: 'description',
-  metadata: 'metadata',
-  timestamp: 'timestamp'
+  specialty: 'specialty',
+  licenseNumber: 'licenseNumber',
+  isVerified: 'isVerified',
+  consultationFee: 'consultationFee',
+  availability: 'availability',
+  rating: 'rating',
+  bio: 'bio',
+  profileImage: 'profileImage',
+  createdAt: 'createdAt'
 };
 
-exports.Prisma.RostersScalarFieldEnum = {
+exports.Prisma.PatientScalarFieldEnum = {
   id: 'id',
-  staffId: 'staffId',
-  staffName: 'staffName',
-  staffRole: 'staffRole',
-  date: 'date',
-  shift: 'shift',
-  notes: 'notes',
-  createdBy: 'createdBy',
-  createdAt: 'createdAt',
-  updatedAt: 'updatedAt'
+  userId: 'userId',
+  dateOfBirth: 'dateOfBirth',
+  gender: 'gender',
+  address: 'address',
+  createdAt: 'createdAt'
 };
 
-exports.Prisma.AttendanceScalarFieldEnum = {
+exports.Prisma.AppointmentScalarFieldEnum = {
   id: 'id',
-  staffId: 'staffId',
-  staffName: 'staffName',
-  staffRole: 'staffRole',
-  date: 'date',
-  signInTime: 'signInTime',
-  signInPhoto: 'signInPhoto',
-  signOutTime: 'signOutTime',
-  signOutPhoto: 'signOutPhoto',
-  shift: 'shift',
+  patientId: 'patientId',
+  doctorId: 'doctorId',
+  scheduledAt: 'scheduledAt',
   status: 'status',
-  deviceId: 'deviceId',
+  type: 'type',
   notes: 'notes',
-  createdAt: 'createdAt',
-  updatedAt: 'updatedAt'
+  meetingRoom: 'meetingRoom',
+  createdAt: 'createdAt'
 };
 
-exports.Prisma.App_settingsScalarFieldEnum = {
+exports.Prisma.PrescriptionScalarFieldEnum = {
   id: 'id',
-  facilityName: 'facilityName',
-  facilityShortName: 'facilityShortName',
-  facilityCode: 'facilityCode',
-  facilityAddress: 'facilityAddress',
-  facilityCity: 'facilityCity',
-  facilityState: 'facilityState',
-  facilityCountry: 'facilityCountry',
-  primaryPhone: 'primaryPhone',
-  secondaryPhone: 'secondaryPhone',
-  emergencyPhone: 'emergencyPhone',
-  emailAddress: 'emailAddress',
-  website: 'website',
-  logoUrl: 'logoUrl',
-  logoBase64: 'logoBase64',
-  primaryColor: 'primaryColor',
-  secondaryColor: 'secondaryColor',
-  accentColor: 'accentColor',
-  openingTime: 'openingTime',
-  closingTime: 'closingTime',
-  workingDays: 'workingDays',
-  timezone: 'timezone',
+  appointmentId: 'appointmentId',
+  patientId: 'patientId',
+  doctorId: 'doctorId',
+  diagnosis: 'diagnosis',
+  medications: 'medications',
+  notes: 'notes',
+  createdAt: 'createdAt'
+};
+
+exports.Prisma.PaymentScalarFieldEnum = {
+  id: 'id',
+  patientId: 'patientId',
+  appointmentId: 'appointmentId',
+  amount: 'amount',
   currency: 'currency',
-  currencySymbol: 'currencySymbol',
-  enableOnlineBooking: 'enableOnlineBooking',
-  enableSmsNotifications: 'enableSmsNotifications',
-  enableEmailNotifications: 'enableEmailNotifications',
-  enableVoiceNotes: 'enableVoiceNotes',
-  enableDailyDevotionals: 'enableDailyDevotionals',
-  enableDrugInteractionCheck: 'enableDrugInteractionCheck',
-  enableVitalAlerts: 'enableVitalAlerts',
-  enableAuditLogging: 'enableAuditLogging',
-  enableBreakGlass: 'enableBreakGlass',
-  enableTwoFactor: 'enableTwoFactor',
-  welcomeMessage: 'welcomeMessage',
-  headerMessage: 'headerMessage',
-  footerMessage: 'footerMessage',
-  sessionTimeoutMinutes: 'sessionTimeoutMinutes',
-  maxLoginAttempts: 'maxLoginAttempts',
-  lockoutDurationMinutes: 'lockoutDurationMinutes',
-  passwordMinLength: 'passwordMinLength',
-  passwordRequireUppercase: 'passwordRequireUppercase',
-  passwordRequireLowercase: 'passwordRequireLowercase',
-  passwordRequireNumber: 'passwordRequireNumber',
-  passwordRequireSpecial: 'passwordRequireSpecial',
-  passwordExpiryDays: 'passwordExpiryDays',
-  auditLogRetentionDays: 'auditLogRetentionDays',
-  logPatientAccess: 'logPatientAccess',
-  logDataModifications: 'logDataModifications',
-  logLoginAttempts: 'logLoginAttempts',
-  smsProvider: 'smsProvider',
-  smsApiKey: 'smsApiKey',
-  smsApiSecret: 'smsApiSecret',
-  smsSenderId: 'smsSenderId',
-  emailProvider: 'emailProvider',
-  emailApiKey: 'emailApiKey',
-  smtpHost: 'smtpHost',
-  smtpPort: 'smtpPort',
-  smtpUser: 'smtpUser',
-  smtpPassword: 'smtpPassword',
-  rolePermissions: 'rolePermissions',
-  queuePrefix: 'queuePrefix',
-  queueStartNumber: 'queueStartNumber',
-  queueResetDaily: 'queueResetDaily',
-  autoBackupEnabled: 'autoBackupEnabled',
-  backupFrequency: 'backupFrequency',
-  backupRetentionDays: 'backupRetentionDays',
-  lastBackupAt: 'lastBackupAt',
-  lastUpdated: 'lastUpdated',
-  updatedBy: 'updatedBy',
+  status: 'status',
+  paystackRef: 'paystackRef',
   createdAt: 'createdAt'
 };
 
@@ -528,50 +189,19 @@ exports.Prisma.SortOrder = {
   desc: 'desc'
 };
 
-exports.Prisma.NullableJsonNullValueInput = {
-  DbNull: Prisma.DbNull,
-  JsonNull: Prisma.JsonNull
-};
-
-exports.Prisma.QueryMode = {
-  default: 'default',
-  insensitive: 'insensitive'
-};
-
 exports.Prisma.NullsOrder = {
   first: 'first',
   last: 'last'
 };
 
-exports.Prisma.JsonNullValueFilter = {
-  DbNull: Prisma.DbNull,
-  JsonNull: Prisma.JsonNull,
-  AnyNull: Prisma.AnyNull
-};
-
 
 exports.Prisma.ModelName = {
-  users: 'users',
-  patients: 'patients',
-  consultations: 'consultations',
-  vital_signs: 'vital_signs',
-  lab_requests: 'lab_requests',
-  lab_results: 'lab_results',
-  prescriptions: 'prescriptions',
-  queue_entries: 'queue_entries',
-  appointments: 'appointments',
-  admissions: 'admissions',
-  drugs: 'drugs',
-  lab_tests: 'lab_tests',
-  announcements: 'announcements',
-  voice_notes: 'voice_notes',
-  medical_certificates: 'medical_certificates',
-  referral_letters: 'referral_letters',
-  discharge_summaries: 'discharge_summaries',
-  audit_logs: 'audit_logs',
-  rosters: 'rosters',
-  attendance: 'attendance',
-  app_settings: 'app_settings'
+  User: 'User',
+  Doctor: 'Doctor',
+  Patient: 'Patient',
+  Appointment: 'Appointment',
+  Prescription: 'Prescription',
+  Payment: 'Payment'
 };
 
 /**
