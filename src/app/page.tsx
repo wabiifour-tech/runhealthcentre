@@ -1,564 +1,733 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { 
-  Video, Shield, Clock, CreditCard, CheckCircle, Star, 
-  Phone, Mail, MapPin, Menu, X, ArrowRight, User, 
-  Stethoscope, Heart, Brain, Eye, Baby, Bone, Activity
+import { Button } from '@/components/ui/button'
+import { Card, CardContent } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
+import { Badge } from '@/components/ui/badge'
+import { cn } from '@/lib/utils'
+import {
+  Menu, X, Github, Mail, Phone, ExternalLink, ChevronDown,
+  Code2, Smartphone, Brain, Lightbulb, Palette, Music,
+  Hospital, Bot, Stethoscope, Send, MessageCircle,
+  ArrowRight, Quote, Star, Calendar, User, Briefcase
 } from 'lucide-react'
-import Link from 'next/link'
 
-// Medical specialties
-const specialties = [
-  { name: 'General Medicine', icon: Activity, doctors: 45 },
-  { name: 'Cardiology', icon: Heart, doctors: 12 },
-  { name: 'Neurology', icon: Brain, doctors: 8 },
-  { name: 'Pediatrics', icon: Baby, doctors: 23 },
-  { name: 'Ophthalmology', icon: Eye, doctors: 15 },
-  { name: 'Orthopedics', icon: Bone, doctors: 18 },
-]
-
-// Testimonials
-const testimonials = [
-  {
-    name: 'Adebayo Okonkwo',
-    role: 'Patient, Lagos',
-    content: 'TeleHealth Nigeria saved me hours of waiting at the hospital. The video consultation was crystal clear and the doctor was very professional.',
-    rating: 5,
-  },
-  {
-    name: 'Dr. Fatima Mohammed',
-    role: 'Cardiologist, Abuja',
-    content: 'As a doctor, this platform has expanded my reach. I can now consult with patients across Nigeria without them traveling long distances.',
-    rating: 5,
-  },
-  {
-    name: 'Chidinma Eze',
-    role: 'Mother of 3, Port Harcourt',
-    content: 'When my child fell sick at midnight, I could immediately video call a pediatrician. The prescription was sent to my phone within minutes.',
-    rating: 5,
-  },
-]
-
-// Pricing plans
-const plans = [
-  {
-    name: 'Basic',
-    price: '₦2,000',
-    duration: 'per consultation',
-    features: [
-      '30-minute video consultation',
-      'Digital prescription',
-      'Email support',
-      'Basic health advice',
-    ],
-    popular: false,
-  },
-  {
-    name: 'Standard',
-    price: '₦5,000',
-    duration: 'per consultation',
-    features: [
-      '45-minute video consultation',
-      'Digital prescription',
-      'Lab test recommendations',
-      'Follow-up message',
-      'Priority support',
-    ],
-    popular: true,
-  },
-  {
-    name: 'Premium',
-    price: '₦10,000',
-    duration: 'per consultation',
-    features: [
-      '60-minute video consultation',
-      'Digital prescription',
-      'Lab test recommendations',
-      'Follow-up calls',
-      'Health report',
-      '24/7 support',
-    ],
-    popular: false,
-  },
-]
-
-export default function TeleHealthNigeria() {
+export default function Home() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
-  const [scrolled, setScrolled] = useState(false)
+  const [activeSection, setActiveSection] = useState('home')
+  const [formData, setFormData] = useState({ name: '', email: '', subject: '', message: '' })
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [submitStatus, setSubmitStatus] = useState<'idle' | 'success' | 'error'>('idle')
 
+  // Smooth scroll to section
+  const scrollToSection = (sectionId: string) => {
+    const element = document.getElementById(sectionId)
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth' })
+    }
+    setIsMenuOpen(false)
+  }
+
+  // Track active section on scroll
   useEffect(() => {
     const handleScroll = () => {
-      setScrolled(window.scrollY > 20)
+      const sections = ['home', 'about', 'services', 'projects', 'testimonials', 'contact']
+      for (const section of sections) {
+        const element = document.getElementById(section)
+        if (element) {
+          const rect = element.getBoundingClientRect()
+          if (rect.top <= 100 && rect.bottom >= 100) {
+            setActiveSection(section)
+            break
+          }
+        }
+      }
     }
     window.addEventListener('scroll', handleScroll)
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
 
+  // Handle contact form submission
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setIsSubmitting(true)
+    
+    // Simulate form submission
+    await new Promise(resolve => setTimeout(resolve, 1500))
+    
+    // Create mailto link as fallback
+    const mailtoLink = `mailto:wabithetechnurse@gmail.com?subject=${encodeURIComponent(formData.subject)}&body=${encodeURIComponent(`Name: ${formData.name}\nEmail: ${formData.email}\n\n${formData.message}`)}`
+    window.location.href = mailtoLink
+    
+    setSubmitStatus('success')
+    setIsSubmitting(false)
+    setFormData({ name: '', email: '', subject: '', message: '' })
+    
+    setTimeout(() => setSubmitStatus('idle'), 3000)
+  }
+
+  const services = [
+    { icon: Code2, title: 'Website Development', description: 'Modern, responsive websites built with cutting-edge technologies. From landing pages to complex web applications.' },
+    { icon: Smartphone, title: 'Mobile/Desktop Apps', description: 'Cross-platform applications for iOS, Android, and desktop. Native-like performance with modern frameworks.' },
+    { icon: Brain, title: 'AI Integration', description: 'Integrate artificial intelligence into your systems. Chatbots, automation, and smart solutions for your business.' },
+    { icon: Lightbulb, title: 'Tech Consultancy', description: 'Expert guidance on technology decisions. Digital transformation strategies and IT infrastructure planning.' },
+    { icon: Palette, title: 'UI/UX Design', description: 'Beautiful, intuitive interfaces that users love. User research, wireframing, and prototyping.' },
+    { icon: Music, title: 'Sound/Drums Tech', description: 'Audio engineering and sound technology solutions. From recording setups to live sound systems.' },
+  ]
+
+  const projects = [
+    {
+      title: 'RUN Health Centre HMS',
+      description: 'A comprehensive Hospital Management System for RUN Health Centre. Features patient management, consultations, pharmacy, laboratory, and real-time notifications.',
+      tags: ['Next.js', 'PostgreSQL', 'Healthcare', 'Real-time'],
+      image: '/projects/hms.png',
+      link: 'https://runhealthcentre.vercel.app/hms',
+      icon: Hospital,
+      color: 'from-green-500 to-emerald-600'
+    },
+    {
+      title: 'Wabi AI',
+      description: 'An AI-powered assistant platform with chat capabilities, image generation, and smart automation features.',
+      tags: ['AI', 'Next.js', 'OpenAI', 'Automation'],
+      image: '/projects/wabiai.png',
+      link: '#',
+      icon: Bot,
+      color: 'from-purple-500 to-indigo-600'
+    },
+    {
+      title: 'MedLink',
+      description: 'A healthcare connectivity platform linking patients with healthcare providers. Appointment booking, telemedicine, and health records management.',
+      tags: ['Healthcare', 'React', 'Node.js', 'Telemedicine'],
+      image: '/projects/medlink.png',
+      link: '#',
+      icon: Stethoscope,
+      color: 'from-blue-500 to-cyan-600'
+    },
+  ]
+
+  const testimonials = [
+    {
+      name: 'Dr. Adewale Johnson',
+      role: 'Medical Director, RUN Health Centre',
+      content: 'Wabi delivered an exceptional hospital management system that transformed our operations. The attention to detail and understanding of healthcare workflows was impressive.',
+      rating: 5
+    },
+    {
+      name: 'Sarah Okonkwo',
+      role: 'CEO, TechStart Nigeria',
+      content: 'Professional, innovative, and reliable. Wabi built our company website and mobile app ahead of schedule. Highly recommended for any tech project!',
+      rating: 5
+    },
+    {
+      name: 'Prof. Maria Adeyemi',
+      role: 'Dean, Nursing Sciences',
+      content: 'A rare combination of nursing expertise and tech skills. Wabi understands both worlds and creates solutions that truly work for healthcare professionals.',
+      rating: 5
+    },
+  ]
+
+  const stats = [
+    { label: 'Projects Completed', value: '25+' },
+    { label: 'Happy Clients', value: '50+' },
+    { label: 'Years Experience', value: '5+' },
+    { label: 'Technologies', value: '20+' },
+  ]
+
+  const navLinks = [
+    { id: 'home', label: 'Home' },
+    { id: 'about', label: 'About' },
+    { id: 'services', label: 'Services' },
+    { id: 'projects', label: 'Projects' },
+    { id: 'testimonials', label: 'Testimonials' },
+    { id: 'contact', label: 'Contact' },
+  ]
+
   return (
     <div className="min-h-screen bg-white">
       {/* Navigation */}
-      <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-        scrolled ? 'bg-white shadow-lg' : 'bg-white/80 backdrop-blur-md'
-      }`}>
+      <nav className="fixed top-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md border-b border-gray-100 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16 md:h-20">
+          <div className="flex justify-between items-center h-16">
             {/* Logo */}
-            <Link href="/" className="flex items-center gap-2">
-              <img src="/logo.jpg" alt="TeleHealth Nigeria" className="h-10 w-auto rounded" />
-              <span className="text-xl font-bold text-green-700">TeleHealth Nigeria</span>
-            </Link>
+            <button onClick={() => scrollToSection('home')} className="flex items-center gap-2 group">
+              <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl flex items-center justify-center text-white font-bold text-lg shadow-lg group-hover:shadow-emerald-200 transition-all">
+                W
+              </div>
+              <span className="font-bold text-gray-900 hidden sm:block">Wabi The Tech Nurse</span>
+            </button>
 
-            {/* Desktop Menu */}
-            <div className="hidden md:flex items-center gap-8">
-              <a href="#features" className="text-gray-700 hover:text-green-600 transition">Features</a>
-              <a href="#specialties" className="text-gray-700 hover:text-green-600 transition">Specialties</a>
-              <a href="#how-it-works" className="text-gray-700 hover:text-green-600 transition">How It Works</a>
-              <a href="#pricing" className="text-gray-700 hover:text-green-600 transition">Pricing</a>
-              <Link href="/auth/login" className="text-gray-700 hover:text-green-600 transition">Login</Link>
-              <Link 
-                href="/auth/register" 
-                className="bg-green-600 text-white px-6 py-2 rounded-full hover:bg-green-700 transition font-medium"
+            {/* Desktop Navigation */}
+            <div className="hidden md:flex items-center gap-1">
+              {navLinks.map((link) => (
+                <button
+                  key={link.id}
+                  onClick={() => scrollToSection(link.id)}
+                  className={cn(
+                    "px-4 py-2 rounded-lg text-sm font-medium transition-all",
+                    activeSection === link.id
+                      ? "text-green-600 bg-green-50"
+                      : "text-gray-600 hover:text-green-600 hover:bg-gray-50"
+                  )}
+                >
+                  {link.label}
+                </button>
+              ))}
+            </div>
+
+            {/* CTA Button */}
+            <div className="hidden md:block">
+              <Button
+                onClick={() => scrollToSection('contact')}
+                className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white shadow-lg hover:shadow-emerald-200"
               >
-                Get Started
-              </Link>
+                Hire Me <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
             </div>
 
             {/* Mobile Menu Button */}
-            <button 
-              className="md:hidden p-2"
+            <button
               onClick={() => setIsMenuOpen(!isMenuOpen)}
+              className="md:hidden p-2 rounded-lg text-gray-600 hover:bg-gray-100"
             >
-              {isMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+              {isMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
             </button>
           </div>
         </div>
 
-        {/* Mobile Menu */}
+        {/* Mobile Navigation */}
         {isMenuOpen && (
-          <div className="md:hidden bg-white border-t">
-            <div className="px-4 py-4 space-y-3">
-              <a href="#features" className="block py-2 text-gray-700" onClick={() => setIsMenuOpen(false)}>Features</a>
-              <a href="#specialties" className="block py-2 text-gray-700" onClick={() => setIsMenuOpen(false)}>Specialties</a>
-              <a href="#how-it-works" className="block py-2 text-gray-700" onClick={() => setIsMenuOpen(false)}>How It Works</a>
-              <a href="#pricing" className="block py-2 text-gray-700" onClick={() => setIsMenuOpen(false)}>Pricing</a>
-              <Link href="/auth/login" className="block py-2 text-gray-700">Login</Link>
-              <Link 
-                href="/auth/register" 
-                className="block bg-green-600 text-white px-6 py-3 rounded-full text-center font-medium"
+          <div className="md:hidden bg-white border-t border-gray-100 shadow-lg">
+            <div className="px-4 py-4 space-y-1">
+              {navLinks.map((link) => (
+                <button
+                  key={link.id}
+                  onClick={() => scrollToSection(link.id)}
+                  className={cn(
+                    "block w-full text-left px-4 py-3 rounded-lg text-sm font-medium transition-all",
+                    activeSection === link.id
+                      ? "text-green-600 bg-green-50"
+                      : "text-gray-600 hover:text-green-600 hover:bg-gray-50"
+                  )}
+                >
+                  {link.label}
+                </button>
+              ))}
+              <Button
+                onClick={() => scrollToSection('contact')}
+                className="w-full mt-4 bg-gradient-to-r from-green-500 to-emerald-600 text-white"
               >
-                Get Started
-              </Link>
+                Hire Me <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
             </div>
           </div>
         )}
       </nav>
 
       {/* Hero Section */}
-      <section className="pt-24 md:pt-32 pb-16 bg-gradient-to-br from-green-50 via-white to-emerald-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <section id="home" className="pt-16 min-h-screen flex items-center relative overflow-hidden">
+        {/* Background Elements */}
+        <div className="absolute inset-0 bg-gradient-to-br from-green-50 via-white to-emerald-50"></div>
+        <div className="absolute top-20 right-0 w-96 h-96 bg-green-200 rounded-full filter blur-3xl opacity-30 animate-pulse"></div>
+        <div className="absolute bottom-20 left-0 w-96 h-96 bg-emerald-200 rounded-full filter blur-3xl opacity-30 animate-pulse" style={{ animationDelay: '1s' }}></div>
+        
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
-            <div className="text-center lg:text-left">
-              <div className="inline-flex items-center gap-2 bg-green-100 text-green-700 px-4 py-2 rounded-full text-sm font-medium mb-6">
-                <Shield className="w-4 h-4" />
-                Trusted by 10,000+ Nigerians
+            <div className="space-y-8">
+              <div className="inline-flex items-center gap-2 bg-green-100 text-green-700 px-4 py-2 rounded-full text-sm font-medium">
+                <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+                Available for Projects
               </div>
-              <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-gray-900 leading-tight">
-                Quality Healthcare,{' '}
-                <span className="text-green-600">Anytime, Anywhere</span>
+              
+              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-gray-900 leading-tight">
+                Hi, I'm{' '}
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-green-500 to-emerald-600">
+                  Abolaji Odewabi
+                </span>
               </h1>
-              <p className="mt-6 text-lg text-gray-600 max-w-xl mx-auto lg:mx-0">
-                Connect with licensed Nigerian doctors through secure video consultations. 
-                Get prescriptions, lab requests, and medical advice from the comfort of your home.
+              
+              <h2 className="text-2xl sm:text-3xl font-semibold text-gray-700">
+                <span className="text-green-600">Wabi</span> The Tech Nurse
+              </h2>
+              
+              <p className="text-lg text-gray-600 leading-relaxed max-w-xl">
+                Bridging <span className="text-green-600 font-semibold">Healthcare</span> and{' '}
+                <span className="text-green-600 font-semibold">Technology</span>. I build digital solutions 
+                that solve real problems in healthcare and beyond. With a unique blend of clinical knowledge 
+                and tech expertise, I create innovative tools that make a difference.
               </p>
-              <div className="mt-8 flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
-                <Link
-                  href="/auth/register"
-                  className="inline-flex items-center justify-center gap-2 bg-green-600 text-white px-8 py-4 rounded-full text-lg font-semibold hover:bg-green-700 transition shadow-lg shadow-green-200"
+              
+              <div className="flex flex-wrap gap-4">
+                <Button
+                  onClick={() => scrollToSection('projects')}
+                  size="lg"
+                  className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white shadow-lg hover:shadow-emerald-200 px-8"
                 >
-                  Book a Consultation
-                  <ArrowRight className="w-5 h-5" />
-                </Link>
-                <Link
-                  href="/auth/register?role=doctor"
-                  className="inline-flex items-center justify-center gap-2 bg-white text-green-600 border-2 border-green-600 px-8 py-4 rounded-full text-lg font-semibold hover:bg-green-50 transition"
+                  View My Work <ArrowRight className="ml-2 h-5 w-5" />
+                </Button>
+                <Button
+                  onClick={() => scrollToSection('contact')}
+                  size="lg"
+                  variant="outline"
+                  className="border-2 border-green-500 text-green-600 hover:bg-green-50 px-8"
                 >
-                  <Stethoscope className="w-5 h-5" />
-                  Join as a Doctor
-                </Link>
+                  Get In Touch
+                </Button>
               </div>
-              <div className="mt-8 flex items-center gap-6 justify-center lg:justify-start text-sm text-gray-600">
-                <div className="flex items-center gap-2">
-                  <CheckCircle className="w-5 h-5 text-green-500" />
-                  Licensed Doctors
-                </div>
-                <div className="flex items-center gap-2">
-                  <CheckCircle className="w-5 h-5 text-green-500" />
-                  Secure & Private
-                </div>
-                <div className="flex items-center gap-2">
-                  <CheckCircle className="w-5 h-5 text-green-500" />
-                  24/7 Available
-                </div>
+
+              {/* Social Links */}
+              <div className="flex items-center gap-4 pt-4">
+                <span className="text-sm text-gray-500">Connect with me:</span>
+                <a
+                  href="https://github.com/wabiifour-tech"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-600 hover:bg-green-100 hover:text-green-600 transition-all"
+                >
+                  <Github className="h-5 w-5" />
+                </a>
+                <a
+                  href="https://wa.me/2348136375114"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-600 hover:bg-green-100 hover:text-green-600 transition-all"
+                >
+                  <MessageCircle className="h-5 w-5" />
+                </a>
+                <a
+                  href="mailto:wabithetechnurse@gmail.com"
+                  className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-600 hover:bg-green-100 hover:text-green-600 transition-all"
+                >
+                  <Mail className="h-5 w-5" />
+                </a>
               </div>
             </div>
-            <div className="relative">
-              <div className="relative z-10 bg-white rounded-2xl shadow-2xl p-4 max-w-md mx-auto">
-                <div className="aspect-video bg-gradient-to-br from-green-400 to-emerald-500 rounded-xl flex items-center justify-center">
-                  <div className="text-center text-white">
-                    <Video className="w-16 h-16 mx-auto mb-4" />
-                    <p className="font-medium">Video Consultation</p>
-                    <p className="text-sm opacity-80">Connect with doctors instantly</p>
+
+            {/* Hero Image/Avatar */}
+            <div className="relative flex justify-center lg:justify-end">
+              <div className="relative">
+                <div className="w-72 h-72 sm:w-80 sm:h-80 lg:w-96 lg:h-96 rounded-full bg-gradient-to-br from-green-400 to-emerald-600 p-1 shadow-2xl">
+                  <div className="w-full h-full rounded-full bg-gradient-to-br from-green-50 to-white flex items-center justify-center">
+                    <span className="text-8xl sm:text-9xl">👨‍💻</span>
                   </div>
                 </div>
-                <div className="mt-4 flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
-                  <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
-                    <User className="w-6 h-6 text-green-600" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="font-medium text-gray-900">Dr. Adebayo Johnson</p>
-                    <p className="text-sm text-gray-500">General Physician • 15 years exp.</p>
-                  </div>
-                  <div className="flex items-center gap-1 text-yellow-500">
-                    <Star className="w-4 h-4 fill-current" />
-                    <span className="text-sm font-medium">4.9</span>
-                  </div>
+                
+                {/* Floating Elements */}
+                <div className="absolute -top-4 -right-4 w-20 h-20 bg-white rounded-2xl shadow-xl flex items-center justify-center animate-bounce" style={{ animationDuration: '3s' }}>
+                  <span className="text-3xl">🩺</span>
+                </div>
+                <div className="absolute -bottom-4 -left-4 w-20 h-20 bg-white rounded-2xl shadow-xl flex items-center justify-center animate-bounce" style={{ animationDuration: '3s', animationDelay: '0.5s' }}>
+                  <span className="text-3xl">💻</span>
+                </div>
+                <div className="absolute top-1/2 -right-8 w-16 h-16 bg-white rounded-2xl shadow-xl flex items-center justify-center animate-bounce" style={{ animationDuration: '3s', animationDelay: '1s' }}>
+                  <span className="text-2xl">🚀</span>
                 </div>
               </div>
-              {/* Decorative elements */}
-              <div className="absolute -top-4 -right-4 w-72 h-72 bg-green-200 rounded-full opacity-30 blur-3xl" />
-              <div className="absolute -bottom-4 -left-4 w-72 h-72 bg-emerald-200 rounded-full opacity-30 blur-3xl" />
             </div>
           </div>
+        </div>
+
+        {/* Scroll Indicator */}
+        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 animate-bounce">
+          <button onClick={() => scrollToSection('about')} className="text-gray-400 hover:text-green-500">
+            <ChevronDown className="h-8 w-8" />
+          </button>
         </div>
       </section>
 
       {/* Stats Section */}
-      <section className="py-12 bg-green-600">
+      <section className="py-12 bg-gradient-to-r from-green-500 to-emerald-600">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center text-white">
-            <div>
-              <div className="text-4xl font-bold">10,000+</div>
-              <div className="text-green-100 mt-1">Patients Served</div>
-            </div>
-            <div>
-              <div className="text-4xl font-bold">500+</div>
-              <div className="text-green-100 mt-1">Licensed Doctors</div>
-            </div>
-            <div>
-              <div className="text-4xl font-bold">36</div>
-              <div className="text-green-100 mt-1">States Covered</div>
-            </div>
-            <div>
-              <div className="text-4xl font-bold">4.8★</div>
-              <div className="text-green-100 mt-1">Average Rating</div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Features Section */}
-      <section id="features" className="py-20 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900">
-              Why Choose TeleHealth Nigeria?
-            </h2>
-            <p className="mt-4 text-lg text-gray-600 max-w-2xl mx-auto">
-              We bring quality healthcare to your fingertips with cutting-edge technology and trusted medical professionals.
-            </p>
-          </div>
-
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
-            {[
-              {
-                icon: Video,
-                title: 'Video Consultations',
-                description: 'High-quality video calls with doctors. No travel, no waiting rooms.',
-              },
-              {
-                icon: Shield,
-                title: 'Licensed Doctors',
-                description: 'All doctors are verified and licensed by the Medical and Dental Council of Nigeria.',
-              },
-              {
-                icon: Clock,
-                title: '24/7 Availability',
-                description: 'Access healthcare anytime, even at midnight. Doctors are always online.',
-              },
-              {
-                icon: CreditCard,
-                title: 'Secure Payments',
-                description: 'Pay securely with cards, bank transfer, or USSD. Powered by Paystack.',
-              },
-            ].map((feature, index) => (
-              <div 
-                key={index}
-                className="bg-gray-50 rounded-2xl p-6 hover:shadow-lg transition group"
-              >
-                <div className="w-14 h-14 bg-green-100 rounded-xl flex items-center justify-center mb-4 group-hover:bg-green-600 transition">
-                  <feature.icon className="w-7 h-7 text-green-600 group-hover:text-white transition" />
-                </div>
-                <h3 className="text-xl font-semibold text-gray-900 mb-2">{feature.title}</h3>
-                <p className="text-gray-600">{feature.description}</p>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+            {stats.map((stat, index) => (
+              <div key={index} className="text-center">
+                <div className="text-4xl font-bold text-white mb-2">{stat.value}</div>
+                <div className="text-green-100 text-sm">{stat.label}</div>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* Specialties Section */}
-      <section id="specialties" className="py-20 bg-gray-50">
+      {/* About Section */}
+      <section id="about" className="py-20 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900">
-              Medical Specialties Available
+            <Badge className="bg-green-100 text-green-700 mb-4">About Me</Badge>
+            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
+              The Story Behind <span className="text-green-600">Wabi The Tech Nurse</span>
             </h2>
-            <p className="mt-4 text-lg text-gray-600">
-              Consult with specialists across various medical fields
+            <p className="text-gray-600 max-w-2xl mx-auto">
+              A unique journey combining healthcare and technology to create meaningful solutions.
             </p>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-            {specialties.map((specialty, index) => (
-              <div 
-                key={index}
-                className="bg-white rounded-xl p-6 text-center hover:shadow-lg transition cursor-pointer group"
-              >
-                <div className="w-16 h-16 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-green-600 transition">
-                  <specialty.icon className="w-8 h-8 text-green-600 group-hover:text-white transition" />
-                </div>
-                <h3 className="font-semibold text-gray-900">{specialty.name}</h3>
-                <p className="text-sm text-gray-500 mt-1">{specialty.doctors} doctors</p>
+          <div className="grid lg:grid-cols-2 gap-12 items-center">
+            <div className="space-y-6">
+              <div className="prose prose-lg text-gray-600">
+                <p>
+                  I'm <strong className="text-gray-900">Abolaji Odewabi</strong>, a Nurse and Tech Enthusiast 
+                  passionate about leveraging technology to transform healthcare delivery. My journey began in 
+                  the nursing profession at <strong className="text-green-600">Redeemer's University</strong>, 
+                  where I discovered the powerful intersection of healthcare and technology.
+                </p>
+                <p>
+                  This unique combination allows me to understand clinical workflows deeply while having the 
+                  technical skills to build solutions that truly address healthcare challenges. From hospital 
+                  management systems to AI-powered tools, I create digital products that make a real impact.
+                </p>
+                <p>
+                  When I'm not coding, you'll find me exploring new technologies, contributing to open-source 
+                  projects, or creating content to help others learn. I believe in continuous learning and 
+                  sharing knowledge with the community.
+                </p>
               </div>
+
+              <div className="flex flex-wrap gap-3 pt-4">
+                {['Next.js', 'React', 'TypeScript', 'Node.js', 'PostgreSQL', 'AI/ML', 'UI/UX', 'Healthcare IT'].map((skill) => (
+                  <span key={skill} className="px-4 py-2 bg-green-50 text-green-700 rounded-full text-sm font-medium">
+                    {skill}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-6">
+              {/* Education */}
+              <Card className="border-0 shadow-lg hover:shadow-xl transition-all">
+                <CardContent className="p-6">
+                  <div className="flex items-start gap-4">
+                    <div className="w-12 h-12 rounded-xl bg-green-100 flex items-center justify-center text-green-600">
+                      <User className="h-6 w-6" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-gray-900">Education</h3>
+                      <p className="text-gray-600">B.NSc. Nursing Sciences</p>
+                      <p className="text-sm text-green-600">Redeemer's University, Ede</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Experience */}
+              <Card className="border-0 shadow-lg hover:shadow-xl transition-all">
+                <CardContent className="p-6">
+                  <div className="flex items-start gap-4">
+                    <div className="w-12 h-12 rounded-xl bg-green-100 flex items-center justify-center text-green-600">
+                      <Briefcase className="h-6 w-6" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-gray-900">Experience</h3>
+                      <p className="text-gray-600">Full Stack Developer & Healthcare IT Specialist</p>
+                      <p className="text-sm text-green-600">5+ Years in Tech</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Focus */}
+              <Card className="border-0 shadow-lg hover:shadow-xl transition-all">
+                <CardContent className="p-6">
+                  <div className="flex items-start gap-4">
+                    <div className="w-12 h-12 rounded-xl bg-green-100 flex items-center justify-center text-green-600">
+                      <Stethoscope className="h-6 w-6" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-gray-900">Specialization</h3>
+                      <p className="text-gray-600">Health Tech Solutions</p>
+                      <p className="text-sm text-green-600">HMS, Telemedicine, AI in Healthcare</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Services Section */}
+      <section id="services" className="py-20 bg-gray-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <Badge className="bg-green-100 text-green-700 mb-4">Services</Badge>
+            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
+              What I Can Do For <span className="text-green-600">You</span>
+            </h2>
+            <p className="text-gray-600 max-w-2xl mx-auto">
+              From web development to AI integration, I offer a range of tech services tailored to your needs.
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {services.map((service, index) => (
+              <Card key={index} className="border-0 shadow-lg hover:shadow-xl transition-all group cursor-pointer overflow-hidden">
+                <CardContent className="p-8">
+                  <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center text-white mb-6 group-hover:scale-110 transition-transform">
+                    <service.icon className="h-7 w-7" />
+                  </div>
+                  <h3 className="text-xl font-semibold text-gray-900 mb-3">{service.title}</h3>
+                  <p className="text-gray-600 leading-relaxed">{service.description}</p>
+                </CardContent>
+              </Card>
             ))}
           </div>
         </div>
       </section>
 
-      {/* How It Works Section */}
-      <section id="how-it-works" className="py-20 bg-white">
+      {/* Projects Section */}
+      <section id="projects" className="py-20 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900">
-              How It Works
+            <Badge className="bg-green-100 text-green-700 mb-4">Projects</Badge>
+            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
+              Featured <span className="text-green-600">Work</span>
             </h2>
-            <p className="mt-4 text-lg text-gray-600">
-              Get medical consultation in 3 simple steps
+            <p className="text-gray-600 max-w-2xl mx-auto">
+              A showcase of projects I've built, from healthcare systems to AI platforms.
             </p>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-8">
-            {[
-              {
-                step: '1',
-                title: 'Book an Appointment',
-                description: 'Choose a doctor, select a convenient time, and book your video consultation.',
-                icon: Clock,
-              },
-              {
-                step: '2',
-                title: 'Video Consultation',
-                description: 'Connect with your doctor via secure video call. Discuss your symptoms and concerns.',
-                icon: Video,
-              },
-              {
-                step: '3',
-                title: 'Get Prescription',
-                description: 'Receive your digital prescription instantly. Visit any pharmacy to get your medications.',
-                icon: CheckCircle,
-              },
-            ].map((item, index) => (
-              <div key={index} className="relative">
-                <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-2xl p-8 text-center">
-                  <div className="w-16 h-16 bg-green-600 rounded-full flex items-center justify-center mx-auto mb-6 text-white text-2xl font-bold">
-                    {item.step}
-                  </div>
-                  <h3 className="text-xl font-semibold text-gray-900 mb-3">{item.title}</h3>
-                  <p className="text-gray-600">{item.description}</p>
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {projects.map((project, index) => (
+              <Card key={index} className="border-0 shadow-lg hover:shadow-2xl transition-all group overflow-hidden">
+                <div className={`h-48 bg-gradient-to-br ${project.color} flex items-center justify-center relative overflow-hidden`}>
+                  <div className="absolute inset-0 bg-black/10 group-hover:bg-black/0 transition-all"></div>
+                  <project.icon className="h-20 w-20 text-white/80 group-hover:scale-110 transition-transform" />
                 </div>
-                {index < 2 && (
-                  <div className="hidden md:block absolute top-1/2 -right-4 transform -translate-y-1/2">
-                    <ArrowRight className="w-8 h-8 text-green-300" />
+                <CardContent className="p-6">
+                  <h3 className="text-xl font-semibold text-gray-900 mb-2">{project.title}</h3>
+                  <p className="text-gray-600 text-sm mb-4 line-clamp-3">{project.description}</p>
+                  <div className="flex flex-wrap gap-2 mb-4">
+                    {project.tags.map((tag) => (
+                      <span key={tag} className="px-2 py-1 bg-gray-100 text-gray-600 rounded text-xs">
+                        {tag}
+                      </span>
+                    ))}
                   </div>
-                )}
-              </div>
+                  <a
+                    href={project.link}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center text-green-600 hover:text-green-700 font-medium text-sm"
+                  >
+                    View Project <ExternalLink className="ml-1 h-4 w-4" />
+                  </a>
+                </CardContent>
+              </Card>
             ))}
           </div>
         </div>
       </section>
 
       {/* Testimonials Section */}
-      <section className="py-20 bg-gray-50">
+      <section id="testimonials" className="py-20 bg-gradient-to-br from-green-50 to-emerald-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900">
-              What Our Users Say
+            <Badge className="bg-green-100 text-green-700 mb-4">Testimonials</Badge>
+            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
+              What People <span className="text-green-600">Say</span>
             </h2>
-            <p className="mt-4 text-lg text-gray-600">
-              Trusted by thousands of patients and doctors across Nigeria
+            <p className="text-gray-600 max-w-2xl mx-auto">
+              Feedback from clients and colleagues I've had the pleasure of working with.
             </p>
           </div>
 
           <div className="grid md:grid-cols-3 gap-8">
             {testimonials.map((testimonial, index) => (
-              <div key={index} className="bg-white rounded-2xl p-6 shadow-sm">
-                <div className="flex items-center gap-1 mb-4">
-                  {[...Array(testimonial.rating)].map((_, i) => (
-                    <Star key={i} className="w-5 h-5 text-yellow-400 fill-current" />
-                  ))}
-                </div>
-                <p className="text-gray-600 mb-6">&quot;{testimonial.content}&quot;</p>
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
-                    <User className="w-6 h-6 text-green-600" />
+              <Card key={index} className="border-0 shadow-lg hover:shadow-xl transition-all">
+                <CardContent className="p-8">
+                  <Quote className="h-10 w-10 text-green-200 mb-4" />
+                  <p className="text-gray-700 mb-6 leading-relaxed">{testimonial.content}</p>
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-green-400 to-emerald-500 flex items-center justify-center text-white font-bold">
+                      {testimonial.name.charAt(0)}
+                    </div>
+                    <div>
+                      <div className="font-semibold text-gray-900">{testimonial.name}</div>
+                      <div className="text-sm text-gray-500">{testimonial.role}</div>
+                    </div>
                   </div>
-                  <div>
-                    <p className="font-semibold text-gray-900">{testimonial.name}</p>
-                    <p className="text-sm text-gray-500">{testimonial.role}</p>
+                  <div className="flex gap-1 mt-4">
+                    {[...Array(testimonial.rating)].map((_, i) => (
+                      <Star key={i} className="h-4 w-4 text-yellow-400 fill-current" />
+                    ))}
                   </div>
-                </div>
-              </div>
+                </CardContent>
+              </Card>
             ))}
           </div>
         </div>
       </section>
 
-      {/* Pricing Section */}
-      <section id="pricing" className="py-20 bg-white">
+      {/* Contact Section */}
+      <section id="contact" className="py-20 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900">
-              Transparent Pricing
+            <Badge className="bg-green-100 text-green-700 mb-4">Contact</Badge>
+            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
+              Let's Work <span className="text-green-600">Together</span>
             </h2>
-            <p className="mt-4 text-lg text-gray-600">
-              Choose a plan that fits your healthcare needs
+            <p className="text-gray-600 max-w-2xl mx-auto">
+              Have a project in mind? Let's discuss how I can help bring your ideas to life.
             </p>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
-            {plans.map((plan, index) => (
-              <div 
-                key={index}
-                className={`rounded-2xl p-8 ${
-                  plan.popular 
-                    ? 'bg-green-600 text-white shadow-xl scale-105' 
-                    : 'bg-gray-50 text-gray-900'
-                }`}
-              >
-                {plan.popular && (
-                  <div className="bg-white text-green-600 text-sm font-semibold px-3 py-1 rounded-full inline-block mb-4">
-                    Most Popular
-                  </div>
-                )}
-                <h3 className="text-2xl font-bold mb-2">{plan.name}</h3>
-                <div className="mb-6">
-                  <span className="text-4xl font-bold">{plan.price}</span>
-                  <span className={plan.popular ? 'text-green-100' : 'text-gray-500'}> {plan.duration}</span>
-                </div>
-                <ul className="space-y-3 mb-8">
-                  {plan.features.map((feature, i) => (
-                    <li key={i} className="flex items-center gap-2">
-                      <CheckCircle className={`w-5 h-5 ${plan.popular ? 'text-green-200' : 'text-green-500'}`} />
-                      <span className={plan.popular ? 'text-green-100' : 'text-gray-600'}>{feature}</span>
-                    </li>
-                  ))}
-                </ul>
-                <Link
-                  href="/auth/register"
-                  className={`block w-full py-3 rounded-full text-center font-semibold transition ${
-                    plan.popular
-                      ? 'bg-white text-green-600 hover:bg-green-50'
-                      : 'bg-green-600 text-white hover:bg-green-700'
-                  }`}
-                >
-                  Get Started
-                </Link>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
+          <div className="grid lg:grid-cols-2 gap-12">
+            {/* Contact Info */}
+            <div className="space-y-8">
+              <div className="space-y-6">
+                <Card className="border-0 shadow-lg">
+                  <CardContent className="p-6">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-xl bg-green-100 flex items-center justify-center text-green-600">
+                        <Mail className="h-6 w-6" />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-gray-900">Email</h3>
+                        <a href="mailto:wabithetechnurse@gmail.com" className="text-green-600 hover:text-green-700">
+                          wabithetechnurse@gmail.com
+                        </a>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
 
-      {/* CTA Section */}
-      <section className="py-20 bg-gradient-to-r from-green-600 to-emerald-600">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="text-3xl md:text-4xl font-bold text-white mb-6">
-            Ready to Experience Better Healthcare?
-          </h2>
-          <p className="text-xl text-green-100 mb-8">
-            Join thousands of Nigerians who trust TeleHealth Nigeria for their medical consultations.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link
-              href="/auth/register"
-              className="inline-flex items-center justify-center gap-2 bg-white text-green-600 px-8 py-4 rounded-full text-lg font-semibold hover:bg-green-50 transition"
-            >
-              Book Your First Consultation
-              <ArrowRight className="w-5 h-5" />
-            </Link>
-            <Link
-              href="/auth/register?role=doctor"
-              className="inline-flex items-center justify-center gap-2 bg-transparent text-white border-2 border-white px-8 py-4 rounded-full text-lg font-semibold hover:bg-white/10 transition"
-            >
-              <Stethoscope className="w-5 h-5" />
-              Join as a Doctor
-            </Link>
+                <Card className="border-0 shadow-lg">
+                  <CardContent className="p-6">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-xl bg-green-100 flex items-center justify-center text-green-600">
+                        <MessageCircle className="h-6 w-6" />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-gray-900">WhatsApp</h3>
+                        <a href="https://wa.me/2348136375114" target="_blank" rel="noopener noreferrer" className="text-green-600 hover:text-green-700">
+                          +234 813 637 5114
+                        </a>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="border-0 shadow-lg">
+                  <CardContent className="p-6">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-xl bg-green-100 flex items-center justify-center text-green-600">
+                        <Github className="h-6 w-6" />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-gray-900">GitHub</h3>
+                        <a href="https://github.com/wabiifour-tech" target="_blank" rel="noopener noreferrer" className="text-green-600 hover:text-green-700">
+                          github.com/wabiifour-tech
+                        </a>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+
+            {/* Contact Form */}
+            <Card className="border-0 shadow-xl">
+              <CardContent className="p-8">
+                <form onSubmit={handleSubmit} className="space-y-6">
+                  <div className="grid sm:grid-cols-2 gap-6">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Name</label>
+                      <Input
+                        type="text"
+                        placeholder="Your name"
+                        value={formData.name}
+                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                        required
+                        className="border-gray-200 focus:border-green-500 focus:ring-green-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
+                      <Input
+                        type="email"
+                        placeholder="your@email.com"
+                        value={formData.email}
+                        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                        required
+                        className="border-gray-200 focus:border-green-500 focus:ring-green-500"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Subject</label>
+                    <Input
+                      type="text"
+                      placeholder="Project inquiry"
+                      value={formData.subject}
+                      onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
+                      required
+                      className="border-gray-200 focus:border-green-500 focus:ring-green-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Message</label>
+                    <Textarea
+                      placeholder="Tell me about your project..."
+                      rows={5}
+                      value={formData.message}
+                      onChange={(e) => setFormData({ ...formData, message: e.target.value })}
+                      required
+                      className="border-gray-200 focus:border-green-500 focus:ring-green-500"
+                    />
+                  </div>
+                  <Button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="w-full bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white py-6 text-lg"
+                  >
+                    {isSubmitting ? (
+                      'Sending...'
+                    ) : (
+                      <>
+                        Send Message <Send className="ml-2 h-5 w-5" />
+                      </>
+                    )}
+                  </Button>
+                  {submitStatus === 'success' && (
+                    <p className="text-green-600 text-center text-sm">
+                      Message sent! I'll get back to you soon.
+                    </p>
+                  )}
+                </form>
+              </CardContent>
+            </Card>
           </div>
         </div>
       </section>
 
       {/* Footer */}
-      <footer className="bg-gray-900 text-white py-16">
+      <footer className="bg-gray-900 text-white py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid md:grid-cols-4 gap-8">
-            <div>
-              <div className="flex items-center gap-2 mb-4">
-                <img src="/logo.jpg" alt="TeleHealth Nigeria" className="h-10 w-auto rounded" />
-                <span className="text-xl font-bold">TeleHealth Nigeria</span>
+          <div className="flex flex-col md:flex-row justify-between items-center gap-6">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl flex items-center justify-center text-white font-bold">
+                W
               </div>
-              <p className="text-gray-400">
-                Quality healthcare, anytime, anywhere. Connecting Nigerians with licensed doctors through secure video consultations.
-              </p>
+              <span className="font-bold">Wabi The Tech Nurse</span>
             </div>
-            <div>
-              <h4 className="font-semibold mb-4">Quick Links</h4>
-              <ul className="space-y-2 text-gray-400">
-                <li><a href="#features" className="hover:text-white transition">Features</a></li>
-                <li><a href="#specialties" className="hover:text-white transition">Specialties</a></li>
-                <li><a href="#how-it-works" className="hover:text-white transition">How It Works</a></li>
-                <li><a href="#pricing" className="hover:text-white transition">Pricing</a></li>
-              </ul>
+            
+            <div className="flex items-center gap-6">
+              <a href="https://github.com/wabiifour-tech" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-green-400 transition-colors">
+                <Github className="h-5 w-5" />
+              </a>
+              <a href="https://wa.me/2348136375114" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-green-400 transition-colors">
+                <MessageCircle className="h-5 w-5" />
+              </a>
+              <a href="mailto:wabithetechnurse@gmail.com" className="text-gray-400 hover:text-green-400 transition-colors">
+                <Mail className="h-5 w-5" />
+              </a>
             </div>
-            <div>
-              <h4 className="font-semibold mb-4">Support</h4>
-              <ul className="space-y-2 text-gray-400">
-                <li><a href="#" className="hover:text-white transition">Help Center</a></li>
-                <li><a href="#" className="hover:text-white transition">Privacy Policy</a></li>
-                <li><a href="#" className="hover:text-white transition">Terms of Service</a></li>
-                <li><a href="#" className="hover:text-white transition">Contact Us</a></li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="font-semibold mb-4">Contact</h4>
-              <ul className="space-y-3 text-gray-400">
-                <li className="flex items-center gap-2">
-                  <Phone className="w-4 h-4" />
-                  +234 700 TELEHEALTH
-                </li>
-                <li className="flex items-center gap-2">
-                  <Mail className="w-4 h-4" />
-                  support@telehealthnigeria.com
-                </li>
-                <li className="flex items-center gap-2">
-                  <MapPin className="w-4 h-4" />
-                  Lagos, Nigeria
-                </li>
-              </ul>
-            </div>
-          </div>
-          <div className="border-t border-gray-800 mt-12 pt-8 text-center text-gray-400">
-            <p>&copy; {new Date().getFullYear()} TeleHealth Nigeria. All rights reserved.</p>
+            
+            <p className="text-gray-400 text-sm">
+              © {new Date().getFullYear()} Wabi The Tech Nurse. All rights reserved.
+            </p>
           </div>
         </div>
       </footer>

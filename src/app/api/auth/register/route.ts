@@ -1,135 +1,135 @@
+// User Registration API - Self-Registration with Admin Approval
 import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/telehealth-db'
-import { hashPassword, setSessionCookie } from '@/lib/telehealth-auth'
+import bcrypt from 'bcryptjs'
+import { getPrisma, testConnection } from '@/lib/db'
+import { createLogger } from '@/lib/logger'
+import { errorResponse, successResponse, Errors } from '@/lib/errors'
 
+const logger = createLogger('Register')
+
+// Generate initials from name
+function generateInitials(name: string): string {
+  const parts = name.trim().split(' ')
+  if (parts.length >= 2) {
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+  }
+  return name.substring(0, 2).toUpperCase()
+}
+
+// POST - Self-registration (creates pending account)
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { 
-      name, email, phone, password, role, 
-      // Doctor-specific fields
-      specialty, licenseNumber, hospital, bio, consultationFee,
-      // Bank details for doctors
-      bankName, accountNumber, accountName
-    } = body
+    const { name, email, password, role, department, initials, phone, dateOfBirth } = body
 
-    // Validate required fields
-    if (!name || !email || !phone || !password || !role) {
-      return NextResponse.json(
-        { error: 'Missing required fields' },
-        { status: 400 }
-      )
+    logger.debug('Registration request', { email, role, name })
+
+    // Validation
+    if (!name || !email || !password || !role) {
+      throw Errors.validation('Name, email, password, and role are required')
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(email)) {
+      throw Errors.validation('Please enter a valid email address')
+    }
+
+    // Validate password strength
+    if (password.length < 8) {
+      throw Errors.validation('Password must be at least 8 characters')
+    }
+
+    const hasUppercase = /[A-Z]/.test(password)
+    const hasLowercase = /[a-z]/.test(password)
+    const hasNumber = /[0-9]/.test(password)
+    const hasSpecial = /[!@#$%^&*(),.?":{}|<>]/.test(password)
+
+    if (!hasUppercase || !hasLowercase || !hasNumber || !hasSpecial) {
+      throw Errors.validation('Password must contain uppercase, lowercase, number, and special character')
     }
 
     // Validate role
-    if (!['patient', 'doctor'].includes(role)) {
-      return NextResponse.json(
-        { error: 'Invalid role. Must be patient or doctor' },
-        { status: 400 }
-      )
+    const allowedRoles = ['DOCTOR', 'NURSE', 'PHARMACIST', 'LAB_TECHNICIAN', 'MATRON', 'RECORDS_OFFICER']
+    if (!allowedRoles.includes(role)) {
+      throw Errors.validation('Invalid role. You can only register as Doctor, Nurse, Pharmacist, Lab Technician, Matron, or Records Officer.')
     }
 
-    // Doctor-specific validation
-    if (role === 'doctor') {
-      if (!specialty || !licenseNumber) {
-        return NextResponse.json(
-          { error: 'Doctors must provide specialty and license number' },
-          { status: 400 }
-        )
-      }
-      
-      // Validate bank details
-      if (!bankName || !accountNumber || !accountName) {
-        return NextResponse.json(
-          { error: 'Doctors must provide bank account details for receiving payments' },
-          { status: 400 }
-        )
-      }
-      
-      // Validate account number format (10 digits)
-      if (!/^\d{10}$/.test(accountNumber)) {
-        return NextResponse.json(
-          { error: 'Account number must be 10 digits' },
-          { status: 400 }
-        )
-      }
+    // Test database connection first
+    const dbTest = await testConnection()
+    
+    if (!dbTest.success) {
+      logger.error('Database connection failed', { message: dbTest.message })
+      throw Errors.database('Database connection failed. Please try again later.')
     }
 
-    // Check if user already exists
-    const existingUser = await db.user.findUnique({
+    // Get Prisma client
+    const prisma = await getPrisma()
+    
+    if (!prisma) {
+      throw Errors.database('Database client unavailable')
+    }
+
+    const p = prisma as any
+
+    // Check if email already exists
+    const existingUser = await p.users.findUnique({
       where: { email: email.toLowerCase() }
+    }).catch((err: Error) => {
+      logger.error('Error checking existing user', { error: err.message })
+      return null
     })
 
     if (existingUser) {
-      return NextResponse.json(
-        { error: 'Email already registered' },
-        { status: 400 }
-      )
+      throw Errors.validation('An account with this email already exists. Please sign in instead.')
     }
 
     // Hash password
-    const hashedPassword = await hashPassword(password)
+    const hashedPassword = await bcrypt.hash(password, 12)
 
-    // Create user
-    const user = await db.user.create({
+    // Generate initials
+    const userInitials = initials || generateInitials(name)
+
+    // Create user with PENDING approval status
+    const newUser = await p.users.create({
       data: {
-        name,
+        id: `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
         email: email.toLowerCase(),
-        phone,
+        name,
         password: hashedPassword,
-        role
+        role,
+        department: department || null,
+        initials: userInitials,
+        phone: phone || null,
+        dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null,
+        isActive: true,
+        isFirstLogin: false,
+        approvalStatus: 'PENDING',
+        createdAt: new Date()
       }
+    }).catch((err: Error) => {
+      logger.error('Error creating user', { error: err.message })
+      throw Errors.database('Failed to create user account')
     })
 
-    // Create role-specific profile
-    if (role === 'doctor') {
-      await db.doctor.create({
-        data: {
-          userId: user.id,
-          specialty,
-          licenseNumber,
-          hospital: hospital || null,
-          bio: bio || null,
-          consultationFee: consultationFee || 5000,
-          // Bank details
-          bankName,
-          accountNumber,
-          accountName
-        }
-      })
-    } else {
-      await db.patient.create({
-        data: {
-          userId: user.id
-        }
-      })
-    }
+    logger.info('User registered', { 
+      userId: newUser.id, 
+      email: newUser.email, 
+      role: newUser.role 
+    })
 
-    // Create response with session
-    const response = NextResponse.json({
-      success: true,
-      message: 'Registration successful',
+    return successResponse({ 
+      message: 'Registration successful! Your account is pending approval. You will be notified once an administrator reviews your application.',
       user: {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        role: user.role
+        id: newUser.id,
+        email: newUser.email,
+        name: newUser.name,
+        role: newUser.role,
+        approvalStatus: newUser.approvalStatus
       }
     })
 
-    setSessionCookie(response, {
-      id: user.id,
-      email: user.email,
-      name: user.name,
-      role: user.role
-    })
-
-    return response
   } catch (error) {
-    console.error('Registration error:', error)
-    return NextResponse.json(
-      { error: 'Registration failed. Please try again.' },
-      { status: 500 }
-    )
+    return errorResponse(error, { module: 'Register', operation: 'create' })
   }
 }
