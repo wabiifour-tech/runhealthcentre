@@ -3,8 +3,10 @@
  * PDF and Excel export functionality
  */
 
-import { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, HeadingLevel, AlignmentType, BorderStyle, WidthType } from 'docx'
+import { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, HeadingLevel, AlignmentType, BorderStyle, WidthType, ImageRun, Header, Footer, PageNumber, NumberFormat } from 'docx'
 import { saveAs } from 'file-saver'
+import jsPDF from 'jspdf'
+import autoTable from 'jspdf-autotable'
 
 // Types
 interface PatientData {
@@ -30,6 +32,456 @@ interface MedicationData {
   dosage: string
   frequency: string
   duration: string
+}
+
+interface DailyReportData {
+  date: string
+  totalPatients: number
+  newRegistrations: number
+  totalConsultations: number
+  diagnosesBreakdown: { diagnosis: string; count: number; percentage: number }[]
+  treatmentsGiven: { treatment: string; count: number }[]
+  labTestsPerformed: number
+  prescriptionsDispensed: number
+  topDiagnoses: { name: string; count: number }[]
+  staffOnDuty: { name: string; role: string }[]
+}
+
+/**
+ * Generate Daily Summary Report - DOCX Format
+ */
+export async function generateDailySummaryDOCX(data: DailyReportData): Promise<void> {
+  const doc = new Document({
+    sections: [{
+      properties: {
+        page: {
+          margin: { top: 720, right: 720, bottom: 720, left: 720 }
+        }
+      },
+      children: [
+        // Header with Logo placeholder
+        new Paragraph({
+          alignment: AlignmentType.CENTER,
+          children: [
+            new TextRun({
+              text: "RUN HEALTH CENTRE",
+              bold: true,
+              size: 36,
+              color: "1E40AF"
+            })
+          ]
+        }),
+        new Paragraph({
+          alignment: AlignmentType.CENTER,
+          children: [
+            new TextRun({
+              text: "Redeemer's University, Ede, Osun State",
+              size: 22
+            })
+          ]
+        }),
+        new Paragraph({
+          alignment: AlignmentType.CENTER,
+          children: [
+            new TextRun({
+              text: "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
+              size: 20,
+              color: "CCCCCC"
+            })
+          ]
+        }),
+        new Paragraph({ children: [] }),
+        
+        // Report Title
+        new Paragraph({
+          alignment: AlignmentType.CENTER,
+          children: [
+            new TextRun({
+              text: "DAILY SUMMARY REPORT",
+              bold: true,
+              size: 32,
+              color: "10B981"
+            })
+          ]
+        }),
+        new Paragraph({
+          alignment: AlignmentType.CENTER,
+          children: [
+            new TextRun({
+              text: `Date: ${data.date}`,
+              size: 24,
+              italics: true
+            })
+          ]
+        }),
+        new Paragraph({ children: [] }),
+        
+        // Key Statistics
+        new Paragraph({
+          children: [new TextRun({ text: "KEY STATISTICS", bold: true, size: 28, color: "1E40AF" })]
+        }),
+        new Paragraph({ children: [] }),
+        
+        new Table({
+          width: { size: 100, type: WidthType.PERCENTAGE },
+          rows: [
+            new TableRow({
+              children: [
+                new TableCell({ 
+                  children: [new Paragraph({ children: [new TextRun({ text: "Metric", bold: true, color: "FFFFFF" })] })],
+                  shading: { fill: "1E40AF" }
+                }),
+                new TableCell({ 
+                  children: [new Paragraph({ children: [new TextRun({ text: "Count", bold: true, color: "FFFFFF" })] })],
+                  shading: { fill: "1E40AF" }
+                }),
+              ]
+            }),
+            new TableRow({
+              children: [
+                new TableCell({ children: [new Paragraph("Total Patients Seen")] }),
+                new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: String(data.totalPatients), bold: true })] })] }),
+              ]
+            }),
+            new TableRow({
+              children: [
+                new TableCell({ children: [new Paragraph("New Registrations")] }),
+                new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: String(data.newRegistrations), bold: true, color: "10B981" })] })] }),
+              ]
+            }),
+            new TableRow({
+              children: [
+                new TableCell({ children: [new Paragraph("Total Consultations")] }),
+                new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: String(data.totalConsultations), bold: true })] })] }),
+              ]
+            }),
+            new TableRow({
+              children: [
+                new TableCell({ children: [new Paragraph("Lab Tests Performed")] }),
+                new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: String(data.labTestsPerformed), bold: true, color: "8B5CF6" })] })] }),
+              ]
+            }),
+            new TableRow({
+              children: [
+                new TableCell({ children: [new Paragraph("Prescriptions Dispensed")] }),
+                new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: String(data.prescriptionsDispensed), bold: true, color: "F59E0B" })] })] }),
+              ]
+            }),
+          ]
+        }),
+        
+        new Paragraph({ children: [] }),
+        
+        // Diagnoses Breakdown
+        new Paragraph({
+          children: [new TextRun({ text: "DIAGNOSES BREAKDOWN", bold: true, size: 28, color: "1E40AF" })]
+        }),
+        new Paragraph({ children: [] }),
+        
+        ...(data.diagnosesBreakdown.length > 0 ? [
+          new Table({
+            width: { size: 100, type: WidthType.PERCENTAGE },
+            rows: [
+              new TableRow({
+                children: [
+                  new TableCell({ 
+                    children: [new Paragraph({ children: [new TextRun({ text: "Diagnosis", bold: true, color: "FFFFFF" })] })],
+                    shading: { fill: "10B981" }
+                  }),
+                  new TableCell({ 
+                    children: [new Paragraph({ children: [new TextRun({ text: "Count", bold: true, color: "FFFFFF" })] })],
+                    shading: { fill: "10B981" }
+                  }),
+                  new TableCell({ 
+                    children: [new Paragraph({ children: [new TextRun({ text: "%", bold: true, color: "FFFFFF" })] })],
+                    shading: { fill: "10B981" }
+                  }),
+                ]
+              }),
+              ...data.diagnosesBreakdown.slice(0, 10).map(d => new TableRow({
+                children: [
+                  new TableCell({ children: [new Paragraph(d.diagnosis)] }),
+                  new TableCell({ children: [new Paragraph(String(d.count))] }),
+                  new TableCell({ children: [new Paragraph(`${d.percentage}%`)] }),
+                ]
+              }))
+            ]
+          })
+        ] : [
+          new Paragraph({
+            children: [new TextRun({ text: "No diagnoses recorded today", italics: true, color: "666666" })]
+          })
+        ]),
+        
+        new Paragraph({ children: [] }),
+        
+        // Treatments Given
+        new Paragraph({
+          children: [new TextRun({ text: "TREATMENTS GIVEN", bold: true, size: 28, color: "1E40AF" })]
+        }),
+        new Paragraph({ children: [] }),
+        
+        ...(data.treatmentsGiven.length > 0 ? [
+          new Table({
+            width: { size: 100, type: WidthType.PERCENTAGE },
+            rows: [
+              new TableRow({
+                children: [
+                  new TableCell({ 
+                    children: [new Paragraph({ children: [new TextRun({ text: "Treatment", bold: true, color: "FFFFFF" })] })],
+                    shading: { fill: "F59E0B" }
+                  }),
+                  new TableCell({ 
+                    children: [new Paragraph({ children: [new TextRun({ text: "Count", bold: true, color: "FFFFFF" })] })],
+                    shading: { fill: "F59E0B" }
+                  }),
+                ]
+              }),
+              ...data.treatmentsGiven.slice(0, 10).map(t => new TableRow({
+                children: [
+                  new TableCell({ children: [new Paragraph(t.treatment)] }),
+                  new TableCell({ children: [new Paragraph(String(t.count))] }),
+                ]
+              }))
+            ]
+          })
+        ] : [
+          new Paragraph({
+            children: [new TextRun({ text: "No treatments recorded today", italics: true, color: "666666" })]
+          })
+        ]),
+        
+        new Paragraph({ children: [] }),
+        
+        // Staff on Duty
+        new Paragraph({
+          children: [new TextRun({ text: "STAFF ON DUTY", bold: true, size: 28, color: "1E40AF" })]
+        }),
+        new Paragraph({ children: [] }),
+        
+        ...(data.staffOnDuty.length > 0 ? [
+          new Table({
+            width: { size: 100, type: WidthType.PERCENTAGE },
+            rows: [
+              new TableRow({
+                children: [
+                  new TableCell({ 
+                    children: [new Paragraph({ children: [new TextRun({ text: "Name", bold: true, color: "FFFFFF" })] })],
+                    shading: { fill: "8B5CF6" }
+                  }),
+                  new TableCell({ 
+                    children: [new Paragraph({ children: [new TextRun({ text: "Role", bold: true, color: "FFFFFF" })] })],
+                    shading: { fill: "8B5CF6" }
+                  }),
+                ]
+              }),
+              ...data.staffOnDuty.map(s => new TableRow({
+                children: [
+                  new TableCell({ children: [new Paragraph(s.name)] }),
+                  new TableCell({ children: [new Paragraph(s.role)] }),
+                ]
+              }))
+            ]
+          })
+        ] : [
+          new Paragraph({
+            children: [new TextRun({ text: "No staff records available", italics: true, color: "666666" })]
+          })
+        ]),
+        
+        // Footer
+        new Paragraph({ children: [] }),
+        new Paragraph({
+          alignment: AlignmentType.CENTER,
+          children: [
+            new TextRun({
+              text: "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
+              size: 20,
+              color: "CCCCCC"
+            })
+          ]
+        }),
+        new Paragraph({
+          alignment: AlignmentType.CENTER,
+          children: [
+            new TextRun({
+              text: `Generated on: ${new Date().toLocaleString('en-NG')}`,
+              size: 18,
+              italics: true,
+              color: "666666"
+            })
+          ]
+        }),
+        new Paragraph({
+          alignment: AlignmentType.CENTER,
+          children: [
+            new TextRun({
+              text: "RUN Health Centre - Caring for You",
+              size: 18,
+              color: "1E40AF"
+            })
+          ]
+        })
+      ]
+    }]
+  })
+  
+  const blob = await Packer.toBlob(doc)
+  saveAs(blob, `daily_report_${data.date.replace(/\//g, '-')}.docx`)
+}
+
+/**
+ * Generate Daily Summary Report - PDF Format
+ */
+export async function generateDailySummaryPDF(data: DailyReportData): Promise<void> {
+  const doc = new jsPDF()
+  
+  // Header
+  doc.setFontSize(20)
+  doc.setTextColor(30, 64, 175)
+  doc.text('RUN HEALTH CENTRE', 105, 20, { align: 'center' })
+  
+  doc.setFontSize(12)
+  doc.setTextColor(100, 100, 100)
+  doc.text("Redeemer's University, Ede, Osun State", 105, 28, { align: 'center' })
+  
+  // Divider
+  doc.setDrawColor(200, 200, 200)
+  doc.line(20, 32, 190, 32)
+  
+  // Title
+  doc.setFontSize(16)
+  doc.setTextColor(16, 185, 129)
+  doc.text('DAILY SUMMARY REPORT', 105, 42, { align: 'center' })
+  
+  doc.setFontSize(12)
+  doc.setTextColor(80, 80, 80)
+  doc.text(`Date: ${data.date}`, 105, 50, { align: 'center' })
+  
+  // Key Statistics Table
+  doc.setFontSize(14)
+  doc.setTextColor(30, 64, 175)
+  doc.text('Key Statistics', 20, 65)
+  
+  autoTable(doc, {
+    startY: 70,
+    head: [['Metric', 'Count']],
+    body: [
+      ['Total Patients Seen', String(data.totalPatients)],
+      ['New Registrations', String(data.newRegistrations)],
+      ['Total Consultations', String(data.totalConsultations)],
+      ['Lab Tests Performed', String(data.labTestsPerformed)],
+      ['Prescriptions Dispensed', String(data.prescriptionsDispensed)],
+    ],
+    headStyles: { fillColor: [30, 64, 175] },
+    margin: { left: 20, right: 20 },
+  })
+  
+  // Diagnoses Table
+  const currentY = (doc as any).lastAutoTable?.finalY || 120
+  doc.setFontSize(14)
+  doc.setTextColor(30, 64, 175)
+  doc.text('Top Diagnoses', 20, currentY + 15)
+  
+  if (data.diagnosesBreakdown.length > 0) {
+    autoTable(doc, {
+      startY: currentY + 20,
+      head: [['Diagnosis', 'Count', '%']],
+      body: data.diagnosesBreakdown.slice(0, 8).map(d => [d.diagnosis, String(d.count), `${d.percentage}%`]),
+      headStyles: { fillColor: [16, 185, 129] },
+      margin: { left: 20, right: 20 },
+    })
+  }
+  
+  // Treatments Table
+  const treatmentsY = (doc as any).lastAutoTable?.finalY || currentY + 60
+  doc.setFontSize(14)
+  doc.setTextColor(30, 64, 175)
+  doc.text('Treatments Given', 20, treatmentsY + 15)
+  
+  if (data.treatmentsGiven.length > 0) {
+    autoTable(doc, {
+      startY: treatmentsY + 20,
+      head: [['Treatment', 'Count']],
+      body: data.treatmentsGiven.slice(0, 8).map(t => [t.treatment, String(t.count)]),
+      headStyles: { fillColor: [245, 158, 11] },
+      margin: { left: 20, right: 20 },
+    })
+  }
+  
+  // Footer
+  const footerY = (doc as any).lastAutoTable?.finalY || 200
+  doc.setDrawColor(200, 200, 200)
+  doc.line(20, footerY + 20, 190, footerY + 20)
+  
+  doc.setFontSize(10)
+  doc.setTextColor(100, 100, 100)
+  doc.text(`Generated on: ${new Date().toLocaleString('en-NG')}`, 105, footerY + 30, { align: 'center' })
+  doc.setTextColor(30, 64, 175)
+  doc.text('RUN Health Centre - Caring for You', 105, footerY + 38, { align: 'center' })
+  
+  doc.save(`daily_report_${data.date.replace(/\//g, '-')}.pdf`)
+}
+
+/**
+ * Generate Daily Summary Report - Excel Format (CSV)
+ */
+export function generateDailySummaryExcel(data: DailyReportData): void {
+  // Create multiple sheets as CSV files
+  const statsCSV = [
+    'Metric,Count',
+    `Total Patients Seen,${data.totalPatients}`,
+    `New Registrations,${data.newRegistrations}`,
+    `Total Consultations,${data.totalConsultations}`,
+    `Lab Tests Performed,${data.labTestsPerformed}`,
+    `Prescriptions Dispensed,${data.prescriptionsDispensed}`,
+  ].join('\n')
+  
+  const diagnosesCSV = [
+    'Diagnosis,Count,Percentage',
+    ...data.diagnosesBreakdown.map(d => `"${d.diagnosis}",${d.count},${d.percentage}%`)
+  ].join('\n')
+  
+  const treatmentsCSV = [
+    'Treatment,Count',
+    ...data.treatmentsGiven.map(t => `"${t.treatment}",${t.count}`)
+  ].join('\n')
+  
+  // Combine all into one file
+  const combinedCSV = `RUN HEALTH CENTRE - DAILY REPORT (${data.date})
+===========================================
+
+KEY STATISTICS
+${statsCSV}
+
+DIAGNOSES BREAKDOWN
+${diagnosesCSV}
+
+TREATMENTS GIVEN
+${treatmentsCSV}
+`
+  
+  const blob = new Blob([combinedCSV], { type: 'text/csv;charset=utf-8' })
+  saveAs(blob, `daily_report_${data.date.replace(/\//g, '-')}.csv`)
+}
+
+/**
+ * Generate Daily Report in specified format
+ */
+export async function generateDailyReport(data: DailyReportData, format: 'pdf' | 'docx' | 'excel'): Promise<void> {
+  switch (format) {
+    case 'pdf':
+      await generateDailySummaryPDF(data)
+      break
+    case 'docx':
+      await generateDailySummaryDOCX(data)
+      break
+    case 'excel':
+      generateDailySummaryExcel(data)
+      break
+    default:
+      await generateDailySummaryPDF(data)
+  }
 }
 
 /**

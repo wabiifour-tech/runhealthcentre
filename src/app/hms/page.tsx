@@ -43,8 +43,13 @@ import {
   Smartphone, Monitor, AlertTriangle, CheckCircle, Key, Lock, Building2,
   XCircle, BookOpen, BookMarked, Cross, Bookmark, Sparkles, Sun,
   Timer, LogIn, Phone, Mail, ShieldCheck, Edit2, Cloud, CloudOff, RefreshCw, Wifi, WifiOff,
-  MessageSquare, AlertCircle, Zap, UserCheck, Fingerprint, Camera, FolderOpen, Undo2, CheckCheck
+  MessageSquare, AlertCircle, Zap, UserCheck, Fingerprint, Camera, FolderOpen, Undo2, CheckCheck, Check,
+  TrendingUp, TrendingDown, BarChart3, PieChart as PieChartIcon, FileSpreadsheet, FileDown, Moon
 } from 'lucide-react'
+import {
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
+  BarChart, Bar, PieChart, Pie, Cell, ComposedChart, AreaChart, Area
+} from 'recharts'
 import { 
   PatientVisitsChart, 
   RevenueChart, 
@@ -54,6 +59,7 @@ import {
   VitalSignsTrendChart,
   type VitalSignDataPoint
 } from '@/components/charts/dashboard-charts'
+import { generateDailyReport, type DailyReportData } from '@/lib/report-generator'
 
 // ============== FACILITY CODE ==============
 const FACILITY_CODE = 'RUHC-2026'
@@ -2799,6 +2805,62 @@ export default function HMSApp() {
     departmentStats: [] as { name: string; patients: number; revenue: number; waitTime: string; satisfaction: number }[],
   })
   
+  // Live Analytics State for Records Dashboard
+  const [liveDailyData, setLiveDailyData] = useState<{ date: string; label: string; patients: number; consultations: number }[]>([])
+  const [liveMonthlyData, setLiveMonthlyData] = useState<{ month: string; label: string; patients: number; consultations: number }[]>([])
+  const [liveSemesterData, setLiveSemesterData] = useState<{ semester: string; year: number; patients: number }[]>([])
+  const [liveYearlyData, setLiveYearlyData] = useState<{ year: number; patients: number; consultations: number }[]>([])
+  const [prevalencePeriod, setPrevalencePeriod] = useState<string>('month')
+  const [prevalenceData, setPrevalenceData] = useState<{ name: string; fullName: string; count: number; percentage: number }[]>([])
+  const [isLoadingAnalytics, setIsLoadingAnalytics] = useState(false)
+  const [analyticsSubTab, setAnalyticsSubTab] = useState<string>('overview')
+  
+  // Fetch live analytics data from API
+  const fetchLiveAnalytics = useCallback(async () => {
+    setIsLoadingAnalytics(true)
+    try {
+      const response = await fetch('/api/analytics?type=overview')
+      const result = await response.json()
+      if (result.success && result.data) {
+        setLiveDailyData(result.data.daily || [])
+        setLiveMonthlyData(result.data.monthly || [])
+        setLiveSemesterData(result.data.semester || [])
+        setLiveYearlyData(result.data.yearly || [])
+        setPrevalenceData(result.data.prevalence || [])
+      }
+    } catch (error) {
+      console.error('Failed to fetch analytics:', error)
+    } finally {
+      setIsLoadingAnalytics(false)
+    }
+  }, [])
+  
+  // Fetch prevalence data for specific period
+  const fetchPrevalenceData = useCallback(async (period: string) => {
+    setIsLoadingAnalytics(true)
+    try {
+      const response = await fetch(`/api/analytics?type=prevalence&period=${period}`)
+      const result = await response.json()
+      if (result.success && result.data) {
+        setPrevalenceData(result.data)
+      }
+    } catch (error) {
+      console.error('Failed to fetch prevalence:', error)
+    } finally {
+      setIsLoadingAnalytics(false)
+    }
+  }, [])
+  
+  // Load analytics data on mount
+  useEffect(() => {
+    fetchLiveAnalytics()
+  }, [fetchLiveAnalytics])
+  
+  // Update prevalence when period changes
+  useEffect(() => {
+    fetchPrevalenceData(prevalencePeriod)
+  }, [prevalencePeriod, fetchPrevalenceData])
+  
   // Calculate analytics data
   useEffect(() => {
     const now = new Date()
@@ -2963,6 +3025,73 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
     a.download = `RUHC_Analytics_${new Date().toISOString().split('T')[0]}.csv`
     a.click()
     URL.revokeObjectURL(url)
+  }
+  
+  // Generate Daily Report
+  const handleGenerateDailyReport = async (format: 'pdf' | 'docx' | 'excel') => {
+    const today = new Date().toLocaleDateString('en-NG')
+    const todayStr = new Date().toISOString().split('T')[0]
+    
+    // Calculate diagnoses breakdown from consultations
+    const diagnosesMap = new Map<string, number>()
+    consultations
+      .filter(c => c.createdAt?.split('T')[0] === todayStr && (c.finalDiagnosis || c.provisionalDiagnosis))
+      .forEach(c => {
+        const diagnosis = c.finalDiagnosis || c.provisionalDiagnosis || ''
+        diagnosesMap.set(diagnosis, (diagnosesMap.get(diagnosis) || 0) + 1)
+      })
+    
+    const totalDiagnoses = Array.from(diagnosesMap.values()).reduce((a, b) => a + b, 0)
+    const diagnosesBreakdown = Array.from(diagnosesMap.entries())
+      .map(([diagnosis, count]) => ({
+        diagnosis,
+        count,
+        percentage: totalDiagnoses > 0 ? Math.round((count / totalDiagnoses) * 100) : 0
+      }))
+      .sort((a, b) => b.count - a.count)
+    
+    // Calculate treatments given from prescriptions
+    const treatmentsMap = new Map<string, number>()
+    prescriptions
+      .filter(p => p.createdAt?.split('T')[0] === todayStr)
+      .forEach(p => {
+        if (p.medications && Array.isArray(p.medications)) {
+          p.medications.forEach((m: any) => {
+            const name = m.drugName || m.name || 'Unknown'
+            treatmentsMap.set(name, (treatmentsMap.get(name) || 0) + 1)
+          })
+        }
+      })
+    
+    const treatmentsGiven = Array.from(treatmentsMap.entries())
+      .map(([treatment, count]) => ({ treatment, count }))
+      .sort((a, b) => b.count - a.count)
+    
+    // Staff on duty today
+    const staffOnDuty = attendance
+      .filter(a => a.date === new Date().toDateString())
+      .map(a => ({ name: a.staffName, role: a.staffRole }))
+    
+    const reportData: DailyReportData = {
+      date: today,
+      totalPatients: patients.filter(p => p.registeredAt?.split('T')[0] === todayStr).length,
+      newRegistrations: patients.filter(p => p.registeredAt?.split('T')[0] === todayStr).length,
+      totalConsultations: consultations.filter(c => c.createdAt?.split('T')[0] === todayStr).length,
+      diagnosesBreakdown,
+      treatmentsGiven,
+      labTestsPerformed: labRequests.filter(l => l.requestedAt?.split('T')[0] === todayStr).length,
+      prescriptionsDispensed: prescriptions.filter(p => p.createdAt?.split('T')[0] === todayStr && p.status === 'dispensed').length,
+      topDiagnoses: diagnosesBreakdown.slice(0, 5).map(d => ({ name: d.diagnosis, count: d.count })),
+      staffOnDuty
+    }
+    
+    try {
+      await generateDailyReport(reportData, format)
+      showToast(`Daily report generated successfully in ${format.toUpperCase()} format!`, 'success')
+    } catch (error) {
+      console.error('Failed to generate report:', error)
+      showToast('Failed to generate report. Please try again.', 'error')
+    }
   }
   
   // Notification Center State
@@ -9050,15 +9179,14 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                       {persistentNotifications.map((notification) => (
                         <div 
                           key={notification.id} 
-                          className={`p-4 rounded-lg border transition-all cursor-pointer hover:shadow-md ${
+                          className={`p-4 rounded-lg border transition-all hover:shadow-md ${
                             notification.read 
                               ? 'bg-gray-50 border-gray-200' 
                               : 'bg-blue-50 border-blue-300 shadow-sm'
                           }`}
-                          onClick={() => !notification.read && markNotificationRead(notification.id)}
                         >
                           <div className="flex items-start justify-between gap-4">
-                            <div className="flex items-start gap-3">
+                            <div className="flex items-start gap-3 flex-1">
                               <div className={`h-10 w-10 rounded-full flex items-center justify-center ${
                                 notification.type === 'patient_file' ? 'bg-teal-100' :
                                 notification.type === 'approval' ? 'bg-purple-100' :
@@ -9072,7 +9200,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                                  notification.type === 'prescription' ? <Pill className="h-5 w-5 text-orange-600" /> :
                                  <Bell className="h-5 w-5 text-blue-600" />}
                               </div>
-                              <div>
+                              <div className="flex-1">
                                 <p className={`font-medium ${notification.read ? 'text-gray-700' : 'text-gray-900'}`}>
                                   {notification.title}
                                 </p>
@@ -9084,9 +9212,25 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                                 </p>
                               </div>
                             </div>
-                            {!notification.read && (
-                              <div className="h-3 w-3 rounded-full bg-blue-500 animate-pulse" />
-                            )}
+                            <div className="flex items-center gap-2">
+                              {!notification.read && (
+                                <>
+                                  <div className="h-3 w-3 rounded-full bg-blue-500 animate-pulse" />
+                                  <Button 
+                                    size="sm"
+                                    variant="outline"
+                                    className="bg-white hover:bg-green-50 hover:text-green-700 hover:border-green-300 transition-all duration-200"
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      markNotificationRead(notification.id)
+                                    }}
+                                  >
+                                    <Check className="h-4 w-4 mr-1" />
+                                    Mark as Read
+                                  </Button>
+                                </>
+                              )}
+                            </div>
                           </div>
                         </div>
                       ))}
@@ -15017,6 +15161,230 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                       </TableBody>
                     </Table>
                   </div>
+                </CardContent>
+              </Card>
+              
+              {/* Records Dashboard with Live Charts */}
+              <Card className="shadow-md border-t-4 border-t-blue-500">
+                <CardHeader>
+                  <div className="flex justify-between items-center">
+                    <CardTitle className="flex items-center gap-2">
+                      <BarChart3 className="h-5 w-5 text-blue-600" />
+                      Records Dashboard - Live Statistics
+                    </CardTitle>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => fetchLiveAnalytics()}
+                      disabled={isLoadingAnalytics}
+                      className="flex items-center gap-2"
+                    >
+                      <RefreshCw className={`h-4 w-4 ${isLoadingAnalytics ? 'animate-spin' : ''}`} />
+                      Refresh Data
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <Tabs value={analyticsSubTab} onValueChange={setAnalyticsSubTab}>
+                    <TabsList className="grid w-full grid-cols-4">
+                      <TabsTrigger value="overview">Daily (30 Days)</TabsTrigger>
+                      <TabsTrigger value="monthly">Monthly (12 Mo)</TabsTrigger>
+                      <TabsTrigger value="semester">Semester</TabsTrigger>
+                      <TabsTrigger value="yearly">Yearly</TabsTrigger>
+                    </TabsList>
+                    
+                    {isLoadingAnalytics && (
+                      <div className="flex items-center justify-center py-12">
+                        <RefreshCw className="h-8 w-8 animate-spin text-blue-500" />
+                        <span className="ml-2">Loading analytics...</span>
+                      </div>
+                    )}
+                    
+                    <TabsContent value="overview" className="mt-4">
+                      <div className="h-80">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <LineChart data={liveDailyData}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                            <XAxis dataKey="label" tick={{ fontSize: 11 }} interval="preserveStartEnd" />
+                            <YAxis tick={{ fontSize: 12 }} />
+                            <Tooltip 
+                              contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px' }}
+                              labelFormatter={(label) => `Date: ${label}`}
+                            />
+                            <Legend />
+                            <Line 
+                              type="monotone" 
+                              dataKey="patients" 
+                              stroke="#3B82F6" 
+                              strokeWidth={2} 
+                              dot={{ r: 3 }} 
+                              name="New Patients"
+                              activeDot={{ r: 5 }}
+                            />
+                            <Line 
+                              type="monotone" 
+                              dataKey="consultations" 
+                              stroke="#10B981" 
+                              strokeWidth={2} 
+                              dot={{ r: 3 }} 
+                              name="Consultations"
+                              activeDot={{ r: 5 }}
+                            />
+                          </LineChart>
+                        </ResponsiveContainer>
+                      </div>
+                      <p className="text-sm text-gray-500 mt-2 text-center">
+                        Daily patient registrations and consultations over the last 30 days
+                      </p>
+                    </TabsContent>
+                    
+                    <TabsContent value="monthly" className="mt-4">
+                      <div className="h-80">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={liveMonthlyData}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                            <XAxis dataKey="label" tick={{ fontSize: 10 }} angle={-45} textAnchor="end" height={60} />
+                            <YAxis tick={{ fontSize: 12 }} />
+                            <Tooltip 
+                              contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px' }}
+                            />
+                            <Legend />
+                            <Bar dataKey="patients" fill="#3B82F6" name="New Patients" radius={[4, 4, 0, 0]} />
+                            <Bar dataKey="consultations" fill="#8B5CF6" name="Consultations" radius={[4, 4, 0, 0]} />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
+                      <p className="text-sm text-gray-500 mt-2 text-center">
+                        Monthly patient registrations and consultations over the last 12 months
+                      </p>
+                    </TabsContent>
+                    
+                    <TabsContent value="semester" className="mt-4">
+                      <div className="h-80">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={liveSemesterData} layout="vertical">
+                            <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                            <XAxis type="number" tick={{ fontSize: 12 }} />
+                            <YAxis dataKey="semester" type="category" tick={{ fontSize: 11 }} width={150} />
+                            <Tooltip 
+                              contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px' }}
+                            />
+                            <Bar dataKey="patients" fill="#F59E0B" name="Patients" radius={[0, 4, 4, 0]}>
+                              {liveSemesterData.map((_, index) => (
+                                <Cell key={`cell-${index}`} fill={['#F59E0B', '#10B981', '#EF4444'][index % 3]} />
+                              ))}
+                            </Bar>
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
+                      <p className="text-sm text-gray-500 mt-2 text-center">
+                        Patient registrations by academic semester/session
+                      </p>
+                    </TabsContent>
+                    
+                    <TabsContent value="yearly" className="mt-4">
+                      <div className="h-80">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <ComposedChart data={liveYearlyData}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                            <XAxis dataKey="year" tick={{ fontSize: 12 }} />
+                            <YAxis tick={{ fontSize: 12 }} />
+                            <Tooltip 
+                              contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px' }}
+                            />
+                            <Legend />
+                            <Bar dataKey="patients" fill="#3B82F6" name="Patients" radius={[4, 4, 0, 0]} />
+                            <Line type="monotone" dataKey="consultations" stroke="#EF4444" strokeWidth={2} name="Consultations" />
+                          </ComposedChart>
+                        </ResponsiveContainer>
+                      </div>
+                      <p className="text-sm text-gray-500 mt-2 text-center">
+                        Yearly comparison of patients and consultations (last 5 years)
+                      </p>
+                    </TabsContent>
+                  </Tabs>
+                </CardContent>
+              </Card>
+              
+              {/* Prevalence Data Tracking Section */}
+              <Card className="shadow-md border-t-4 border-t-teal-500">
+                <CardHeader>
+                  <div className="flex justify-between items-center">
+                    <CardTitle className="flex items-center gap-2">
+                      <PieChartIcon className="h-5 w-5 text-teal-600" />
+                      Disease Prevalence Tracking
+                    </CardTitle>
+                    <Select value={prevalencePeriod} onValueChange={setPrevalencePeriod}>
+                      <SelectTrigger className="w-40">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="today">Today</SelectItem>
+                        <SelectItem value="week">Last 7 Days</SelectItem>
+                        <SelectItem value="month">Last 30 Days</SelectItem>
+                        <SelectItem value="semester">This Semester</SelectItem>
+                        <SelectItem value="year">This Year</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  {isLoadingAnalytics ? (
+                    <div className="flex items-center justify-center py-12">
+                      <RefreshCw className="h-8 w-8 animate-spin text-teal-500" />
+                      <span className="ml-2">Loading prevalence data...</span>
+                    </div>
+                  ) : prevalenceData.length === 0 ? (
+                    <div className="text-center py-12 text-gray-500">
+                      <Activity className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                      <p>No diagnosis data available for this period</p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                      {/* Pie Chart */}
+                      <div className="h-72">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <PieChart>
+                            <Pie
+                              data={prevalenceData}
+                              cx="50%"
+                              cy="50%"
+                              labelLine={false}
+                              outerRadius={100}
+                              fill="#8884d8"
+                              dataKey="count"
+                              nameKey="name"
+                              label={({ name, percentage }) => `${name} (${percentage}%)`}
+                            >
+                              {prevalenceData.map((_, index) => (
+                                <Cell key={`cell-${index}`} fill={['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#06B6D4', '#84CC16', '#F97316', '#6366F1'][index % 10]} />
+                              ))}
+                            </Pie>
+                            <Tooltip />
+                          </PieChart>
+                        </ResponsiveContainer>
+                      </div>
+                      
+                      {/* List View */}
+                      <div className="space-y-3">
+                        <h4 className="font-medium text-gray-700">Top 10 Diagnoses</h4>
+                        {prevalenceData.map((diag, i) => (
+                          <div key={i} className="flex items-center gap-3 p-2 bg-gray-50 rounded-lg">
+                            <span className="w-6 h-6 flex items-center justify-center rounded-full text-white text-xs font-bold" style={{ backgroundColor: ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#06B6D4', '#84CC16', '#F97316', '#6366F1'][i % 10] }}>
+                              {i + 1}
+                            </span>
+                            <div className="flex-1">
+                              <div className="flex justify-between">
+                                <span className="text-sm font-medium">{diag.name}</span>
+                                <span className="text-sm text-gray-500">{diag.count} cases ({diag.percentage}%)</span>
+                              </div>
+                              <Progress value={diag.percentage} className="h-1.5 mt-1" />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </div>
