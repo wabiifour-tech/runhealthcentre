@@ -2,11 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/lib/telehealth-auth'
 import { db } from '@/lib/telehealth-db'
 
-// Paystack configuration
-const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY || 'sk_test_xxx'
-const PAYSTACK_BASE_URL = 'https://api.paystack.co'
-
-// Initialize payment
+// Create payment record for bank transfer
 export async function POST(request: NextRequest) {
   try {
     const user = await getSession(request)
@@ -19,7 +15,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { appointmentId, amount, email } = body
+    const { appointmentId, amount, paymentReference } = body
 
     const patient = await db.patient.findUnique({
       where: { userId: user.id }
@@ -32,112 +28,189 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Generate unique reference
-    const reference = `THN-${Date.now()}-${Math.random().toString(36).substring(7)}`
+    // Get appointment with doctor details
+    const appointment = await db.appointment.findUnique({
+      where: { id: appointmentId },
+      include: {
+        doctor: true
+      }
+    })
 
-    // Create payment record
+    if (!appointment) {
+      return NextResponse.json(
+        { error: 'Appointment not found' },
+        { status: 404 }
+      )
+    }
+
+    // Create payment record with doctor's bank details
     const payment = await db.payment.create({
       data: {
         patientId: patient.id,
         appointmentId,
         amount,
         currency: 'NGN',
-        status: 'pending',
-        paystackRef: reference
+        status: 'awaiting_confirmation',
+        // Store doctor's bank details at time of payment
+        doctorBankName: appointment.doctor.bankName,
+        doctorAccountNumber: appointment.doctor.accountNumber,
+        doctorAccountName: appointment.doctor.accountName,
+        paymentReference,
+        paymentDate: new Date(),
       }
     })
 
-    // Initialize Paystack transaction
-    const paystackResponse = await fetch(`${PAYSTACK_BASE_URL}/transaction/initialize`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${PAYSTACK_SECRET_KEY}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        email: email || user.email,
-        amount: amount * 100, // Convert to kobo
-        reference,
-        callback_url: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/payment/verify`,
-        metadata: {
-          paymentId: payment.id,
-          appointmentId,
-          patientId: patient.id
-        }
-      })
+    // Update appointment status
+    await db.appointment.update({
+      where: { id: appointmentId },
+      data: { status: 'pending_payment' }
     })
-
-    const paystackData = await paystackResponse.json()
-
-    if (!paystackData.status) {
-      return NextResponse.json(
-        { error: 'Failed to initialize payment', details: paystackData.message },
-        { status: 400 }
-      )
-    }
 
     return NextResponse.json({
       success: true,
-      authorizationUrl: paystackData.data.authorization_url,
-      accessCode: paystackData.data.access_code,
-      reference
+      message: 'Payment record created. Awaiting doctor confirmation.',
+      payment
     })
   } catch (error) {
-    console.error('Payment initialization error:', error)
+    console.error('Payment creation error:', error)
     return NextResponse.json(
-      { error: 'Failed to initialize payment' },
+      { error: 'Failed to create payment record' },
       { status: 500 }
     )
   }
 }
 
-// Verify payment
-export async function GET(request: NextRequest) {
+// Confirm payment (Doctor only)
+export async function PATCH(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url)
-    const reference = searchParams.get('reference')
+    const user = await getSession(request)
 
-    if (!reference) {
+    if (!user || user.role !== 'doctor') {
       return NextResponse.json(
-        { error: 'Reference is required' },
-        { status: 400 }
+        { error: 'Only doctors can confirm payments' },
+        { status: 403 }
       )
     }
 
-    // Verify with Paystack
-    const paystackResponse = await fetch(`${PAYSTACK_BASE_URL}/transaction/verify/${reference}`, {
-      headers: {
-        'Authorization': `Bearer ${PAYSTACK_SECRET_KEY}`
-      }
+    const body = await request.json()
+    const { paymentId, status } = body // status: 'confirmed' or 'rejected'
+
+    const doctor = await db.doctor.findUnique({
+      where: { userId: user.id }
     })
 
-    const paystackData = await paystackResponse.json()
-
-    if (!paystackData.status || paystackData.data.status !== 'success') {
+    if (!doctor) {
       return NextResponse.json(
-        { error: 'Payment verification failed', status: paystackData.data?.status },
-        { status: 400 }
+        { error: 'Doctor profile not found' },
+        { status: 404 }
       )
     }
 
-    // Update payment record
+    // Update payment
     const payment = await db.payment.update({
-      where: { paystackRef: reference },
+      where: { id: paymentId },
       data: {
-        status: 'completed',
-        paystackData: JSON.stringify(paystackData.data)
+        status,
+        confirmedAt: new Date(),
+        confirmedBy: doctor.id,
       }
     })
+
+    // If confirmed, update appointment status
+    if (status === 'confirmed' && payment.appointmentId) {
+      await db.appointment.update({
+        where: { id: payment.appointmentId },
+        data: { status: 'scheduled' }
+      })
+    }
 
     return NextResponse.json({
       success: true,
-      message: 'Payment verified successfully',
+      message: `Payment ${status}`,
       payment
     })
   } catch (error) {
-    console.error('Payment verification error:', error)
+    console.error('Payment confirmation error:', error)
     return NextResponse.json(
-      { error: 'Failed to verify payment' },
+      { error: 'Failed to confirm payment' },
+      { status: 500 }
+    )
+  }
+}
+
+// Get payments
+export async function GET(request: NextRequest) {
+  try {
+    const user = await getSession(request)
+
+    if (!user) {
+      return NextResponse.json(
+        { error: 'Authentication required' },
+        { status: 401 }
+      )
+    }
+
+    let payments: any[] = []
+
+    if (user.role === 'patient') {
+      const patient = await db.patient.findUnique({
+        where: { userId: user.id }
+      })
+
+      if (patient) {
+        payments = await db.payment.findMany({
+          where: { patientId: patient.id },
+          include: {
+            appointment: {
+              include: {
+                doctor: {
+                  include: {
+                    user: {
+                      select: { name: true }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          orderBy: { createdAt: 'desc' }
+        })
+      }
+    } else if (user.role === 'doctor') {
+      const doctor = await db.doctor.findUnique({
+        where: { userId: user.id }
+      })
+
+      if (doctor) {
+        payments = await db.payment.findMany({
+          where: {
+            appointment: {
+              doctorId: doctor.id
+            }
+          },
+          include: {
+            patient: {
+              include: {
+                user: {
+                  select: { name: true, email: true, phone: true }
+                }
+              }
+            },
+            appointment: true
+          },
+          orderBy: { createdAt: 'desc' }
+        })
+      }
+    }
+
+    return NextResponse.json({
+      success: true,
+      payments
+    })
+  } catch (error) {
+    console.error('Get payments error:', error)
+    return NextResponse.json(
+      { error: 'Failed to get payments' },
       { status: 500 }
     )
   }

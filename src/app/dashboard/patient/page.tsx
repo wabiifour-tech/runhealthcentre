@@ -5,8 +5,8 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { 
   Video, Calendar, FileText, CreditCard, User, Bell, 
-  Search, Clock, Star, ChevronRight, LogOut, Menu, X,
-  Activity, Heart, Brain, Eye, Baby, Bone
+  Search, Clock, Star, LogOut, Menu,
+  Activity, Heart, Brain, Eye, Baby, Bone, Building2, Copy, Check
 } from 'lucide-react'
 
 const specialties = [
@@ -18,7 +18,7 @@ const specialties = [
   { name: 'Orthopedics', icon: Bone },
 ]
 
-// Sample doctors data
+// Sample doctors data with bank details
 const sampleDoctors = [
   {
     id: '1',
@@ -26,9 +26,12 @@ const sampleDoctors = [
     specialty: 'General Medicine',
     rating: 4.9,
     reviews: 234,
-    fee: 5000,
+    consultationFee: 5000,
     available: true,
     nextSlot: '10:30 AM',
+    bankName: 'Guaranty Trust Bank (GTBank)',
+    accountNumber: '0123456789',
+    accountName: 'Adebayo Johnson',
   },
   {
     id: '2',
@@ -36,9 +39,12 @@ const sampleDoctors = [
     specialty: 'Cardiology',
     rating: 4.8,
     reviews: 189,
-    fee: 7500,
+    consultationFee: 7500,
     available: true,
     nextSlot: '11:00 AM',
+    bankName: 'United Bank for Africa (UBA)',
+    accountNumber: '0987654321',
+    accountName: 'Fatima Mohammed',
   },
   {
     id: '3',
@@ -46,9 +52,12 @@ const sampleDoctors = [
     specialty: 'Pediatrics',
     rating: 4.7,
     reviews: 156,
-    fee: 5000,
+    consultationFee: 5000,
     available: false,
     nextSlot: '2:00 PM',
+    bankName: 'Zenith Bank',
+    accountNumber: '1122334455',
+    accountName: 'Chinedu Okafor',
   },
 ]
 
@@ -61,8 +70,15 @@ export default function PatientDashboard() {
   const [selectedSpecialty, setSelectedSpecialty] = useState('')
   const [selectedDoctor, setSelectedDoctor] = useState<any>(null)
   const [showBookingModal, setShowBookingModal] = useState(false)
+  const [showPaymentModal, setShowPaymentModal] = useState(false)
+  const [copied, setCopied] = useState<string | null>(null)
   const [appointments, setAppointments] = useState<any[]>([])
   const [prescriptions, setPrescriptions] = useState<any[]>([])
+  const [bookingData, setBookingData] = useState({
+    date: '',
+    time: '',
+    symptoms: '',
+  })
 
   useEffect(() => {
     fetchUser()
@@ -113,6 +129,43 @@ export default function PatientDashboard() {
   const handleLogout = async () => {
     await fetch('/api/auth/logout', { method: 'POST' })
     router.push('/')
+  }
+
+  const copyToClipboard = (text: string, field: string) => {
+    navigator.clipboard.writeText(text)
+    setCopied(field)
+    setTimeout(() => setCopied(null), 2000)
+  }
+
+  const handleBookAppointment = () => {
+    if (!bookingData.date || !bookingData.time) {
+      alert('Please select date and time')
+      return
+    }
+    setShowBookingModal(false)
+    setShowPaymentModal(true)
+  }
+
+  const handleConfirmPayment = async () => {
+    // In production, this would create the appointment and payment record
+    try {
+      const response = await fetch('/api/appointments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          doctorId: selectedDoctor.id,
+          scheduledAt: new Date(`${bookingData.date} ${bookingData.time}`),
+          symptoms: bookingData.symptoms,
+        }),
+      })
+      
+      // For demo, just close modal and show success
+      setShowPaymentModal(false)
+      alert('Appointment booked! Please transfer to the doctor\'s account before your consultation.')
+      setActiveTab('appointments')
+    } catch (error) {
+      console.error('Failed to book appointment')
+    }
   }
 
   if (loading) {
@@ -328,7 +381,7 @@ export default function PatientDashboard() {
                       </div>
                       <div className="mt-4 flex items-center justify-between">
                         <div>
-                          <p className="text-lg font-bold text-green-600">₦{doctor.fee.toLocaleString()}</p>
+                          <p className="text-lg font-bold text-green-600">₦{doctor.consultationFee.toLocaleString()}</p>
                           <p className="text-sm text-gray-500">per consultation</p>
                         </div>
                         <button
@@ -345,117 +398,34 @@ export default function PatientDashboard() {
                   ))}
                 </div>
               </div>
-
-              {/* Upcoming Appointments */}
-              {appointments.length > 0 && (
-                <div>
-                  <h2 className="text-xl font-bold text-gray-900 mb-4">Upcoming Appointments</h2>
-                  <div className="bg-white rounded-xl divide-y">
-                    {appointments.slice(0, 3).map((appointment) => (
-                      <div key={appointment.id} className="p-4 flex items-center justify-between">
-                        <div className="flex items-center gap-4">
-                          <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
-                            <User className="w-6 h-6 text-green-600" />
-                          </div>
-                          <div>
-                            <p className="font-medium text-gray-900">
-                              Dr. {appointment.doctor?.user?.name || 'Doctor'}
-                            </p>
-                            <p className="text-sm text-gray-500">
-                              {new Date(appointment.scheduledAt).toLocaleDateString()} at{' '}
-                              {new Date(appointment.scheduledAt).toLocaleTimeString()}
-                            </p>
-                          </div>
-                        </div>
-                        <Link
-                          href={`/consultation/${appointment.id}`}
-                          className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition flex items-center gap-2"
-                        >
-                          <Video className="w-4 h-4" />
-                          Join
-                        </Link>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
             </div>
           )}
 
           {activeTab === 'appointments' && (
             <div className="space-y-6">
               <h2 className="text-xl font-bold text-gray-900">My Appointments</h2>
-              
-              {appointments.length === 0 ? (
-                <div className="bg-white rounded-xl p-8 text-center">
-                  <Calendar className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">No Appointments Yet</h3>
-                  <p className="text-gray-500 mb-4">Book your first consultation with a doctor</p>
-                  <button
-                    onClick={() => setActiveTab('home')}
-                    className="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 transition"
-                  >
-                    Find a Doctor
-                  </button>
-                </div>
-              ) : (
-                <div className="bg-white rounded-xl divide-y">
-                  {appointments.map((appointment) => (
-                    <div key={appointment.id} className="p-4">
-                      <div className="flex items-center justify-between mb-2">
-                        <h3 className="font-medium text-gray-900">
-                          Dr. {appointment.doctor?.user?.name || 'Doctor'}
-                        </h3>
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                          appointment.status === 'scheduled' ? 'bg-blue-100 text-blue-600' :
-                          appointment.status === 'completed' ? 'bg-green-100 text-green-600' :
-                          'bg-gray-100 text-gray-600'
-                        }`}>
-                          {appointment.status}
-                        </span>
-                      </div>
-                      <p className="text-sm text-gray-500">
-                        {new Date(appointment.scheduledAt).toLocaleDateString()} at{' '}
-                        {new Date(appointment.scheduledAt).toLocaleTimeString()}
-                      </p>
-                      <p className="text-sm text-gray-500">{appointment.type} consultation</p>
-                    </div>
-                  ))}
-                </div>
-              )}
+              <div className="bg-white rounded-xl p-8 text-center">
+                <Calendar className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">No Appointments Yet</h3>
+                <p className="text-gray-500 mb-4">Book your first consultation with a doctor</p>
+                <button
+                  onClick={() => setActiveTab('home')}
+                  className="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 transition"
+                >
+                  Find a Doctor
+                </button>
+              </div>
             </div>
           )}
 
           {activeTab === 'prescriptions' && (
             <div className="space-y-6">
               <h2 className="text-xl font-bold text-gray-900">My Prescriptions</h2>
-              
-              {prescriptions.length === 0 ? (
-                <div className="bg-white rounded-xl p-8 text-center">
-                  <FileText className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">No Prescriptions Yet</h3>
-                  <p className="text-gray-500">Your prescriptions will appear here after consultations</p>
-                </div>
-              ) : (
-                <div className="grid gap-4">
-                  {prescriptions.map((prescription) => (
-                    <div key={prescription.id} className="bg-white rounded-xl p-4">
-                      <div className="flex items-center justify-between mb-2">
-                        <h3 className="font-medium text-gray-900">{prescription.diagnosis}</h3>
-                        <span className="text-sm text-gray-500">
-                          {new Date(prescription.createdAt).toLocaleDateString()}
-                        </span>
-                      </div>
-                      <p className="text-sm text-gray-500 mb-3">
-                        Dr. {prescription.doctor?.user?.name || 'Doctor'}
-                      </p>
-                      <button className="text-green-600 font-medium hover:underline">
-                        View Full Prescription →
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
+              <div className="bg-white rounded-xl p-8 text-center">
+                <FileText className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">No Prescriptions Yet</h3>
+                <p className="text-gray-500">Your prescriptions will appear here after consultations</p>
+              </div>
             </div>
           )}
 
@@ -520,29 +490,41 @@ export default function PatientDashboard() {
 
       {/* Booking Modal */}
       {showBookingModal && selectedDoctor && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl p-6 max-w-md w-full">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl p-6 max-w-md w-full my-8">
             <h2 className="text-xl font-bold text-gray-900 mb-4">Book Appointment</h2>
-            <div className="flex items-center gap-4 mb-6">
+            
+            {/* Doctor Info */}
+            <div className="flex items-center gap-4 mb-6 p-4 bg-gray-50 rounded-xl">
               <div className="w-14 h-14 bg-green-100 rounded-full flex items-center justify-center">
                 <User className="w-7 h-7 text-green-600" />
               </div>
               <div>
                 <h3 className="font-semibold text-gray-900">{selectedDoctor.name}</h3>
                 <p className="text-sm text-gray-500">{selectedDoctor.specialty}</p>
+                <p className="text-sm font-medium text-green-600">₦{selectedDoctor.consultationFee?.toLocaleString()} / session</p>
               </div>
             </div>
+
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Select Date</label>
                 <input
                   type="date"
-                  className="w-full px-4 py-2 border border-gray-200 rounded-xl"
+                  value={bookingData.date}
+                  onChange={(e) => setBookingData({ ...bookingData, date: e.target.value })}
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500"
+                  min={new Date().toISOString().split('T')[0]}
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Select Time</label>
-                <select className="w-full px-4 py-2 border border-gray-200 rounded-xl">
+                <select 
+                  value={bookingData.time}
+                  onChange={(e) => setBookingData({ ...bookingData, time: e.target.value })}
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500"
+                >
+                  <option value="">Choose a time</option>
                   <option>9:00 AM</option>
                   <option>10:00 AM</option>
                   <option>11:00 AM</option>
@@ -550,41 +532,130 @@ export default function PatientDashboard() {
                   <option>2:00 PM</option>
                   <option>3:00 PM</option>
                   <option>4:00 PM</option>
+                  <option>5:00 PM</option>
                 </select>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Describe your symptoms</label>
                 <textarea
                   rows={3}
-                  className="w-full px-4 py-2 border border-gray-200 rounded-xl"
+                  value={bookingData.symptoms}
+                  onChange={(e) => setBookingData({ ...bookingData, symptoms: e.target.value })}
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500"
                   placeholder="Brief description of your symptoms..."
                 />
               </div>
-              <div className="bg-gray-50 rounded-xl p-4">
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-600">Consultation Fee</span>
-                  <span className="text-xl font-bold text-green-600">
-                    ₦{selectedDoctor.fee.toLocaleString()}
-                  </span>
-                </div>
-              </div>
-              <div className="flex gap-3">
+
+              <div className="flex gap-3 pt-2">
                 <button
                   onClick={() => setShowBookingModal(false)}
-                  className="flex-1 py-2 border border-gray-200 rounded-xl hover:bg-gray-50 transition"
+                  className="flex-1 py-3 border border-gray-200 rounded-xl hover:bg-gray-50 transition font-medium"
                 >
                   Cancel
                 </button>
                 <button
-                  onClick={() => {
-                    // Handle booking
-                    setShowBookingModal(false)
-                  }}
-                  className="flex-1 bg-green-600 text-white py-2 rounded-xl hover:bg-green-700 transition"
+                  onClick={handleBookAppointment}
+                  className="flex-1 bg-green-600 text-white py-3 rounded-xl hover:bg-green-700 transition font-medium"
                 >
-                  Proceed to Payment
+                  Continue to Payment
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Payment Modal with Bank Details */}
+      {showPaymentModal && selectedDoctor && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl p-6 max-w-md w-full my-8">
+            <h2 className="text-xl font-bold text-gray-900 mb-2">Payment Details</h2>
+            <p className="text-gray-500 text-sm mb-6">
+              Transfer the consultation fee to the doctor&apos;s account below
+            </p>
+
+            {/* Amount to Pay */}
+            <div className="bg-green-50 border border-green-200 rounded-xl p-4 mb-6 text-center">
+              <p className="text-sm text-gray-600 mb-1">Amount to Pay</p>
+              <p className="text-3xl font-bold text-green-600">₦{selectedDoctor.consultationFee?.toLocaleString()}</p>
+            </div>
+
+            {/* Doctor's Bank Details */}
+            <div className="space-y-3 mb-6">
+              <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+                <Building2 className="w-5 h-5 text-green-600" />
+                Doctor&apos;s Bank Account
+              </h3>
+              
+              {/* Bank Name */}
+              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                <div>
+                  <p className="text-xs text-gray-500">Bank Name</p>
+                  <p className="font-medium text-gray-900">{selectedDoctor.bankName}</p>
+                </div>
+              </div>
+
+              {/* Account Number */}
+              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                <div>
+                  <p className="text-xs text-gray-500">Account Number</p>
+                  <p className="font-medium text-gray-900 font-mono">{selectedDoctor.accountNumber}</p>
+                </div>
+                <button
+                  onClick={() => copyToClipboard(selectedDoctor.accountNumber, 'account')}
+                  className="p-2 hover:bg-gray-200 rounded-lg transition"
+                >
+                  {copied === 'account' ? (
+                    <Check className="w-5 h-5 text-green-600" />
+                  ) : (
+                    <Copy className="w-5 h-5 text-gray-500" />
+                  )}
+                </button>
+              </div>
+
+              {/* Account Name */}
+              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                <div>
+                  <p className="text-xs text-gray-500">Account Name</p>
+                  <p className="font-medium text-gray-900">{selectedDoctor.accountName}</p>
+                </div>
+                <button
+                  onClick={() => copyToClipboard(selectedDoctor.accountName, 'name')}
+                  className="p-2 hover:bg-gray-200 rounded-lg transition"
+                >
+                  {copied === 'name' ? (
+                    <Check className="w-5 h-5 text-green-600" />
+                  ) : (
+                    <Copy className="w-5 h-5 text-gray-500" />
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {/* Payment Instructions */}
+            <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 mb-6">
+              <p className="text-sm text-yellow-800">
+                <strong>Important:</strong> Make the transfer and keep your receipt/receipt number. 
+                The doctor will confirm your payment before the consultation.
+              </p>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setShowPaymentModal(false)
+                  setShowBookingModal(true)
+                }}
+                className="flex-1 py-3 border border-gray-200 rounded-xl hover:bg-gray-50 transition font-medium"
+              >
+                Back
+              </button>
+              <button
+                onClick={handleConfirmPayment}
+                className="flex-1 bg-green-600 text-white py-3 rounded-xl hover:bg-green-700 transition font-medium"
+              >
+                I&apos;ve Made the Transfer
+              </button>
             </div>
           </div>
         </div>

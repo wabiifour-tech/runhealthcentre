@@ -36,6 +36,12 @@ model Doctor {
   availability    String?  // JSON string for available slots
   rating          Float    @default(0)
   totalReviews    Int      @default(0)
+  
+  // Bank Account Details for Receiving Payments
+  bankName        String   // e.g., "Access Bank", "GTBank"
+  accountNumber   String   // 10-digit account number
+  accountName     String   // Account holder name
+  
   appointments    Appointment[]
   prescriptions   Prescription[]
   createdAt       DateTime @default(now())
@@ -66,7 +72,7 @@ model Appointment {
   doctor      Doctor   @relation(fields: [doctorId], references: [id], onDelete: Cascade)
   scheduledAt DateTime
   duration    Int      @default(30) // minutes
-  status      String   @default("scheduled") // scheduled, in-progress, completed, cancelled
+  status      String   @default("scheduled") // scheduled, in-progress, completed, cancelled, pending_payment
   type        String   @default("video") // video, audio, chat
   symptoms    String?
   notes       String?
@@ -94,18 +100,31 @@ model Prescription {
 }
 
 model Payment {
-  id           String   @id @default(uuid())
-  patientId    String
-  patient      Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
-  appointmentId String? @unique
-  appointment  Appointment? @relation(fields: [appointmentId], references: [id])
-  amount       Float
-  currency     String   @default("NGN")
-  status       String   @default("pending") // pending, completed, failed, refunded
-  paystackRef  String?  @unique
-  paystackData String?  // JSON string for full response
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id              String   @id @default(uuid())
+  patientId       String
+  patient         Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  appointmentId   String?  @unique
+  appointment     Appointment? @relation(fields: [appointmentId], references: [id])
+  amount          Float
+  currency        String   @default("NGN")
+  status          String   @default("pending") // pending, awaiting_confirmation, confirmed, rejected
+  
+  // Bank transfer details (doctor's bank info at time of payment)
+  doctorBankName    String?
+  doctorAccountNumber String?
+  doctorAccountName  String?
+  
+  // Patient's proof of payment
+  paymentReference String?  // Patient's transfer reference/receipt number
+  paymentProof     String?  // URL to uploaded proof (optional)
+  paymentDate      DateTime? // When patient made transfer
+  
+  // Confirmation
+  confirmedAt     DateTime? // When doctor confirmed payment
+  confirmedBy     String?   // Doctor ID who confirmed
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 }
 
 model Specialty {

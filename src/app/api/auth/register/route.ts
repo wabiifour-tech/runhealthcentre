@@ -5,7 +5,13 @@ import { hashPassword, setSessionCookie } from '@/lib/telehealth-auth'
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { name, email, phone, password, role, specialty, licenseNumber, hospital, bio } = body
+    const { 
+      name, email, phone, password, role, 
+      // Doctor-specific fields
+      specialty, licenseNumber, hospital, bio, consultationFee,
+      // Bank details for doctors
+      bankName, accountNumber, accountName
+    } = body
 
     // Validate required fields
     if (!name || !email || !phone || !password || !role) {
@@ -24,11 +30,29 @@ export async function POST(request: NextRequest) {
     }
 
     // Doctor-specific validation
-    if (role === 'doctor' && (!specialty || !licenseNumber)) {
-      return NextResponse.json(
-        { error: 'Doctors must provide specialty and license number' },
-        { status: 400 }
-      )
+    if (role === 'doctor') {
+      if (!specialty || !licenseNumber) {
+        return NextResponse.json(
+          { error: 'Doctors must provide specialty and license number' },
+          { status: 400 }
+        )
+      }
+      
+      // Validate bank details
+      if (!bankName || !accountNumber || !accountName) {
+        return NextResponse.json(
+          { error: 'Doctors must provide bank account details for receiving payments' },
+          { status: 400 }
+        )
+      }
+      
+      // Validate account number format (10 digits)
+      if (!/^\d{10}$/.test(accountNumber)) {
+        return NextResponse.json(
+          { error: 'Account number must be 10 digits' },
+          { status: 400 }
+        )
+      }
     }
 
     // Check if user already exists
@@ -66,7 +90,11 @@ export async function POST(request: NextRequest) {
           licenseNumber,
           hospital: hospital || null,
           bio: bio || null,
-          consultationFee: 5000 // Default fee in Naira
+          consultationFee: consultationFee || 5000,
+          // Bank details
+          bankName,
+          accountNumber,
+          accountName
         }
       })
     } else {

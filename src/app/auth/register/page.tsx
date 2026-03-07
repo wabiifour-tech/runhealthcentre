@@ -3,7 +3,35 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Mail, Lock, User, Phone, Stethoscope, FileText, ArrowLeft } from 'lucide-react'
+import { Mail, Lock, User, Phone, Stethoscope, FileText, ArrowLeft, CreditCard, Building2 } from 'lucide-react'
+
+// Nigerian banks list
+const nigerianBanks = [
+  'Access Bank',
+  'Citibank',
+  'Ecobank',
+  'Fidelity Bank',
+  'First Bank of Nigeria',
+  'First City Monument Bank (FCMB)',
+  'Guaranty Trust Bank (GTBank)',
+  'Heritage Bank',
+  'Keystone Bank',
+  'Polaris Bank',
+  'Providus Bank',
+  'Stanbic IBTC Bank',
+  'Standard Chartered Bank',
+  'Sterling Bank',
+  'Titan Trust Bank',
+  'Union Bank of Nigeria',
+  'United Bank for Africa (UBA)',
+  'Unity Bank',
+  'Wema Bank',
+  'Zenith Bank',
+  'Opay',
+  'Kuda Bank',
+  'PalmPay',
+  'Moniepoint MFB',
+]
 
 export default function RegisterPage() {
   const router = useRouter()
@@ -19,6 +47,11 @@ export default function RegisterPage() {
     specialty: '',
     licenseNumber: '',
     hospital: '',
+    consultationFee: '',
+    // Bank details
+    bankName: '',
+    accountNumber: '',
+    accountName: '',
   })
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -35,6 +68,18 @@ export default function RegisterPage() {
       return
     }
 
+    // Doctor-specific validation
+    if (role === 'doctor') {
+      if (!formData.bankName || !formData.accountNumber || !formData.accountName) {
+        setError('Please fill in all bank account details')
+        return
+      }
+      if (!/^\d{10}$/.test(formData.accountNumber)) {
+        setError('Account number must be exactly 10 digits')
+        return
+      }
+    }
+
     setLoading(true)
 
     try {
@@ -47,9 +92,15 @@ export default function RegisterPage() {
           phone: formData.phone,
           password: formData.password,
           role,
+          // Doctor fields
           specialty: role === 'doctor' ? formData.specialty : undefined,
           licenseNumber: role === 'doctor' ? formData.licenseNumber : undefined,
           hospital: role === 'doctor' ? formData.hospital : undefined,
+          consultationFee: role === 'doctor' ? parseFloat(formData.consultationFee) || 5000 : undefined,
+          // Bank details
+          bankName: role === 'doctor' ? formData.bankName : undefined,
+          accountNumber: role === 'doctor' ? formData.accountNumber : undefined,
+          accountName: role === 'doctor' ? formData.accountName : undefined,
         }),
       })
 
@@ -129,6 +180,7 @@ export default function RegisterPage() {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Basic Info */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Full Name
@@ -141,7 +193,7 @@ export default function RegisterPage() {
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                  placeholder="Dr. John Doe"
+                  placeholder={role === 'doctor' ? 'Dr. John Doe' : 'John Doe'}
                 />
               </div>
             </div>
@@ -180,8 +232,16 @@ export default function RegisterPage() {
               </div>
             </div>
 
+            {/* Doctor-specific fields */}
             {role === 'doctor' && (
               <>
+                <div className="border-t border-gray-200 pt-4 mt-4">
+                  <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                    <Stethoscope className="w-5 h-5 text-green-600" />
+                    Professional Details
+                  </h3>
+                </div>
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Specialty
@@ -234,47 +294,127 @@ export default function RegisterPage() {
                     placeholder="Lagos University Teaching Hospital"
                   />
                 </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Consultation Fee (₦)
+                  </label>
+                  <input
+                    type="number"
+                    required
+                    value={formData.consultationFee}
+                    onChange={(e) => setFormData({ ...formData, consultationFee: e.target.value })}
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                    placeholder="5000"
+                    min="500"
+                  />
+                </div>
+
+                {/* Bank Details Section */}
+                <div className="border-t border-gray-200 pt-4 mt-4">
+                  <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                    <CreditCard className="w-5 h-5 text-green-600" />
+                    Bank Account Details
+                  </h3>
+                  <p className="text-sm text-gray-500 mb-3">
+                    Patients will pay directly to your account for consultations
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Bank Name
+                  </label>
+                  <div className="relative">
+                    <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                    <select
+                      required
+                      value={formData.bankName}
+                      onChange={(e) => setFormData({ ...formData, bankName: e.target.value })}
+                      className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                    >
+                      <option value="">Select Bank</option>
+                      {nigerianBanks.map((bank) => (
+                        <option key={bank} value={bank}>{bank}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Account Number
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    maxLength={10}
+                    value={formData.accountNumber}
+                    onChange={(e) => setFormData({ ...formData, accountNumber: e.target.value.replace(/\D/g, '').slice(0, 10) })}
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                    placeholder="0123456789"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">10-digit account number</p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Account Name
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.accountName}
+                    onChange={(e) => setFormData({ ...formData, accountName: e.target.value })}
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                    placeholder="John Doe"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Name on the bank account</p>
+                </div>
               </>
             )}
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Password
-              </label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                <input
-                  type="password"
-                  required
-                  value={formData.password}
-                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                  className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                  placeholder="••••••••"
-                />
+            {/* Password Fields */}
+            <div className="border-t border-gray-200 pt-4 mt-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Password
+                </label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <input
+                    type="password"
+                    required
+                    value={formData.password}
+                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                    className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                    placeholder="••••••••"
+                  />
+                </div>
               </div>
-            </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Confirm Password
-              </label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                <input
-                  type="password"
-                  required
-                  value={formData.confirmPassword}
-                  onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
-                  className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                  placeholder="••••••••"
-                />
+              <div className="mt-4">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Confirm Password
+                </label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <input
+                    type="password"
+                    required
+                    value={formData.confirmPassword}
+                    onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
+                    className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                    placeholder="••••••••"
+                  />
+                </div>
               </div>
             </div>
 
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-green-600 text-white py-3 rounded-xl font-semibold hover:bg-green-700 transition disabled:opacity-50"
+              className="w-full bg-green-600 text-white py-3 rounded-xl font-semibold hover:bg-green-700 transition disabled:opacity-50 mt-6"
             >
               {loading ? 'Creating Account...' : 'Create Account'}
             </button>
