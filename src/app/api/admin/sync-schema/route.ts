@@ -46,6 +46,8 @@ export async function POST(request: NextRequest) {
       { table: 'routing_requests', column: 'completion_notes', type: 'TEXT', sql: `ALTER TABLE routing_requests ADD COLUMN IF NOT EXISTS completion_notes TEXT` },
       // Notifications table missing columns
       { table: 'notifications', column: 'targetRoles', type: 'TEXT', sql: `ALTER TABLE notifications ADD COLUMN IF NOT EXISTS "targetRoles" TEXT` },
+      { table: 'notifications', column: 'priority', type: 'TEXT', sql: `ALTER TABLE notifications ADD COLUMN IF NOT EXISTS priority TEXT DEFAULT 'normal'` },
+      { table: 'notifications', column: 'read', type: 'BOOLEAN', sql: `ALTER TABLE notifications ADD COLUMN IF NOT EXISTS read BOOLEAN DEFAULT FALSE` },
     ]
 
     for (const alter of alterTableStatements) {
