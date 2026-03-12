@@ -4,9 +4,8 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
+  provider  = "sqlite"
   url       = env("DATABASE_URL")
-  directUrl  = env("DIRECT_URL")
 }
 
 // User model for authentication and staff management
@@ -14,6 +13,8 @@ model users {
   id              String    @id
   email           String    @unique
   name            String
+  firstName       String?   // Separate first name for auto email generation
+  lastName        String?   // Separate last name for auto email generation
   password        String
   role            String    // SUPER_ADMIN, ADMIN, DOCTOR, NURSE, PHARMACIST, LAB_TECHNICIAN, MATRON, RECORDS_OFFICER
   department      String?
@@ -24,6 +25,10 @@ model users {
   isActive        Boolean   @default(true)
   isFirstLogin    Boolean   @default(true)
   approvalStatus  String    @default("PENDING") // PENDING, APPROVED, REJECTED
+  approvedBy      String?   // ID of admin who approved
+  approvedAt      DateTime? // When approved
+  rememberToken   String?   // For "Remember Me" functionality
+  tokenExpiresAt  DateTime? // When remember token expires
   lastLogin       DateTime?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt

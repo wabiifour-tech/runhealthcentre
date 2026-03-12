@@ -1,6 +1,7 @@
-// Authentication API - Login with Database Support
+// Authentication API - Login with Database Support & Remember Me
 import { NextRequest, NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
+import crypto from 'crypto'
 import { getPrisma, testConnection } from '@/lib/db'
 import { createLogger } from '@/lib/logger'
 import { errorResponse, successResponse, Errors } from '@/lib/errors'
@@ -21,12 +22,23 @@ const DEMO_SUPERADMIN = {
   approvalStatus: 'APPROVED'
 }
 
+// Generate a secure remember token
+function generateRememberToken(): string {
+  return crypto.randomBytes(32).toString('hex')
+}
+
+// Hash the token for storage
+function hashToken(token: string): string {
+  return crypto.createHash('sha256').update(token).digest('hex')
+}
+
 // Login endpoint
 export async function POST(request: NextRequest) {
   try {
-    const { email, password } = await request.json()
+    const body = await request.json()
+    const { email, password, rememberMe } = body
 
-    logger.debug('Login attempt', { email: email?.toLowerCase() })
+    logger.debug('Login attempt', { email: email?.toLowerCase(), rememberMe })
 
     if (!email || !password) {
       throw Errors.validation('Email and password are required')
@@ -77,20 +89,38 @@ export async function POST(request: NextRequest) {
               throw Errors.unauthorized('Invalid email or password')
             }
 
-            // Update last login
+            // Prepare update data
+            const updateData: any = { lastLogin: new Date() }
+
+            // Handle "Remember Me"
+            let rememberToken = null
+            if (rememberMe) {
+              rememberToken = generateRememberToken()
+              const hashedToken = hashToken(rememberToken)
+              const expiresAt = new Date()
+              expiresAt.setDate(expiresAt.getDate() + 30) // 30 days
+
+              updateData.rememberToken = hashedToken
+              updateData.tokenExpiresAt = expiresAt
+
+              logger.info('Remember me enabled', { email: emailLower, expiresAt })
+            }
+
+            // Update last login and remember token
             try {
               await p.users.update({
                 where: { id: user.id },
-                data: { lastLogin: new Date().toISOString() }
+                data: updateData
               })
-            } catch {
-              // Ignore update errors
+            } catch (updateError) {
+              logger.warn('Failed to update user login info', { error: String(updateError) })
             }
 
             logger.info('Login successful', { 
               email: emailLower, 
               role: user.role,
-              mode: 'database' 
+              mode: 'database',
+              rememberMe: !!rememberMe
             })
 
             // Return user data
@@ -104,6 +134,7 @@ export async function POST(request: NextRequest) {
                 initials: user.initials,
                 isFirstLogin: user.isFirstLogin || false
               },
+              rememberToken: rememberToken, // Only return raw token on creation
               mode: 'database'
             })
           }
@@ -147,8 +178,94 @@ export async function POST(request: NextRequest) {
   }
 }
 
+// Validate remember token
+export async function GET(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url)
+    const token = searchParams.get('token')
+
+    if (!token) {
+      return successResponse({ valid: false })
+    }
+
+    const hashedToken = hashToken(token)
+    const prisma = await getPrisma()
+
+    if (!prisma) {
+      return successResponse({ valid: false })
+    }
+
+    const p = prisma as any
+
+    const user = await p.users.findFirst({
+      where: {
+        rememberToken: hashedToken,
+        tokenExpiresAt: { gte: new Date() },
+        isActive: true,
+        approvalStatus: 'APPROVED'
+      }
+    })
+
+    if (!user) {
+      return successResponse({ valid: false })
+    }
+
+    logger.info('Remember token validated', { email: user.email })
+
+    return successResponse({
+      valid: true,
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        department: user.department,
+        initials: user.initials,
+        isFirstLogin: user.isFirstLogin || false
+      }
+    })
+
+  } catch (error) {
+    return errorResponse(error, { module: 'Auth', operation: 'validateToken' })
+  }
+}
+
+// Logout - clear remember token
+export async function DELETE(request: NextRequest) {
+  try {
+    const body = await request.json()
+    const { userId } = body
+
+    if (!userId) {
+      return successResponse({ message: 'Logged out' })
+    }
+
+    const prisma = await getPrisma()
+    if (prisma) {
+      const p = prisma as any
+      try {
+        await p.users.update({
+          where: { id: userId },
+          data: {
+            rememberToken: null,
+            tokenExpiresAt: null
+          }
+        })
+        logger.info('Remember token cleared', { userId })
+      } catch {
+        // Ignore errors
+      }
+    }
+
+    return successResponse({ message: 'Logged out successfully' })
+
+  } catch (error) {
+    return errorResponse(error, { module: 'Auth', operation: 'logout' })
+  }
+}
+
 // Get all users (for admin)
-export async function GET() {
+export async function PUT() {
   try {
     const prisma = await getPrisma()
     
@@ -168,11 +285,15 @@ export async function GET() {
           id: true,
           email: true,
           name: true,
+          firstName: true,
+          lastName: true,
           role: true,
           department: true,
           initials: true,
           isActive: true,
           approvalStatus: true,
+          approvedBy: true,
+          approvedAt: true,
           lastLogin: true,
           createdAt: true,
           phone: true

@@ -1462,63 +1462,9 @@ const calculateTrend = (current: number, previous: number): { percentage: number
   return { percentage: Math.abs(percentage), trend: 'stable' }
 }
 
-// NEW: Global search across all entities
-const performGlobalSearch = useCallback((query: string) => {
-  if (!query.trim()) {
-    setSearchResults({ patients: [], consultations: [], drugs: [] })
-    return
-  }
-  
-  const q = query.toLowerCase().trim()
-  
-  // Search patients
-  const matchedPatients = patients.filter(p => {
-    if (!p.isActive) return false
-    return (
-      p.firstName?.toLowerCase().includes(q) ||
-      p.lastName?.toLowerCase().includes(q) ||
-      p.ruhcCode?.toLowerCase().includes(q) ||
-      p.matricNumber?.toLowerCase().includes(q) ||
-      p.phone?.includes(q) ||
-      p.email?.toLowerCase().includes(q)
-    )
-  }).slice(0, 5)
-  
-  // Search consultations
-  const matchedConsultations = consultations.filter(c => {
-    const patient = patients.find(p => p.id === c.patientId) || c.patient
-    return (
-      patient?.firstName?.toLowerCase().includes(q) ||
-      patient?.lastName?.toLowerCase().includes(q) ||
-      c.chiefComplaint?.toLowerCase().includes(q) ||
-      c.provisionalDiagnosis?.toLowerCase().includes(q)
-    )
-  }).slice(0, 5)
-  
-  // Search drugs
-  const matchedDrugs = drugs.filter(d => {
-    return (
-      d.name?.toLowerCase().includes(q) ||
-      d.genericName?.toLowerCase().includes(q) ||
-      d.category?.toLowerCase().includes(q)
-    )
-  }).slice(0, 5)
-  
-  setSearchResults({ patients: matchedPatients, consultations: matchedConsultations, drugs: matchedDrugs })
-}, [patients, consultations, drugs])
+// NOTE: performGlobalSearch and addActivity are moved inside the component
 
-// NEW: Add activity to recent activity feed
-const addActivity = useCallback((action: string, type: 'patient' | 'consultation' | 'vital' | 'drug' | 'appointment' | 'other', details?: string) => {
-  const activity = {
-    id: `act_${Date.now()}`,
-    action,
-    user: user?.name || 'System',
-    timestamp: new Date().toISOString(),
-    type,
-    details
-  }
-  setRecentActivities(prev => [activity, ...prev.slice(0, 9)])
-}, [user])
+// HMSApp Component
 
 // NEW: Format relative time
 const formatRelativeTime = (timestamp: string): string => {
@@ -2249,21 +2195,23 @@ export default function HMSApp() {
   const [forgotPasswordSuccess, setForgotPasswordSuccess] = useState(false)
   const [foundUserForReset, setFoundUserForReset] = useState<SystemUser | null>(null)
   
-  // Sign Up states
+  // Sign Up states - Multi-step registration
   const [showSignUp, setShowSignUp] = useState(false)
+  const [signUpStep, setSignUpStep] = useState(1) // 1: Name, 2: Email generated + Password, 3: Success
   const [signUpForm, setSignUpForm] = useState({
-    name: '',
+    firstName: '',
+    lastName: '',
     email: '',
     password: '',
     confirmPassword: '',
     role: 'NURSE' as string,
     department: '',
-    initials: '',
     phone: ''
   })
   const [signUpError, setSignUpError] = useState('')
   const [signUpSuccess, setSignUpSuccess] = useState(false)
   const [signUpLoading, setSignUpLoading] = useState(false)
+  const [emailGenerating, setEmailGenerating] = useState(false)
   
   // Navigation
   const [activeTab, setActiveTab] = useState('dashboard')
@@ -2535,6 +2483,64 @@ export default function HMSApp() {
     currentlyBlocked: blockedIPs.length,
     whitelistCount: ipWhitelist.length
   }
+  
+  // Global search across all entities
+  const performGlobalSearch = useCallback((query: string) => {
+    if (!query.trim()) {
+      setSearchResults({ patients: [], consultations: [], drugs: [] })
+      return
+    }
+    
+    const q = query.toLowerCase().trim()
+    
+    // Search patients
+    const matchedPatients = patients.filter(p => {
+      if (!p.isActive) return false
+      return (
+        p.firstName?.toLowerCase().includes(q) ||
+        p.lastName?.toLowerCase().includes(q) ||
+        p.ruhcCode?.toLowerCase().includes(q) ||
+        p.matricNumber?.toLowerCase().includes(q) ||
+        p.phone?.includes(q) ||
+        p.email?.toLowerCase().includes(q)
+      )
+    }).slice(0, 5)
+    
+    // Search consultations
+    const matchedConsultations = consultations.filter(c => {
+      const patient = patients.find(p => p.id === c.patientId) || c.patient
+      return (
+        patient?.firstName?.toLowerCase().includes(q) ||
+        patient?.lastName?.toLowerCase().includes(q) ||
+        c.chiefComplaint?.toLowerCase().includes(q) ||
+        c.provisionalDiagnosis?.toLowerCase().includes(q)
+      )
+    }).slice(0, 5)
+    
+    // Search drugs
+    const matchedDrugs = drugs.filter(d => {
+      return (
+        d.name?.toLowerCase().includes(q) ||
+        d.genericName?.toLowerCase().includes(q) ||
+        d.category?.toLowerCase().includes(q)
+      )
+    }).slice(0, 5)
+    
+    setSearchResults({ patients: matchedPatients, consultations: matchedConsultations, drugs: matchedDrugs })
+  }, [patients, consultations, drugs])
+  
+  // Add activity to recent activity feed
+  const addActivity = useCallback((action: string, type: 'patient' | 'consultation' | 'vital' | 'drug' | 'appointment' | 'other', details?: string) => {
+    const activity = {
+      id: `act_${Date.now()}`,
+      action,
+      user: user?.name || 'System',
+      timestamp: new Date().toISOString(),
+      type,
+      details
+    }
+    setRecentActivities(prev => [activity, ...prev.slice(0, 9)])
+  }, [user])
   
   // Fetch audit logs function
   const fetchAuditLogs = useCallback(async () => {
@@ -6360,7 +6366,8 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           email: loginForm.email,
-          password: loginForm.password
+          password: loginForm.password,
+          rememberMe: loginForm.rememberMe
         })
       })
 
@@ -6440,30 +6447,67 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
     }
   }
 
-  // Handle Sign Up
-  const handleSignUp = async (e: React.FormEvent) => {
+  // Handle Sign Up - Multi-step with auto-generated email
+  // Step 1: Generate email from first and last name
+  const handleGenerateEmail = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setSignUpError('')
+
+    // Validation
+    if (!signUpForm.firstName.trim() || signUpForm.firstName.trim().length < 2) {
+      setSignUpError('First name must be at least 2 characters')
+      return
+    }
+    if (!signUpForm.lastName.trim() || signUpForm.lastName.trim().length < 2) {
+      setSignUpError('Last name must be at least 2 characters')
+      return
+    }
+
+    setEmailGenerating(true)
+
+    try {
+      // Call API to generate and validate email
+      const response = await fetch('/api/auth/signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          step: 'generate_email',
+          firstName: signUpForm.firstName.trim(),
+          lastName: signUpForm.lastName.trim()
+        })
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        // Update form with generated email
+        setSignUpForm(prev => ({ ...prev, email: data.email }))
+        // Move to step 2 (password creation)
+        setSignUpStep(2)
+      } else {
+        setSignUpError(data.error || 'Failed to generate email')
+      }
+    } catch (error) {
+      setSignUpError('Network error. Please try again.')
+    } finally {
+      setEmailGenerating(false)
+    }
+  }
+
+  // Step 2: Complete registration with password
+  const handleCompleteSignUp = async (e: React.FormEvent) => {
     e.preventDefault()
     setSignUpError('')
     setSignUpLoading(true)
 
     // Validation
-    if (!signUpForm.name.trim()) {
-      setSignUpError('Please enter your full name')
-      setSignUpLoading(false)
-      return
-    }
-    if (!signUpForm.email.trim()) {
-      setSignUpError('Please enter your email address')
-      setSignUpLoading(false)
-      return
-    }
     if (!signUpForm.password || signUpForm.password.length < 8) {
       setSignUpError('Password must be at least 8 characters')
       setSignUpLoading(false)
       return
     }
     if (signUpForm.password !== signUpForm.confirmPassword) {
-      setSignUpError('Passwords do not match')
+      setSignUpError('Passwords do not match. Please ensure both passwords are identical.')
       setSignUpLoading(false)
       return
     }
@@ -6472,25 +6516,26 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
     const hasUppercase = /[A-Z]/.test(signUpForm.password)
     const hasLowercase = /[a-z]/.test(signUpForm.password)
     const hasNumber = /[0-9]/.test(signUpForm.password)
-    const hasSpecial = /[!@#$%^&*(),.?":{}|<>]/.test(signUpForm.password)
     
-    if (!hasUppercase || !hasLowercase || !hasNumber || !hasSpecial) {
-      setSignUpError('Password must contain uppercase, lowercase, number, and special character')
+    if (!hasUppercase || !hasLowercase || !hasNumber) {
+      setSignUpError('Password must contain uppercase, lowercase, and number')
       setSignUpLoading(false)
       return
     }
 
     try {
-      const response = await fetch('/api/auth/register', {
+      const response = await fetch('/api/auth/signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          name: signUpForm.name,
+          step: 'complete',
+          firstName: signUpForm.firstName.trim(),
+          lastName: signUpForm.lastName.trim(),
           email: signUpForm.email.toLowerCase(),
           password: signUpForm.password,
+          confirmPassword: signUpForm.confirmPassword,
           role: signUpForm.role,
           department: signUpForm.department,
-          initials: signUpForm.initials || signUpForm.name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2),
           phone: signUpForm.phone
         })
       })
@@ -6499,11 +6544,7 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
 
       if (data.success) {
         setSignUpSuccess(true)
-        setTimeout(() => {
-          setShowSignUp(false)
-          setSignUpSuccess(false)
-          setSignUpForm({ name: '', email: '', password: '', confirmPassword: '', role: 'NURSE', department: '', initials: '', phone: '' })
-        }, 3000)
+        setSignUpStep(3) // Move to success step
       } else {
         setSignUpError(data.error || 'Registration failed')
       }
@@ -6512,6 +6553,25 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
     } finally {
       setSignUpLoading(false)
     }
+  }
+
+  // Reset sign up form
+  const resetSignUpForm = () => {
+    setSignUpStep(1)
+    setSignUpForm({
+      firstName: '',
+      lastName: '',
+      email: '',
+      password: '',
+      confirmPassword: '',
+      role: 'NURSE',
+      department: '',
+      phone: ''
+    })
+    setSignUpError('')
+    setSignUpSuccess(false)
+    setSignUpLoading(false)
+    setEmailGenerating(false)
   }
 
   // Handle Forgot Password - Find User
@@ -9242,120 +9302,232 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                 )}
               </form>
             ) : showSignUp ? (
-              // SIGN UP FORM
-              <form onSubmit={handleSignUp} className="space-y-4">
-                {signUpSuccess ? (
-                  <div className="p-4 bg-green-50 border border-green-200 text-green-700 rounded-lg text-center">
-                    <CheckCircle className="w-8 h-8 mx-auto mb-2 text-green-600" />
-                    <p className="font-semibold">Registration Successful!</p>
-                    <p className="text-sm mt-1">Your account is pending approval. An administrator will review your application.</p>
+              // SIGN UP FORM - Multi-step
+              <div className="space-y-4">
+                {/* Step 3: Success */}
+                {signUpStep === 3 ? (
+                  <div className="p-4 bg-green-50 border border-green-200 text-green-700 rounded-lg text-center animate-scale-in">
+                    <CheckCircle className="w-12 h-12 mx-auto mb-3 text-green-600" />
+                    <p className="font-semibold text-lg">Registration Submitted!</p>
+                    <p className="text-sm mt-2 mb-3">Your account is pending approval. An administrator will review your application shortly.</p>
+                    <div className="bg-white p-3 rounded-lg border border-green-200 text-left text-sm mb-4">
+                        <p className="text-gray-600 mb-1">Your login credentials:</p>
+                        <p className="font-mono font-bold text-blue-700">{signUpForm.email}</p>
+                      </div>
+                    <Button 
+                        onClick={() => { setShowSignUp(false); resetSignUpForm(); }}
+                        className="w-full bg-green-600 hover:bg-green-700"
+                      >
+                        Back to Sign In
+                      </Button>
                   </div>
                 ) : (
                   <>
                     {signUpError && (
-                      <div className="p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm flex items-center gap-2">
+                      <div className="p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm flex items-center gap-2 animate-shake">
                         <AlertTriangle className="w-4 h-4 flex-shrink-0" />
                         {signUpError}
                       </div>
                     )}
                     
+                    {/* Progress Indicator */}
+                    <div className="flex items-center justify-center gap-2 mb-4">
+                      <div className={cn(
+                        "w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-all",
+                        signUpStep >= 1 ? "bg-blue-600 text-white" : "bg-gray-200 text-gray-600"
+                      )}>1</div>
+                      <div className={cn(
+                        "w-12 h-1 transition-all",
+                        signUpStep >= 2 ? "bg-blue-600" : "bg-gray-200"
+                      )} />
+                      <div className={cn(
+                        "w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-all",
+                        signUpStep >= 2 ? "bg-blue-600 text-white" : "bg-gray-200 text-gray-600"
+                      )}>2</div>
+                    </div>
+                    
                     <div className="text-center mb-4">
                       <div className="w-12 h-12 mx-auto bg-blue-100 rounded-full flex items-center justify-center mb-2">
                         <UserPlus className="w-6 h-6 text-blue-600" />
                       </div>
-                      <h3 className="font-semibold text-gray-900">Create Account</h3>
-                      <p className="text-sm text-gray-500">Register as staff member</p>
+                      <h3 className="font-semibold text-gray-900">
+                        {signUpStep === 1 ? 'Enter Your Name' : 'Create Your Password'}
+                      </h3>
+                      <p className="text-sm text-gray-500">
+                        {signUpStep === 1 ? 'Your email will be auto-generated' : 'Your email has been generated'}
+                      </p>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-2 col-span-2">
-                        <Label className="text-gray-700 font-medium">Full Name *</Label>
-                        <Input
-                          placeholder="Dr. John Smith"
-                          value={signUpForm.name}
-                          onChange={e => setSignUpForm({ ...signUpForm, name: e.target.value })}
-                          required
-                          className="h-10"
-                        />
-                      </div>
-                      <div className="space-y-2 col-span-2">
-                        <Label className="text-gray-700 font-medium">Email *</Label>
-                        <Input
-                          type="email"
-                          placeholder="john@example.com"
-                          value={signUpForm.email}
-                          onChange={e => setSignUpForm({ ...signUpForm, email: e.target.value })}
-                          required
-                          className="h-10"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label className="text-gray-700 font-medium">Password *</Label>
-                        <Input
-                          type="password"
-                          placeholder="Min 8 chars"
-                          value={signUpForm.password}
-                          onChange={e => setSignUpForm({ ...signUpForm, password: e.target.value })}
-                          required
-                          className="h-10"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label className="text-gray-700 font-medium">Confirm *</Label>
-                        <Input
-                          type="password"
-                          placeholder="Re-enter"
-                          value={signUpForm.confirmPassword}
-                          onChange={e => setSignUpForm({ ...signUpForm, confirmPassword: e.target.value })}
-                          required
-                          className="h-10"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label className="text-gray-700 font-medium">Role *</Label>
-                        <Select value={signUpForm.role} onValueChange={v => setSignUpForm({ ...signUpForm, role: v })}>
-                          <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="DOCTOR">Doctor</SelectItem>
-                            <SelectItem value="NURSE">Nurse</SelectItem>
-                            <SelectItem value="PHARMACIST">Pharmacist</SelectItem>
-                            <SelectItem value="LAB_TECHNICIAN">Lab Technician</SelectItem>
-                            <SelectItem value="MATRON">Matron</SelectItem>
-                            <SelectItem value="RECORDS_OFFICER">Records Officer</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-2">
-                        <Label className="text-gray-700 font-medium">Department</Label>
-                        <Select value={signUpForm.department} onValueChange={v => setSignUpForm({ ...signUpForm, department: v })}>
-                          <SelectTrigger className="h-10"><SelectValue placeholder="Optional" /></SelectTrigger>
-                          <SelectContent>
-                            {departments.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
+                    {/* Step 1: First Name and Last Name */}
+                    {signUpStep === 1 && (
+                      <form onSubmit={handleGenerateEmail} className="space-y-4">
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="space-y-2">
+                            <Label className="text-gray-700 font-medium">First Name *</Label>
+                            <Input
+                              placeholder="Abolaji"
+                              value={signUpForm.firstName}
+                              onChange={e => setSignUpForm({ ...signUpForm, firstName: e.target.value })}
+                              required
+                              className="h-11"
+                              autoFocus
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label className="text-gray-700 font-medium">Last Name *</Label>
+                            <Input
+                              placeholder="Odewabi"
+                              value={signUpForm.lastName}
+                              onChange={e => setSignUpForm({ ...signUpForm, lastName: e.target.value })}
+                              required
+                              className="h-11"
+                            />
+                          </div>
+                        </div>
+                        
+                        <div className="space-y-2">
+                          <Label className="text-gray-700 font-medium">Role *</Label>
+                          <Select value={signUpForm.role} onValueChange={v => setSignUpForm({ ...signUpForm, role: v })}>
+                            <SelectTrigger className="h-11"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="DOCTOR">Doctor</SelectItem>
+                              <SelectItem value="NURSE">Nurse</SelectItem>
+                              <SelectItem value="PHARMACIST">Pharmacist</SelectItem>
+                              <SelectItem value="LAB_TECHNICIAN">Lab Technician</SelectItem>
+                              <SelectItem value="MATRON">Matron</SelectItem>
+                              <SelectItem value="RECORDS_OFFICER">Records Officer</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        
+                        <div className="space-y-2">
+                          <Label className="text-gray-700 font-medium">Department (Optional)</Label>
+                          <Select value={signUpForm.department} onValueChange={v => setSignUpForm({ ...signUpForm, department: v })}>
+                            <SelectTrigger className="h-11"><SelectValue placeholder="Select department" /></SelectTrigger>
+                            <SelectContent>
+                              {departments.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
+                        </div>
 
-                    <Button 
-                      type="submit" 
-                      className="w-full h-11 bg-gradient-to-r from-blue-600 to-teal-500 hover:from-blue-700 hover:to-teal-600 font-semibold"
-                      disabled={signUpLoading}
-                    >
-                      {signUpLoading ? 'Creating Account...' : 'Create Account'}
-                    </Button>
+                        <Button 
+                          type="submit" 
+                          className="w-full h-12 bg-gradient-to-r from-blue-600 to-teal-500 hover:from-blue-700 hover:to-teal-600 font-semibold text-lg"
+                          disabled={emailGenerating}
+                        >
+                          {emailGenerating ? (
+                            <>
+                              <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                              Generating Email...
+                            </>
+                          ) : (
+                            'Continue'
+                          )}
+                        </Button>
+                      </form>
+                    )}
+
+                    {/* Step 2: Password Creation */}
+                    {signUpStep === 2 && (
+                      <form onSubmit={handleCompleteSignUp} className="space-y-4">
+                        {/* Show generated email */}
+                        <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                          <Label className="text-xs text-blue-600 font-medium">Your Auto-Generated Email</Label>
+                          <p className="font-mono font-bold text-blue-800 text-lg mt-1">{signUpForm.email}</p>
+                          <p className="text-xs text-blue-600 mt-1">This will be your login username</p>
+                        </div>
+                        
+                        <div className="space-y-2">
+                          <Label className="text-gray-700 font-medium">Create Password *</Label>
+                          <Input
+                            type="password"
+                            placeholder="Min 8 chars, uppercase, lowercase, number"
+                            value={signUpForm.password}
+                            onChange={e => setSignUpForm({ ...signUpForm, password: e.target.value })}
+                            required
+                            className="h-11"
+                            autoFocus
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-gray-700 font-medium">Confirm Password *</Label>
+                          <Input
+                            type="password"
+                            placeholder="Re-enter password"
+                            value={signUpForm.confirmPassword}
+                            onChange={e => setSignUpForm({ ...signUpForm, confirmPassword: e.target.value })}
+                            required
+                            className="h-11"
+                          />
+                          {signUpForm.confirmPassword && signUpForm.password !== signUpForm.confirmPassword && (
+                            <p className="text-red-600 text-xs">Passwords do not match</p>
+                          )}
+                          {signUpForm.confirmPassword && signUpForm.password === signUpForm.confirmPassword && (
+                            <p className="text-green-600 text-xs flex items-center gap-1">
+                              <CheckCircle className="w-3 h-3" /> Passwords match
+                            </p>
+                          )}
+                        </div>
+                        
+                        {/* Password requirements */}
+                        <div className="bg-gray-50 p-3 rounded-lg text-xs space-y-1">
+                          <p className="font-medium text-gray-700 mb-2">Password Requirements:</p>
+                          <div className={cn("flex items-center gap-2", /[A-Z]/.test(signUpForm.password) ? "text-green-600" : "text-gray-400")}>
+                            {/[A-Z]/.test(signUpForm.password) ? <CheckCircle className="w-3 h-3" /> : <div className="w-3 h-3 rounded-full border" />}
+                            Uppercase letter
+                          </div>
+                          <div className={cn("flex items-center gap-2", /[a-z]/.test(signUpForm.password) ? "text-green-600" : "text-gray-400")}>
+                            {/[a-z]/.test(signUpForm.password) ? <CheckCircle className="w-3 h-3" /> : <div className="w-3 h-3 rounded-full border" />}
+                            Lowercase letter
+                          </div>
+                          <div className={cn("flex items-center gap-2", /[0-9]/.test(signUpForm.password) ? "text-green-600" : "text-gray-400")}>
+                            {/[0-9]/.test(signUpForm.password) ? <CheckCircle className="w-3 h-3" /> : <div className="w-3 h-3 rounded-full border" />}
+                            Number
+                          </div>
+                          <div className={cn("flex items-center gap-2", signUpForm.password.length >= 8 ? "text-green-600" : "text-gray-400")}>
+                            {signUpForm.password.length >= 8 ? <CheckCircle className="w-3 h-3" /> : <div className="w-3 h-3 rounded-full border" />}
+                            At least 8 characters
+                          </div>
+                        </div>
+
+                        <Button 
+                          type="submit" 
+                          className="w-full h-12 bg-gradient-to-r from-blue-600 to-teal-500 hover:from-blue-700 hover:to-teal-600 font-semibold text-lg"
+                          disabled={signUpLoading || !signUpForm.password || !signUpForm.confirmPassword || signUpForm.password !== signUpForm.confirmPassword}
+                        >
+                          {signUpLoading ? (
+                            <>
+                              <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                              Submitting...
+                            </>
+                          ) : (
+                            'Submit for Approval'
+                          )}
+                        </Button>
+                        
+                        <Button 
+                          type="button"
+                          variant="outline"
+                          className="w-full"
+                          onClick={() => setSignUpStep(1)}
+                        >
+                          Back
+                        </Button>
+                      </form>
+                    )}
                     
                     <div className="text-center">
                       <button
                         type="button"
-                        onClick={() => { setShowSignUp(false); setSignUpError(''); }}
+                        onClick={() => { setShowSignUp(false); resetSignUpForm(); }}
                         className="text-sm text-blue-600 hover:text-blue-700 font-medium"
                       >
-                        ← Back to Sign In
+                        Back to Sign In
                       </button>
                     </div>
                   </>
                 )}
-              </form>
+              </div>
             ) : (
               // LOGIN FORM
               <form onSubmit={handleLogin} className="space-y-5">

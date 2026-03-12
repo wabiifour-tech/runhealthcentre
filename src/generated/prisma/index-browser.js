@@ -115,9 +115,6 @@ Prisma.NullTypes = {
  */
 
 exports.Prisma.TransactionIsolationLevel = makeStrictEnum({
-  ReadUncommitted: 'ReadUncommitted',
-  ReadCommitted: 'ReadCommitted',
-  RepeatableRead: 'RepeatableRead',
   Serializable: 'Serializable'
 });
 
@@ -125,6 +122,8 @@ exports.Prisma.UsersScalarFieldEnum = {
   id: 'id',
   email: 'email',
   name: 'name',
+  firstName: 'firstName',
+  lastName: 'lastName',
   password: 'password',
   role: 'role',
   department: 'department',
@@ -135,6 +134,10 @@ exports.Prisma.UsersScalarFieldEnum = {
   isActive: 'isActive',
   isFirstLogin: 'isFirstLogin',
   approvalStatus: 'approvalStatus',
+  approvedBy: 'approvedBy',
+  approvedAt: 'approvedAt',
+  rememberToken: 'rememberToken',
+  tokenExpiresAt: 'tokenExpiresAt',
   lastLogin: 'lastLogin',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
@@ -565,11 +568,6 @@ exports.Prisma.NullableJsonNullValueInput = {
   JsonNull: Prisma.JsonNull
 };
 
-exports.Prisma.QueryMode = {
-  default: 'default',
-  insensitive: 'insensitive'
-};
-
 exports.Prisma.NullsOrder = {
   first: 'first',
   last: 'last'
@@ -579,6 +577,11 @@ exports.Prisma.JsonNullValueFilter = {
   DbNull: Prisma.DbNull,
   JsonNull: Prisma.JsonNull,
   AnyNull: Prisma.AnyNull
+};
+
+exports.Prisma.QueryMode = {
+  default: 'default',
+  insensitive: 'insensitive'
 };
 
 
