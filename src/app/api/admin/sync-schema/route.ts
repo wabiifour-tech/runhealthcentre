@@ -35,6 +35,15 @@ export async function POST(request: NextRequest) {
       { table: 'users', column: 'approvedAt', type: 'TIMESTAMP', sql: `ALTER TABLE users ADD COLUMN IF NOT EXISTS "approvedAt" TIMESTAMP(3)` },
       { table: 'users', column: 'rememberToken', type: 'TEXT', sql: `ALTER TABLE users ADD COLUMN IF NOT EXISTS "rememberToken" TEXT` },
       { table: 'users', column: 'tokenExpiresAt', type: 'TIMESTAMP', sql: `ALTER TABLE users ADD COLUMN IF NOT EXISTS "tokenExpiresAt" TIMESTAMP(3)` },
+      // Routing requests missing columns
+      { table: 'routing_requests', column: 'purpose', type: 'TEXT', sql: `ALTER TABLE routing_requests ADD COLUMN IF NOT EXISTS purpose TEXT` },
+      { table: 'routing_requests', column: 'lab_request_id', type: 'TEXT', sql: `ALTER TABLE routing_requests ADD COLUMN IF NOT EXISTS lab_request_id TEXT` },
+      { table: 'routing_requests', column: 'prescription_id', type: 'TEXT', sql: `ALTER TABLE routing_requests ADD COLUMN IF NOT EXISTS prescription_id TEXT` },
+      { table: 'routing_requests', column: 'acknowledged_at', type: 'TIMESTAMP', sql: `ALTER TABLE routing_requests ADD COLUMN IF NOT EXISTS acknowledged_at TIMESTAMP(3)` },
+      { table: 'routing_requests', column: 'acknowledged_by', type: 'TEXT', sql: `ALTER TABLE routing_requests ADD COLUMN IF NOT EXISTS acknowledged_by TEXT` },
+      { table: 'routing_requests', column: 'completed_at', type: 'TIMESTAMP', sql: `ALTER TABLE routing_requests ADD COLUMN IF NOT EXISTS completed_at TIMESTAMP(3)` },
+      { table: 'routing_requests', column: 'completed_by', type: 'TEXT', sql: `ALTER TABLE routing_requests ADD COLUMN IF NOT EXISTS completed_by TEXT` },
+      { table: 'routing_requests', column: 'completion_notes', type: 'TEXT', sql: `ALTER TABLE routing_requests ADD COLUMN IF NOT EXISTS completion_notes TEXT` },
     ]
 
     for (const alter of alterTableStatements) {
