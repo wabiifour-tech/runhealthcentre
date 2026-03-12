@@ -189,7 +189,76 @@ export async function POST(request: NextRequest) {
         type TEXT, title TEXT, message TEXT,
         data JSONB, priority TEXT DEFAULT 'normal',
         read BOOLEAN DEFAULT FALSE,
-        "createdAt" TIMESTAMP(3) DEFAULT CURRENT_TIMESTAMP)` }
+        "createdAt" TIMESTAMP(3) DEFAULT CURRENT_TIMESTAMP)` },
+      // Insurance Claims
+      { name: 'insurance_claims', sql: `CREATE TABLE IF NOT EXISTS insurance_claims (
+        id TEXT PRIMARY KEY,
+        "patientId" TEXT, patient JSONB, "enrolleeId" TEXT, "hmoId" TEXT,
+        "claimType" TEXT, services JSONB, "totalAmount" DOUBLE PRECISION, "approvedAmount" DOUBLE PRECISION,
+        diagnosis TEXT, "icdCode" TEXT, status TEXT DEFAULT 'draft',
+        "submittedAt" TIMESTAMP(3), "processedAt" TIMESTAMP(3), "processedBy" TEXT,
+        "rejectionReason" TEXT, notes TEXT, "createdBy" TEXT,
+        "createdAt" TIMESTAMP(3) DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP(3) DEFAULT CURRENT_TIMESTAMP)` },
+      // Surgery Bookings
+      { name: 'surgery_bookings', sql: `CREATE TABLE IF NOT EXISTS surgery_bookings (
+        id TEXT PRIMARY KEY,
+        "patientId" TEXT, patient JSONB, "surgeryType" TEXT,
+        "surgeonId" TEXT, "surgeonName" TEXT, "anesthetistId" TEXT, "anesthetistName" TEXT,
+        "theatreId" TEXT, "theatreName" TEXT, "scheduledDate" TEXT, "scheduledTime" TEXT,
+        "estimatedDuration" INTEGER, status TEXT DEFAULT 'scheduled', priority TEXT DEFAULT 'routine',
+        "preOpChecklist" JSONB, notes TEXT, "bookedBy" TEXT,
+        "createdAt" TIMESTAMP(3) DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP(3) DEFAULT CURRENT_TIMESTAMP)` },
+      // Immunization Records
+      { name: 'immunization_records', sql: `CREATE TABLE IF NOT EXISTS immunization_records (
+        id TEXT PRIMARY KEY,
+        "patientId" TEXT, patient JSONB, "vaccineName" TEXT, "doseNumber" INTEGER,
+        "batchNumber" TEXT, "administeredBy" TEXT, "administeredAt" TIMESTAMP(3),
+        "nextDoseDate" TIMESTAMP(3), reactions TEXT, notes TEXT,
+        "createdAt" TIMESTAMP(3) DEFAULT CURRENT_TIMESTAMP)` },
+      // Blood Donors
+      { name: 'blood_donors', sql: `CREATE TABLE IF NOT EXISTS blood_donors (
+        id TEXT PRIMARY KEY,
+        name TEXT, phone TEXT, email TEXT, "bloodGroup" TEXT, genotype TEXT,
+        "lastDonationDate" TIMESTAMP(3), "totalDonations" INTEGER DEFAULT 0,
+        "isEligible" BOOLEAN DEFAULT TRUE, notes TEXT,
+        "registeredAt" TIMESTAMP(3) DEFAULT CURRENT_TIMESTAMP)` },
+      // Blood Units
+      { name: 'blood_units', sql: `CREATE TABLE IF NOT EXISTS blood_units (
+        id TEXT PRIMARY KEY,
+        "donorId" TEXT, "donorName" TEXT, "bloodGroup" TEXT, "componentType" TEXT,
+        "volumeMl" INTEGER, "collectionDate" TIMESTAMP(3), "expiryDate" TIMESTAMP(3),
+        status TEXT DEFAULT 'available', "reservedForPatientId" TEXT,
+        "transfusedAt" TIMESTAMP(3), "transfusedToPatientId" TEXT, notes TEXT,
+        "createdAt" TIMESTAMP(3) DEFAULT CURRENT_TIMESTAMP)` },
+      // Medication Administrations
+      { name: 'medication_administrations', sql: `CREATE TABLE IF NOT EXISTS medication_administrations (
+        id TEXT PRIMARY KEY,
+        "patientId" TEXT, patient JSONB, "drugName" TEXT, dosage TEXT, route TEXT,
+        "administeredBy" TEXT, "administeredAt" TIMESTAMP(3), notes TEXT,
+        "createdAt" TIMESTAMP(3) DEFAULT CURRENT_TIMESTAMP)` },
+      // Patient Tasks
+      { name: 'patient_tasks', sql: `CREATE TABLE IF NOT EXISTS patient_tasks (
+        id TEXT PRIMARY KEY,
+        "patientId" TEXT, patient JSONB, "taskId" TEXT, "taskName" TEXT,
+        "scheduledTime" TIMESTAMP(3), duration INTEGER, notes TEXT,
+        status TEXT DEFAULT 'pending', priority TEXT DEFAULT 'routine',
+        "assignedBy" TEXT, "startedAt" TIMESTAMP(3), "completedAt" TIMESTAMP(3), "completedBy" TEXT,
+        recurring BOOLEAN DEFAULT FALSE, "recurrenceInterval" INTEGER, "nextOccurrence" TIMESTAMP(3),
+        "createdAt" TIMESTAMP(3) DEFAULT CURRENT_TIMESTAMP)` },
+      // Patient Wallets
+      { name: 'patient_wallets', sql: `CREATE TABLE IF NOT EXISTS patient_wallets (
+        id TEXT PRIMARY KEY,
+        "patientId" TEXT UNIQUE, patient JSONB, balance DOUBLE PRECISION DEFAULT 0,
+        "lastTransactionAt" TIMESTAMP(3), "isActive" BOOLEAN DEFAULT TRUE,
+        "createdAt" TIMESTAMP(3) DEFAULT CURRENT_TIMESTAMP)` },
+      // Wallet Transactions
+      { name: 'wallet_transactions', sql: `CREATE TABLE IF NOT EXISTS wallet_transactions (
+        id TEXT PRIMARY KEY,
+        "walletId" TEXT, type TEXT, amount DOUBLE PRECISION,
+        description TEXT, reference TEXT, "balanceAfter" DOUBLE PRECISION,
+        "createdBy" TEXT, "createdAt" TIMESTAMP(3) DEFAULT CURRENT_TIMESTAMP)` }
     ]
 
     for (const table of tables) {

@@ -507,3 +507,174 @@ model routing_requests {
   @@index([sender_id])
   @@index([status])
 }
+
+// Insurance Claims
+model insurance_claims {
+  id                      String    @id
+  patientId               String?
+  patient                 Json?
+  enrolleeId              String?
+  hmoId                   String?
+  claimType               String?   // capitation, fee_for_service, referral
+  services                Json?
+  totalAmount             Float?
+  approvedAmount          Float?
+  diagnosis               String?
+  icdCode                 String?
+  status                  String    @default("draft") // draft, submitted, processing, approved, rejected, paid
+  submittedAt             DateTime?
+  processedAt             DateTime?
+  processedBy             String?
+  rejectionReason         String?
+  notes                   String?
+  createdBy               String?
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+}
+
+// Surgery Bookings
+model surgery_bookings {
+  id                      String    @id
+  patientId               String?
+  patient                 Json?
+  surgeryType             String?
+  surgeonId               String?
+  surgeonName             String?
+  anesthetistId           String?
+  anesthetistName         String?
+  theatreId               String?
+  theatreName             String?
+  scheduledDate           String?
+  scheduledTime           String?
+  estimatedDuration       Int?      // minutes
+  status                  String    @default("scheduled") // scheduled, in_progress, completed, cancelled, postponed
+  priority                String    @default("routine") // routine, urgent, emergency
+  preOpChecklist          Json?
+  notes                   String?
+  bookedBy                String?
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+}
+
+// Immunization Records
+model immunization_records {
+  id                      String    @id
+  patientId               String?
+  patient                 Json?
+  vaccineName             String?
+  doseNumber              Int?
+  batchNumber             String?
+  administeredBy          String?
+  administeredAt          DateTime?
+  nextDoseDate            DateTime?
+  reactions               String?
+  notes                   String?
+  createdAt               DateTime  @default(now())
+}
+
+// Blood Donors
+model blood_donors {
+  id                      String    @id
+  name                    String?
+  phone                   String?
+  email                   String?
+  bloodGroup              String?
+  genotype                String?
+  lastDonationDate        DateTime?
+  totalDonations          Int       @default(0)
+  isEligible              Boolean   @default(true)
+  notes                   String?
+  registeredAt            DateTime  @default(now())
+}
+
+// Blood Units
+model blood_units {
+  id                      String    @id
+  donorId                 String?
+  donorName               String?
+  bloodGroup              String?
+  componentType           String?   // whole_blood, plasma, platelets, red_cells
+  volumeMl                Int?
+  collectionDate          DateTime?
+  expiryDate              DateTime?
+  status                  String    @default("available") // available, reserved, transfused, discarded, expired
+  reservedForPatientId    String?
+  transfusedAt            DateTime?
+  transfusedToPatientId   String?
+  notes                   String?
+  createdAt               DateTime  @default(now())
+}
+
+// Medication Administrations
+model medication_administrations {
+  id                      String    @id
+  patientId               String?
+  patient                 Json?
+  drugName                String?
+  dosage                  String?
+  route                   String?
+  administeredBy          String?
+  administeredAt          DateTime?
+  notes                   String?
+  createdAt               DateTime  @default(now())
+}
+
+// Patient Tasks / Interventions
+model patient_tasks {
+  id                      String    @id
+  patientId               String?
+  patient                 Json?
+  taskId                  String?
+  taskName                String?
+  scheduledTime           DateTime?
+  duration                Int?      // minutes
+  notes                   String?
+  status                  String    @default("pending") // pending, in_progress, completed, missed, cancelled
+  priority                String    @default("routine") // routine, urgent, stat
+  assignedBy              String?
+  startedAt               DateTime?
+  completedAt             DateTime?
+  completedBy             String?
+  recurring               Boolean   @default(false)
+  recurrenceInterval      Int?      // minutes
+  nextOccurrence          DateTime?
+  createdAt               DateTime  @default(now())
+}
+
+// Notifications
+model notifications {
+  id                      String    @id
+  userId                  String?
+  targetRoles             String?   // JSON array of roles
+  type                    String?
+  title                   String?
+  message                 String?
+  data                    Json?
+  priority                String    @default("normal")
+  read                    Boolean   @default(false)
+  createdAt               DateTime  @default(now())
+}
+
+// Patient Wallet
+model patient_wallets {
+  id                      String    @id
+  patientId               String    @unique
+  patient                 Json?
+  balance                 Float     @default(0)
+  lastTransactionAt       DateTime?
+  isActive                Boolean   @default(true)
+  createdAt               DateTime  @default(now())
+}
+
+// Wallet Transactions
+model wallet_transactions {
+  id                      String    @id
+  walletId                String?
+  type                    String?   // credit, debit
+  amount                  Float?
+  description             String?
+  reference               String?
+  balanceAfter            Float?
+  createdBy               String?
+  createdAt               DateTime  @default(now())
+}
