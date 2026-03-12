@@ -27,6 +27,14 @@ export async function POST(request: NextRequest) {
       { table: 'users', column: 'initials', type: 'TEXT', sql: `ALTER TABLE users ADD COLUMN IF NOT EXISTS "initials" TEXT` },
       { table: 'users', column: 'lastLogin', type: 'TIMESTAMP', sql: `ALTER TABLE users ADD COLUMN IF NOT EXISTS "lastLogin" TIMESTAMP(3)` },
       { table: 'users', column: 'updatedAt', type: 'TIMESTAMP', sql: `ALTER TABLE users ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP` },
+      // New columns for multi-step registration and approval system
+      { table: 'users', column: 'firstName', type: 'TEXT', sql: `ALTER TABLE users ADD COLUMN IF NOT EXISTS "firstName" TEXT` },
+      { table: 'users', column: 'lastName', type: 'TEXT', sql: `ALTER TABLE users ADD COLUMN IF NOT EXISTS "lastName" TEXT` },
+      { table: 'users', column: 'approvalStatus', type: 'TEXT', sql: `ALTER TABLE users ADD COLUMN IF NOT EXISTS "approvalStatus" TEXT NOT NULL DEFAULT 'PENDING'` },
+      { table: 'users', column: 'approvedBy', type: 'TEXT', sql: `ALTER TABLE users ADD COLUMN IF NOT EXISTS "approvedBy" TEXT` },
+      { table: 'users', column: 'approvedAt', type: 'TIMESTAMP', sql: `ALTER TABLE users ADD COLUMN IF NOT EXISTS "approvedAt" TIMESTAMP(3)` },
+      { table: 'users', column: 'rememberToken', type: 'TEXT', sql: `ALTER TABLE users ADD COLUMN IF NOT EXISTS "rememberToken" TEXT` },
+      { table: 'users', column: 'tokenExpiresAt', type: 'TIMESTAMP', sql: `ALTER TABLE users ADD COLUMN IF NOT EXISTS "tokenExpiresAt" TIMESTAMP(3)` },
     ]
 
     for (const alter of alterTableStatements) {
@@ -48,7 +56,10 @@ export async function POST(request: NextRequest) {
         id TEXT PRIMARY KEY, email TEXT UNIQUE NOT NULL, name TEXT NOT NULL, password TEXT NOT NULL,
         role TEXT NOT NULL, department TEXT, initials TEXT, phone TEXT, "dateOfBirth" TIMESTAMP(3),
         "profilePhoto" TEXT, "isActive" BOOLEAN NOT NULL DEFAULT true, "isFirstLogin" BOOLEAN NOT NULL DEFAULT true,
-        "approvalStatus" TEXT NOT NULL DEFAULT 'PENDING', "lastLogin" TIMESTAMP(3),
+        "firstName" TEXT, "lastName" TEXT,
+        "approvalStatus" TEXT NOT NULL DEFAULT 'PENDING', "approvedBy" TEXT, "approvedAt" TIMESTAMP(3),
+        "rememberToken" TEXT, "tokenExpiresAt" TIMESTAMP(3),
+        "lastLogin" TIMESTAMP(3),
         "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP)` },
       { name: 'patients', sql: `CREATE TABLE IF NOT EXISTS patients (
         id TEXT PRIMARY KEY, "hospitalNumber" TEXT, "ruhcCode" TEXT UNIQUE NOT NULL, "matricNumber" TEXT,
@@ -145,7 +156,27 @@ export async function POST(request: NextRequest) {
         "signInTime" TEXT, "signInPhoto" TEXT, "signOutTime" TEXT, "signOutPhoto" TEXT,
         shift TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'present', "deviceId" TEXT, notes TEXT,
         "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP)` }
+        "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP)` },
+      // Routing requests table for cross-department communication
+      { name: 'routing_requests', sql: `CREATE TABLE IF NOT EXISTS routing_requests (
+        id TEXT PRIMARY KEY,
+        sender_id TEXT NOT NULL, sender_name TEXT NOT NULL, sender_role TEXT NOT NULL, sender_initials TEXT,
+        receiver_id TEXT, receiver_name TEXT, receiver_role TEXT, receiver_department TEXT,
+        patient_id TEXT, patient_name TEXT, patient_hospital_number TEXT,
+        request_type TEXT NOT NULL, priority TEXT DEFAULT 'routine', purpose TEXT,
+        subject TEXT NOT NULL, message TEXT, notes TEXT,
+        consultation_id TEXT, lab_request_id TEXT, prescription_id TEXT,
+        status TEXT DEFAULT 'pending', acknowledged_at TIMESTAMP(3), acknowledged_by TEXT,
+        completed_at TIMESTAMP(3), completed_by TEXT, completion_notes TEXT,
+        created_at TIMESTAMP(3) DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP(3) DEFAULT CURRENT_TIMESTAMP)` },
+      // Notifications table for role-based notifications
+      { name: 'notifications', sql: `CREATE TABLE IF NOT EXISTS notifications (
+        id TEXT PRIMARY KEY,
+        "userId" TEXT, "targetRoles" TEXT,
+        type TEXT, title TEXT, message TEXT,
+        data JSONB, priority TEXT DEFAULT 'normal',
+        read BOOLEAN DEFAULT FALSE,
+        "createdAt" TIMESTAMP(3) DEFAULT CURRENT_TIMESTAMP)` }
     ]
 
     for (const table of tables) {
