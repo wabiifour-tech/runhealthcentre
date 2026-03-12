@@ -193,6 +193,8 @@ interface Drug {
   quantityInStock: number
   reorderLevel: number
   sellingPrice: number
+  expiryDate?: string // Expiry date for tracking expiring drugs
+  batchNumber?: string // Batch number for tracking
   // Extended drug information
   indication?: string
   adultDosage?: string
@@ -8871,6 +8873,13 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
     pendingLabTests: labRequests.filter(l => l.status === 'pending').length,
     pendingPrescriptions: prescriptions.filter(p => p.status === 'pending').length,
     lowStockDrugs: drugs.filter(d => d.quantityInStock <= d.reorderLevel).length,
+    expiringDrugs: drugs.filter(d => {
+      if (!d.expiryDate) return false
+      const expiry = new Date(d.expiryDate)
+      const thirtyDaysFromNow = new Date()
+      thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30)
+      return expiry <= thirtyDaysFromNow && expiry >= new Date()
+    }).length,
     unreadVoiceNotes: voiceNotes.filter(v => v.recipientRole === user?.role && !v.isRead).length,
     unreadAnnouncements: announcements.filter(a => !a.isRead).length,
     vitalsRecordedToday: vitals.filter(v => new Date(v.recordedAt).toDateString() === new Date().toDateString()).length,
@@ -12966,7 +12975,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="p-3 bg-red-100 rounded-lg border border-red-300">
                       <p className="text-sm text-red-800 font-medium">⚠️ Expiring Soon (30 days)</p>
-                      <p className="text-2xl font-bold text-red-600">3 drugs</p>
+                      <p className="text-2xl font-bold text-red-600">{stats.expiringDrugs} drugs</p>
                       <p className="text-xs text-red-600">Check batch numbers</p>
                     </div>
                     <div className="p-3 bg-orange-100 rounded-lg border border-orange-300">
