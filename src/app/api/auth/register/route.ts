@@ -29,8 +29,8 @@ export async function POST(request: NextRequest) {
       throw Errors.validation('Name, email, password, and role are required')
     }
 
-    // Validate email format
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    // Validate email format - accept @ruhc or standard emails
+    const emailRegex = /^[^\s@]+@([^\s@]+\.[^\s@]+|ruhc)$/
     if (!emailRegex.test(email)) {
       throw Errors.validation('Please enter a valid email address')
     }
