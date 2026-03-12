@@ -24,19 +24,26 @@ export async function PUT(request: NextRequest) {
       })
     }
 
-    // Execute update
+    // Use explicit type casting for nullable parameters
+    const statusValue = status || null
+    const acknowledgedByValue = acknowledgedBy || null
+    const completedByValue = completedBy || null
+    const notesValue = notes || null
+    const purposeValue = purpose || null
+
+    // Execute update with Prisma's raw query
     const result = await prisma.$executeRaw`
       UPDATE routing_requests 
       SET 
         updated_at = NOW(),
-        status = COALESCE(${status}, status),
-        acknowledged_at = CASE WHEN ${acknowledgedBy} IS NOT NULL THEN NOW() ELSE acknowledged_at END,
-        acknowledged_by = COALESCE(${acknowledgedBy}, acknowledged_by),
-        completed_at = CASE WHEN ${completedBy} IS NOT NULL THEN NOW() ELSE completed_at END,
-        completed_by = COALESCE(${completedBy}, completed_by),
-        notes = COALESCE(${notes}, notes),
-        purpose = COALESCE(${purpose}, purpose)
-      WHERE id = ${id}
+        status = CASE WHEN ${statusValue}::TEXT IS NOT NULL THEN ${statusValue}::TEXT ELSE status END,
+        acknowledged_at = CASE WHEN ${acknowledgedByValue}::TEXT IS NOT NULL THEN NOW() ELSE acknowledged_at END,
+        acknowledged_by = CASE WHEN ${acknowledgedByValue}::TEXT IS NOT NULL THEN ${acknowledgedByValue}::TEXT ELSE acknowledged_by END,
+        completed_at = CASE WHEN ${completedByValue}::TEXT IS NOT NULL THEN NOW() ELSE completed_at END,
+        completed_by = CASE WHEN ${completedByValue}::TEXT IS NOT NULL THEN ${completedByValue}::TEXT ELSE completed_by END,
+        notes = CASE WHEN ${notesValue}::TEXT IS NOT NULL THEN ${notesValue}::TEXT ELSE notes END,
+        purpose = CASE WHEN ${purposeValue}::TEXT IS NOT NULL THEN ${purposeValue}::TEXT ELSE purpose END
+      WHERE id = ${id}::TEXT
     `
 
     return NextResponse.json({ 
