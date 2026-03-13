@@ -2419,6 +2419,8 @@ export default function HMSApp() {
   const [showAssetDialog, setShowAssetDialog] = useState(false)
   const [showShiftSwapDialog, setShowShiftSwapDialog] = useState(false)
   const [showCampaignDialog, setShowCampaignDialog] = useState(false)
+  const [showCampaignDetailsDialog, setShowCampaignDetailsDialog] = useState(false)
+  const [selectedCampaign, setSelectedCampaign] = useState<any | null>(null)
   const [showWalletDialog, setShowWalletDialog] = useState(false)
   const [selectedWallet, setSelectedWallet] = useState<PatientWallet | null>(null)
   const [surgeryForm, setSurgeryForm] = useState({
@@ -5857,6 +5859,83 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
     }
   }
 
+  // Surgery Booking persistence
+  const saveSurgeryBookingToDB = async (booking: SurgeryBooking) => {
+    try {
+      await fetch('/api/data', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'surgeryBooking', data: booking }) })
+    } catch (error) { console.error('Failed to save surgery booking:', error) }
+  }
+
+  // Immunization persistence
+  const saveImmunizationToDB = async (record: ImmunizationRecord) => {
+    try {
+      await fetch('/api/data', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'immunizationRecord', data: record }) })
+    } catch (error) { console.error('Failed to save immunization:', error) }
+  }
+
+  // Blood Donor persistence
+  const saveBloodDonorToDB = async (donor: BloodDonor) => {
+    try {
+      await fetch('/api/data', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'bloodDonor', data: donor }) })
+    } catch (error) { console.error('Failed to save blood donor:', error) }
+  }
+
+  // Ambulance Call persistence
+  const saveAmbulanceCallToDB = async (call: AmbulanceCall) => {
+    try {
+      await fetch('/api/data', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'ambulanceCall', data: call }) })
+    } catch (error) { console.error('Failed to save ambulance call:', error) }
+  }
+
+  // Equipment persistence
+  const saveEquipmentToDB = async (equip: Equipment) => {
+    try {
+      await fetch('/api/data', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'equipment', data: equip }) })
+    } catch (error) { console.error('Failed to save equipment:', error) }
+  }
+
+  // Inventory Item persistence
+  const saveInventoryItemToDB = async (item: InventoryItem) => {
+    try {
+      await fetch('/api/data', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'inventoryItem', data: item }) })
+    } catch (error) { console.error('Failed to save inventory item:', error) }
+  }
+
+  // Staff Certification persistence
+  const saveCertificationToDB = async (cert: StaffCertification) => {
+    try {
+      await fetch('/api/data', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'certification', data: cert }) })
+    } catch (error) { console.error('Failed to save certification:', error) }
+  }
+
+  // Training Record persistence
+  const saveTrainingToDB = async (training: TrainingRecord) => {
+    try {
+      await fetch('/api/data', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'trainingRecord', data: training }) })
+    } catch (error) { console.error('Failed to save training:', error) }
+  }
+
+  // Medication Administration persistence
+  const saveMedicationAdminToDB = async (admin: MedicationAdministration) => {
+    try {
+      await fetch('/api/data', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'medicationAdmin', data: admin }) })
+    } catch (error) { console.error('Failed to save medication admin:', error) }
+  }
+
+  // Insurance Claim persistence
+  const saveInsuranceClaimToDB = async (claim: InsuranceClaim) => {
+    try {
+      await fetch('/api/data', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'insuranceClaim', data: claim }) })
+    } catch (error) { console.error('Failed to save insurance claim:', error) }
+  }
+
+  // Update Insurance Claim
+  const updateInsuranceClaimInDB = async (id: string, data: Partial<InsuranceClaim>) => {
+    try {
+      await fetch('/api/data', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'insuranceClaim', id, data }) })
+    } catch (error) { console.error('Failed to update insurance claim:', error) }
+  }
+
   // ============== STAFF MANAGEMENT FUNCTIONS ==============
   // Auto-generate password for new staff
   const generateStaffPassword = (name: string): string => {
@@ -7408,7 +7487,7 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
       setShowConsultationDialog(true)
     } catch (error) {
       console.error('Error starting consultation:', error)
-      alert('An error occurred while opening the consultation. Please try again.')
+      showToast('An error occurred while opening the consultation. Please try again.', 'error')
     }
   }
 
@@ -7438,12 +7517,12 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
   // Doctor completes consultation
   const completeConsultation = async () => {
     if (!consultationForm.finalDiagnosis && !consultationForm.provisionalDiagnosis) {
-      alert('Please enter a diagnosis')
+      showToast('Please enter a diagnosis', 'warning')
       return
     }
     
     if (consultationForm.sendBackTo.length === 0) {
-      alert('Please select at least one destination to send the patient')
+      showToast('Please select at least one destination to send the patient', 'warning')
       return
     }
 
@@ -7625,7 +7704,7 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
 
   const createPatient = async () => {
     if (!user) {
-      alert('You must be logged in to register patients')
+      showToast('You must be logged in to register patients', 'warning')
       return
     }
 
@@ -7807,7 +7886,7 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
 
   const createAppointment = async () => {
     if (!user) {
-      alert('You must be logged in to book appointments')
+      showToast('You must be logged in to book appointments', 'warning')
       return
     }
     const patient = patients.find(p => p.id === appointmentForm.patientId)
@@ -7873,6 +7952,8 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
     } catch (error) {
       console.error('Failed to save roster:', error)
     }
+    
+    showToast('Roster entry added!', 'success')
   }
 
   const deleteRoster = async (id: string) => {
@@ -7894,6 +7975,8 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
     
     // Save to database
     await saveAnnouncementToDB(newAnnouncement)
+    
+    showToast('Announcement posted!', 'success')
   }
 
   // Create Backup
@@ -7988,6 +8071,7 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
       createdBy: user?.name || 'System'
     }
     setSurgeryBookings(prev => [...prev, newBooking])
+    saveSurgeryBookingToDB(newBooking)
     setShowSurgeryDialog(false)
     setSurgeryForm({
       patientId: '', procedure: '', surgeon: '', scheduledDate: '', scheduledTime: '', theatre: '', priority: 'routine', notes: ''
@@ -8014,6 +8098,7 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
       createdAt: new Date().toISOString()
     }
     setImmunizationRecords(prev => [...prev, newRecord])
+    saveImmunizationToDB(newRecord)
     setShowImmunizationDialog(false)
     setImmunizationForm({
       patientId: '', vaccineName: '', batchNumber: '', administeredBy: '', nextDoseDate: '', notes: ''
@@ -8036,6 +8121,7 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
       createdAt: new Date().toISOString()
     }
     setBloodDonors(prev => [...prev, newDonor])
+    saveBloodDonorToDB(newDonor)
     setShowBloodDonorDialog(false)
     setBloodDonorForm({
       name: '', bloodGroup: '', phone: '', email: '', dateOfBirth: '', address: ''
@@ -8085,7 +8171,7 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
         setRecordingTime(t => t + 1)
       }, 1000)
     } catch (err) {
-      alert('Could not access microphone. Please ensure microphone permissions are granted.')
+      showToast('Could not access microphone. Please ensure microphone permissions are granted.', 'error')
     }
   }
 
@@ -8149,7 +8235,7 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
   
   const startSpeechRecognition = () => {
     if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-      alert('Speech recognition is not supported in your browser. Please use Chrome or Edge.')
+      showToast('Speech recognition is not supported in your browser. Please use Chrome or Edge.', 'error')
       return
     }
     
@@ -8189,7 +8275,7 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
     recognition.onerror = (event: any) => {
       console.error('Speech recognition error:', event.error)
       if (event.error === 'not-allowed') {
-        alert('Microphone access denied. Please allow microphone access and try again.')
+        showToast('Microphone access denied. Please allow microphone access and try again.', 'error')
       }
       setIsListening(false)
     }
@@ -8286,32 +8372,32 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
   // Create new admission
   const createAdmission = () => {
     if (!user) {
-      alert('You must be logged in to perform this action')
+      showToast('You must be logged in to perform this action', 'warning')
       return
     }
     
     if (!admissionForm.patientId) {
-      alert('Please select a patient')
+      showToast('Please select a patient', 'warning')
       return
     }
     
     if (!admissionForm.wardId) {
-      alert('Please select a ward')
+      showToast('Please select a ward', 'warning')
       return
     }
     
     if (!admissionForm.reasonForAdmission) {
-      alert('Please enter reason for admission')
+      showToast('Please enter reason for admission', 'warning')
       return
     }
     
     if (!admissionForm.provisionalDiagnosis) {
-      alert('Please enter provisional diagnosis')
+      showToast('Please enter provisional diagnosis', 'warning')
       return
     }
     
     if (!admissionForm.consentForTreatment) {
-      alert('Patient consent for treatment is required')
+      showToast('Patient consent for treatment is required', 'warning')
       return
     }
     
@@ -8398,7 +8484,7 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
     
     setShowAdmissionDialog(false)
     resetAdmissionForm()
-    alert('Patient admitted successfully!')
+    showToast('Patient admitted successfully!', 'success')
     
     // Dispatch real-time event for admission
     const admittedPatient = patients.find(p => p.id === admissionForm.patientId)
@@ -8515,7 +8601,7 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
   // Record vitals
   const recordVitals = async () => {
     if (!user) {
-      alert('You must be logged in to perform this action')
+      showToast('You must be logged in to perform this action', 'warning')
       return
     }
     const patient = patients.find(p => p.id === vitalsForm.patientId)
@@ -8567,7 +8653,7 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
   // Record medication administration
   const recordMedication = () => {
     if (!user) {
-      alert('You must be logged in to perform this action')
+      showToast('You must be logged in to perform this action', 'warning')
       return
     }
     const patient = patients.find(p => p.id === medicationForm.patientId)
@@ -12117,7 +12203,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                         onClick={async () => {
                           const patientConsultations = consultations.filter(c => c.patientId === selectedPatient.id && c.status === 'completed')
                           if (patientConsultations.length === 0) {
-                            alert('No completed consultations for this patient')
+                            showToast('No completed consultations for this patient', 'info')
                             return
                           }
                           const response = await fetch('/api/documents', {
@@ -14275,10 +14361,10 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                                         ))
                                         setStaffSuccess(`Account approved for ${u.name}`)
                                       } else {
-                                        alert(data.error || 'Failed to approve account')
+                                        showToast(data.error || 'Failed to approve account', 'error')
                                       }
                                     } catch (error) {
-                                      alert('Failed to approve account')
+                                      showToast('Failed to approve account', 'error')
                                     }
                                   }}
                                 >
@@ -14302,10 +14388,10 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                                         ))
                                         setStaffSuccess(`Account rejected for ${u.name}`)
                                       } else {
-                                        alert(data.error || 'Failed to reject account')
+                                        showToast(data.error || 'Failed to reject account', 'error')
                                       }
                                     } catch (error) {
-                                      alert('Failed to reject account')
+                                      showToast('Failed to reject account', 'error')
                                     }
                                   }}
                                 >
@@ -14391,12 +14477,12 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                                       })
                                       const data = await response.json()
                                       if (data.success && data.password) {
-                                        alert(`Password for ${u.name}: ${data.password}`)
+                                        showToast(`Password for ${u.name}: ${data.password}`, 'info')
                                       } else {
-                                        alert(data.error || 'Failed to retrieve password')
+                                        showToast(data.error || 'Failed to retrieve password', 'error')
                                       }
                                     } catch (error) {
-                                      alert('Failed to retrieve password')
+                                      showToast('Failed to retrieve password', 'error')
                                     }
                                   }}
                                 >
@@ -14434,12 +14520,12 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                                       })
                                       const data = await response.json()
                                       if (data.success && data.password) {
-                                        alert(`Password for ${u.name}: ${data.password}`)
+                                        showToast(`Password for ${u.name}: ${data.password}`, 'info')
                                       } else {
-                                        alert(data.error || 'Failed to retrieve password')
+                                        showToast(data.error || 'Failed to retrieve password', 'error')
                                       }
                                     } catch (error) {
-                                      alert('Failed to retrieve password')
+                                      showToast('Failed to retrieve password', 'error')
                                     }
                                   }}
                                 >
@@ -14468,10 +14554,10 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                                         ))
                                         setStaffSuccess(`Account ${u.isActive ? 'deactivated' : 'activated'} for ${u.name}`)
                                       } else {
-                                        alert(data.error || 'Failed to update account')
+                                        showToast(data.error || 'Failed to update account', 'error')
                                       }
                                     } catch (error) {
-                                      alert('Failed to update account')
+                                      showToast('Failed to update account', 'error')
                                     }
                                   }}
                                 >
@@ -14508,10 +14594,10 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                                         setSystemUsers(systemUsers.filter(user => user.id !== u.id))
                                         setStaffSuccess(`Account deleted for ${u.name}`)
                                       } else {
-                                        alert(data.error || 'Failed to delete account')
+                                        showToast(data.error || 'Failed to delete account', 'error')
                                       }
                                     } catch (error) {
-                                      alert('Failed to delete account')
+                                      showToast('Failed to delete account', 'error')
                                     }
                                   }}
                                 >
@@ -14902,12 +14988,24 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                             <TableCell>
                               {c.status === 'pending' && (
                                 <div className="flex gap-1">
-                                  <Button size="sm" variant="outline" className="text-green-600" onClick={() => setInsuranceClaims(insuranceClaims.map(x => x.id === c.id ? { ...x, status: 'approved' } : x))}>Approve</Button>
-                                  <Button size="sm" variant="outline" className="text-red-600" onClick={() => setInsuranceClaims(insuranceClaims.map(x => x.id === c.id ? { ...x, status: 'rejected' } : x))}>Reject</Button>
+                                  <Button size="sm" variant="outline" className="text-green-600" onClick={async () => {
+                                    await updateInsuranceClaimInDB(c.id, { status: 'approved' })
+                                    setInsuranceClaims(insuranceClaims.map(x => x.id === c.id ? { ...x, status: 'approved' } : x))
+                                    showToast('Claim approved!', 'success')
+                                  }}>Approve</Button>
+                                  <Button size="sm" variant="outline" className="text-red-600" onClick={async () => {
+                                    await updateInsuranceClaimInDB(c.id, { status: 'rejected' })
+                                    setInsuranceClaims(insuranceClaims.map(x => x.id === c.id ? { ...x, status: 'rejected' } : x))
+                                    showToast('Claim rejected!', 'warning')
+                                  }}>Reject</Button>
                                 </div>
                               )}
                               {c.status === 'approved' && (
-                                <Button size="sm" onClick={() => setInsuranceClaims(insuranceClaims.map(x => x.id === c.id ? { ...x, status: 'paid' } : x))}>Mark Paid</Button>
+                                <Button size="sm" onClick={async () => {
+                                  await updateInsuranceClaimInDB(c.id, { status: 'paid' })
+                                  setInsuranceClaims(insuranceClaims.map(x => x.id === c.id ? { ...x, status: 'paid' } : x))
+                                  showToast('Claim marked as paid!', 'success')
+                                }}>Mark Paid</Button>
                               )}
                             </TableCell>
                           </TableRow>
@@ -16427,8 +16525,26 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                             <TableCell>
                               {s.status === 'pending' && (user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN' || user?.role === 'MATRON') && (
                                 <div className="flex gap-2">
-                                  <Button size="sm" className="bg-green-600 hover:bg-green-700">Approve</Button>
-                                  <Button size="sm" variant="destructive">Reject</Button>
+                                  <Button size="sm" className="bg-green-600 hover:bg-green-700" onClick={async () => {
+                                    const updatedSwap = { ...s, status: 'approved' as const, reviewedBy: user?.name, reviewedAt: new Date().toISOString() }
+                                    try {
+                                      await fetch('/api/data', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'shiftSwap', data: updatedSwap }) })
+                                      setShiftSwapRequests(prev => prev.map(x => x.id === s.id ? updatedSwap : x))
+                                      showToast('Shift swap approved!', 'success')
+                                    } catch (error) {
+                                      showToast('Failed to approve swap', 'warning')
+                                    }
+                                  }}>Approve</Button>
+                                  <Button size="sm" variant="destructive" onClick={async () => {
+                                    const updatedSwap = { ...s, status: 'rejected' as const, reviewedBy: user?.name, reviewedAt: new Date().toISOString() }
+                                    try {
+                                      await fetch('/api/data', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'shiftSwap', data: updatedSwap }) })
+                                      setShiftSwapRequests(prev => prev.map(x => x.id === s.id ? updatedSwap : x))
+                                      showToast('Shift swap rejected', 'info')
+                                    } catch (error) {
+                                      showToast('Failed to reject swap', 'warning')
+                                    }
+                                  }}>Reject</Button>
                                 </div>
                               )}
                             </TableCell>
@@ -16512,12 +16628,12 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                     <Button variant="outline" onClick={() => setShowAddCertificationDialog(false)}>Cancel</Button>
                     <Button onClick={() => {
                       if (!newCertification.staffId || !newCertification.certificationName) {
-                        alert('Please fill in required fields'); return
+                        showToast('Please fill in required fields', 'warning'); return
                       }
                       const expiry = newCertification.expiryDate ? new Date(newCertification.expiryDate) : null
                       const now = new Date()
                       const thirtyDaysFromNow = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000)
-                      staffCertifications.push({
+                      const newCert: StaffCertification = {
                         id: `cert-${Date.now()}`, staffId: newCertification.staffId, staffName: newCertification.staffName,
                         certificationName: newCertification.certificationName, issuingBody: newCertification.issuingBody,
                         dateObtained: new Date(newCertification.dateObtained), expiryDate: expiry,
@@ -16525,10 +16641,13 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                         certificateNumber: newCertification.certificateNumber,
                         isExpired: expiry ? expiry < now : false, isExpiringSoon: expiry ? expiry <= thirtyDaysFromNow && expiry >= now : false,
                         verifiedBy: user?.name
-                      })
+                      }
+                      staffCertifications.push(newCert)
                       setStaffCertifications([...staffCertifications])
+                      saveCertificationToDB(newCert)
                       setNewCertification({ staffId: '', staffName: '', certificationName: '', issuingBody: '', dateObtained: '', expiryDate: '', cpdPoints: '', certificateNumber: '' })
                       setShowAddCertificationDialog(false)
+                      showToast('Certification added!', 'success')
                     }}>Add Certification</Button>
                   </DialogFooter>
                 </DialogContent>
@@ -16603,18 +16722,21 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                     <Button variant="outline" onClick={() => setShowAddTrainingDialog(false)}>Cancel</Button>
                     <Button onClick={() => {
                       if (!newTraining.staffId || !newTraining.trainingTitle) {
-                        alert('Please fill in required fields'); return
+                        showToast('Please fill in required fields', 'warning'); return
                       }
-                      trainingRecords.push({
+                      const newTrainingRecord: TrainingRecord = {
                         id: `train-${Date.now()}`, staffId: newTraining.staffId, staffName: newTraining.staffName,
-                        trainingTitle: newTraining.trainingTitle, trainingType: newTraining.trainingType,
-                        provider: newTraining.provider, startDate: new Date(newTraining.startDate),
-                        endDate: new Date(newTraining.endDate), hours: newTraining.hours ? parseInt(newTraining.hours) : undefined,
-                        location: newTraining.location, status: 'Completed', certificateIssued: false
-                      })
+                        trainingName: newTraining.trainingTitle, trainingType: 'mandatory',
+                        provider: newTraining.provider, startDate: newTraining.startDate,
+                        endDate: newTraining.endDate, durationHours: newTraining.hours ? parseInt(newTraining.hours) : 0,
+                        status: 'completed', certificateIssued: false
+                      }
+                      trainingRecords.push(newTrainingRecord)
                       setTrainingRecords([...trainingRecords])
+                      saveTrainingToDB(newTrainingRecord)
                       setNewTraining({ staffId: '', staffName: '', trainingTitle: '', trainingType: '', provider: '', startDate: '', endDate: '', hours: '', location: '' })
                       setShowAddTrainingDialog(false)
+                      showToast('Training record added!', 'success')
                     }}>Record Training</Button>
                   </DialogFooter>
                 </DialogContent>
@@ -16812,7 +16934,9 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                             <TableCell><Badge className={getStatusBadgeColor(b.status)}>{b.status}</Badge></TableCell>
                             <TableCell>{b.completedAt ? `${Math.round((new Date(b.completedAt).getTime() - new Date(b.startedAt).getTime()) / 1000)}s` : '-'}</TableCell>
                             <TableCell>
-                              <Button size="sm" variant="outline">Download</Button>
+                              <Button size="sm" variant="outline" onClick={createBackup}>
+                                <Download className="h-4 w-4 mr-1" /> Download
+                              </Button>
                             </TableCell>
                           </TableRow>
                         ))}
@@ -17377,7 +17501,10 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                         <div className="flex-1">
                           <h4 className="font-semibold">{report.name}</h4>
                           <p className="text-sm text-gray-500 mt-1">{report.desc}</p>
-                          <Button size="sm" className="mt-3 bg-blue-600 hover:bg-blue-700">
+                          <Button size="sm" className="mt-3 bg-blue-600 hover:bg-blue-700" onClick={() => {
+                            handleGenerateDailyReport('pdf')
+                            showToast('Generating report...', 'info')
+                          }}>
                             Generate Report
                           </Button>
                         </div>
@@ -17394,7 +17521,9 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
             <div className="space-y-6">
               <div className="flex justify-between items-center">
                 <h3 className="text-lg font-semibold">Telemedicine</h3>
-                <Button className="bg-green-600 hover:bg-green-700">
+                <Button className="bg-green-600 hover:bg-green-700" onClick={() => {
+                  showToast('Video consultation feature coming soon!', 'info')
+                }}>
                   <Plus className="h-4 w-4 mr-2" /> Start Video Consultation
                 </Button>
               </div>
@@ -17427,10 +17556,14 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                     <h3 className="text-lg font-semibold mb-2">Telemedicine Module</h3>
                     <p className="mb-4">Start or join video consultations with patients remotely</p>
                     <div className="flex justify-center gap-4">
-                      <Button className="bg-green-600 hover:bg-green-700">
+                      <Button className="bg-green-600 hover:bg-green-700" onClick={() => {
+                        showToast('Video call feature coming soon!', 'info')
+                      }}>
                         <Smartphone className="h-4 w-4 mr-2" /> New Video Call
                       </Button>
-                      <Button variant="outline">
+                      <Button variant="outline" onClick={() => {
+                        showToast('Schedule session feature coming soon!', 'info')
+                      }}>
                         <Calendar className="h-4 w-4 mr-2" /> Schedule Session
                       </Button>
                     </div>
@@ -17723,11 +17856,28 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                       <Label>Notification Channel</Label>
                       <div className="flex gap-2 mt-2">
                         <Button 
-                          variant="default"
+                          variant={notificationChannel === 'email' ? 'default' : 'outline'}
                           size="sm"
-                          className="bg-blue-600"
+                          className={notificationChannel === 'email' ? 'bg-blue-600' : ''}
+                          onClick={() => setNotificationChannel('email')}
                         >
                           Email Only
+                        </Button>
+                        <Button 
+                          variant={notificationChannel === 'sms' ? 'default' : 'outline'}
+                          size="sm"
+                          className={notificationChannel === 'sms' ? 'bg-blue-600' : ''}
+                          onClick={() => setNotificationChannel('sms')}
+                        >
+                          SMS
+                        </Button>
+                        <Button 
+                          variant={notificationChannel === 'both' ? 'default' : 'outline'}
+                          size="sm"
+                          className={notificationChannel === 'both' ? 'bg-blue-600' : ''}
+                          onClick={() => setNotificationChannel('both')}
+                        >
+                          Both
                         </Button>
                       </div>
                       <p className="text-xs text-gray-500 mt-2">Email notifications are sent via the internal messaging system</p>
@@ -18215,7 +18365,11 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                         </div>
                         <Progress value={(campaign.participants / campaign.target) * 100} className="h-2" />
                       </div>
-                      <Button variant="outline" size="sm" className="w-full mt-2">View Details</Button>
+                      <Button variant="outline" size="sm" className="w-full mt-2" onClick={() => {
+                        setSelectedCampaign(campaign)
+                        setShowCampaignDetailsDialog(true)
+                        showToast('Campaign details loaded', 'info')
+                      }}>View Details</Button>
                     </CardContent>
                   </Card>
                 ))}
@@ -19404,7 +19558,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
               className="bg-red-600 hover:bg-red-700"
               onClick={async () => {
                 if (!emergencyLocation) {
-                  alert('Please enter the location')
+                  showToast('Please enter the location', 'warning')
                   return
                 }
                 try {
@@ -19426,10 +19580,10 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                     setShowEmergencyDialog(false)
                     setEmergencyLocation('')
                     setEmergencyDescription('')
-                    alert('Emergency alert sent successfully! Help is on the way.')
+                    showToast('Emergency alert sent successfully! Help is on the way.', 'success')
                   }
                 } catch (error) {
-                  alert('Failed to send emergency alert')
+                  showToast('Failed to send emergency alert', 'error')
                 }
               }}
             >
@@ -20541,7 +20695,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                     onClick={() => {
                       // Copy QR data to clipboard
                       navigator.clipboard.writeText(generatedQRCode)
-                      alert('QR Code data copied to clipboard!')
+                      showToast('QR Code data copied to clipboard!', 'success')
                     }}
                   >
                     <FileText className="h-4 w-4 mr-2" /> Copy Data
@@ -21444,7 +21598,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                 onClick={async () => {
                   const symptoms = `${consultationForm.chiefComplaint} ${consultationForm.signsAndSymptoms}`.trim()
                   if (!symptoms) {
-                    alert('No symptoms to analyze')
+                    showToast('No symptoms to analyze', 'warning')
                     return
                   }
                   try {
@@ -21462,12 +21616,12 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                         ...consultationForm, 
                         provisionalDiagnosis: suggestionsText || 'No suggestions available'
                       })
-                      alert('AI suggestions added to Provisional Diagnosis field. Review and modify as needed.')
+                      showToast('AI suggestions added to Provisional Diagnosis field. Review and modify as needed.', 'success')
                     } else {
-                      alert('Unable to get AI suggestions. Please try again.')
+                      showToast('Unable to get AI suggestions. Please try again.', 'error')
                     }
                   } catch (error) {
-                    alert('Error connecting to AI service')
+                    showToast('Error connecting to AI service', 'error')
                   }
                 }}
               >
@@ -22363,7 +22517,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
             <Button 
               onClick={() => {
                 if (!labResultForm.result || !labResultForm.initials) {
-                  alert('Please enter result and initials')
+                  showToast('Please enter result and initials', 'warning')
                   return
                 }
                 const test = labTests.find(t => t.id === labResultForm.testId)
@@ -23092,13 +23246,13 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
             <Button
               onClick={() => {
                 if (!dispenseForm.patientId || !dispenseForm.drugId || !dispenseForm.initials) {
-                  alert('Please fill all required fields')
+                  showToast('Please fill all required fields', 'warning')
                   return
                 }
                 const drug = drugs.find(d => d.id === dispenseForm.drugId)
                 const patient = patients.find(p => p.id === dispenseForm.patientId)
                 if (drug && drug.quantityInStock < dispenseForm.quantity) {
-                  alert('Insufficient stock!')
+                  showToast('Insufficient stock!', 'error')
                   return
                 }
                 const newDispensed: DispensedDrug = {
@@ -23127,6 +23281,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                   body: JSON.stringify({ event: 'prescription_created', data: newDispensed })
                 })
                 setShowDispenseDialog(false)
+                setDispenseForm({ patientId: '', drugId: '', quantity: 1, notes: '', initials: '', consultationId: '' })
                 showToast(`Dispensed ${dispenseForm.quantity} ${drug?.name} to ${patient?.firstName} ${patient?.lastName}`, 'success')
               }}
               className="bg-purple-600 hover:bg-purple-700"
@@ -23196,7 +23351,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
             <Button 
               onClick={() => {
                 if (!queueForm.patientId) {
-                  alert('Please select a patient')
+                  showToast('Please select a patient', 'warning')
                   return
                 }
                 const patient = patients.find(p => p.id === queueForm.patientId)
@@ -23216,6 +23371,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                 saveQueueEntryToDB(newEntry)
                 setShowQueueDialog(false)
                 setQueueForm({ patientId: '', unit: 'opd', priority: 'normal', notes: '' })
+                showToast('Patient added to queue!', 'success')
               }}
               className="bg-blue-600 hover:bg-blue-700"
             >
@@ -23370,11 +23526,11 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
             <Button 
               onClick={async () => {
                 if (!antenatalForm.patientId) {
-                  alert('Please select a patient')
+                  showToast('Please select a patient', 'warning')
                   return
                 }
                 if (!antenatalForm.gestationalAge || antenatalForm.gestationalAge < 1) {
-                  alert('Please enter a valid gestational age')
+                  showToast('Please enter a valid gestational age', 'warning')
                   return
                 }
                 
@@ -23535,7 +23691,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
             <Button 
               onClick={async () => {
                 if (!inventoryForm.name || !inventoryForm.category || !inventoryForm.unit) {
-                  alert('Please fill in all required fields')
+                  showToast('Please fill in all required fields', 'warning')
                   return
                 }
                 
@@ -23554,18 +23710,11 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                 setInventoryItems([...inventoryItems, newItem])
                 
                 // Save to database
-                try {
-                  await fetch('/api/data', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ type: 'inventoryItem', data: newItem })
-                  })
-                } catch (error) {
-                  console.error('Failed to save inventory item:', error)
-                }
+                await saveInventoryItemToDB(newItem)
                 
                 setShowInventoryDialog(false)
                 setInventoryForm({ id: '', name: '', category: '', quantityInStock: 0, reorderLevel: 0, unit: '', supplier: '', notes: '' })
+                showToast('Inventory item added!', 'success')
               }}
               className="bg-blue-600 hover:bg-blue-700"
             >
@@ -23671,7 +23820,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
             <Button 
               onClick={async () => {
                 if (!certificateForm.patientId || !certificateForm.initials) {
-                  alert('Please fill required fields')
+                  showToast('Please fill required fields', 'warning')
                   return
                 }
                 const patient = patients.find(p => p.id === certificateForm.patientId)
@@ -23713,6 +23862,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                 }
                 
                 setShowCertificateDialog(false)
+                setCertificateForm({ patientId: '', type: 'sick_leave', days: 1, startDate: '', endDate: '', diagnosis: '', recommendations: '', initials: '' })
               }}
               className="bg-blue-600 hover:bg-blue-700"
             >
@@ -23793,7 +23943,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
             <Button 
               onClick={async () => {
                 if (!referralForm.patientId || !referralForm.referredTo || !referralForm.initials) {
-                  alert('Please fill required fields')
+                  showToast('Please fill required fields', 'warning')
                   return
                 }
                 const patient = patients.find(p => p.id === referralForm.patientId)
@@ -23907,7 +24057,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
               <Button 
                 onClick={async () => {
                   if (!paymentForm.amount || !paymentForm.email) { 
-                    alert('Please enter amount and email'); 
+                    showToast('Please enter amount and email', 'warning'); 
                     return 
                   }
                   try {
@@ -23927,13 +24077,13 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                     })
                     const result = await response.json()
                     if (result.success) {
-                      alert(`Payment link sent to ${paymentForm.email}!\n\nReference: ${result.data.reference}`)
+                      showToast(`Payment link sent to ${paymentForm.email}!\n\nReference: ${result.data.reference}`, 'success')
                       setShowPaymentDialog(false)
                     } else {
-                      alert('Failed to generate payment link')
+                      showToast('Failed to generate payment link', 'error')
                     }
                   } catch (error) {
-                    alert('Payment initialization failed')
+                    showToast('Payment initialization failed', 'error')
                   }
                 }} 
                 className="bg-green-600 hover:bg-green-700"
@@ -23943,7 +24093,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
               </Button>
             ) : (
               <Button onClick={() => {
-                if (!paymentForm.patientId || !paymentForm.amount || !paymentForm.collectedBy) { alert('Please fill required fields'); return }
+                if (!paymentForm.patientId || !paymentForm.amount || !paymentForm.collectedBy) { showToast('Please fill required fields', 'warning'); return }
                 const patient = patients.find(p => p.id === paymentForm.patientId)
                 const newPayment: Payment = {
                   id: `pay${Date.now()}`,
@@ -23957,7 +24107,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                 }
                 setPayments([newPayment, ...payments])
                 setShowPaymentDialog(false)
-                alert(`Payment recorded! Receipt: ${newPayment.receiptNumber}`)
+                showToast(`Payment recorded! Receipt: ${newPayment.receiptNumber}`, 'success')
               }} className="bg-green-600 hover:bg-green-700">Record Payment</Button>
             )}
           </DialogFooter>
@@ -24010,7 +24160,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowExpenseDialog(false)}>Cancel</Button>
             <Button onClick={() => {
-              if (!expenseForm.category || !expenseForm.amount || !expenseForm.authorizedBy) { alert('Please fill required fields'); return }
+              if (!expenseForm.category || !expenseForm.amount || !expenseForm.authorizedBy) { showToast('Please fill required fields', 'warning'); return }
               const newExpense: Expense = { id: `exp${Date.now()}`, ...expenseForm, createdAt: new Date().toISOString() }
               setExpenses([newExpense, ...expenses])
               setShowExpenseDialog(false)
@@ -24056,14 +24206,16 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowAmbulanceDialog(false)}>Cancel</Button>
             <Button onClick={() => {
-              if (!ambulanceForm.patientName || !ambulanceForm.pickupLocation || !ambulanceForm.destination) { alert('Please fill required fields'); return }
+              if (!ambulanceForm.patientName || !ambulanceForm.pickupLocation || !ambulanceForm.destination) { showToast('Please fill required fields', 'warning'); return }
               const newCall: AmbulanceCall = {
                 id: `amb${Date.now()}`, ...ambulanceForm,
                 status: 'dispatched',
                 dispatchedAt: new Date().toISOString()
               }
               setAmbulanceCalls([newCall, ...ambulanceCalls])
+              saveAmbulanceCallToDB(newCall)
               setShowAmbulanceDialog(false)
+              showToast('Ambulance dispatched!', 'success')
             }} className="bg-orange-600 hover:bg-orange-700">Dispatch</Button>
           </DialogFooter>
         </DialogContent>
@@ -24287,7 +24439,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowInsuranceDialog(false)}>Cancel</Button>
             <Button onClick={() => {
-              if (!insuranceForm.patientId || !insuranceForm.insuranceProvider || !insuranceForm.claimAmount) { alert('Please fill required fields'); return }
+              if (!insuranceForm.patientId || !insuranceForm.insuranceProvider || !insuranceForm.claimAmount) { showToast('Please fill required fields', 'warning'); return }
               const patient = patients.find(p => p.id === insuranceForm.patientId)
               const newClaim: InsuranceClaim = {
                 id: `clm${Date.now()}`,
@@ -24589,11 +24741,11 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
             <Button 
               onClick={async () => {
                 if (resetPasswordForm.newPassword.length < 8) {
-                  alert('Password must be at least 8 characters')
+                  showToast('Password must be at least 8 characters', 'warning')
                   return
                 }
                 if (resetPasswordForm.newPassword !== resetPasswordForm.confirmPassword) {
-                  alert('Passwords do not match')
+                  showToast('Passwords do not match', 'warning')
                   return
                 }
                 
@@ -24615,10 +24767,10 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                     setStaffSuccess(`Password reset for ${selectedUserForAction?.name}`)
                     setSelectedUserForAction(null)
                   } else {
-                    alert(data.error || 'Failed to reset password')
+                    showToast(data.error || 'Failed to reset password', 'error')
                   }
                 } catch (error) {
-                  alert('Failed to reset password')
+                  showToast('Failed to reset password', 'error')
                 }
               }}
               className="bg-blue-600 hover:bg-blue-700"
@@ -24809,11 +24961,13 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowEquipmentDialog(false)}>Cancel</Button>
             <Button onClick={() => {
-              if (!equipmentForm.name) { alert('Please enter equipment name'); return }
+              if (!equipmentForm.name) { showToast('Please enter equipment name', 'warning'); return }
               const newEquip: Equipment = { id: `eq${Date.now()}`, ...equipmentForm }
               setEquipment([...equipment, newEquip])
+              saveEquipmentToDB(newEquip)
               setShowEquipmentDialog(false)
               setEquipmentForm({ id: '', name: '', category: '', location: '', status: 'working', notes: '' })
+              showToast('Equipment added!', 'success')
             }} className="bg-blue-600 hover:bg-blue-700">Add Equipment</Button>
           </DialogFooter>
         </DialogContent>
