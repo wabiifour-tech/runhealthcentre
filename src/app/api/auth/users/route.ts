@@ -1,6 +1,7 @@
 // User Management API - For Admin/SuperAdmin
 import { NextRequest, NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
+import { Pool } from 'pg'
 import { getPrisma } from '@/lib/db'
 import { createLogger } from '@/lib/logger'
 import { errorResponse, successResponse, Errors, ApiError, ErrorType } from '@/lib/errors'
@@ -10,6 +11,16 @@ const logger = createLogger('UserManagement')
 
 // SuperAdmin emails that cannot be deleted or deactivated
 const PROTECTED_EMAILS = ['wabithetechnurse@ruhc']
+
+// Direct database connection as fallback
+function getPool(): Pool {
+  return new Pool({
+    connectionString: process.env.DATABASE_URL,
+    max: 1,
+    ssl: { rejectUnauthorized: false },
+    connectionTimeoutMillis: 10000,
+  })
+}
 
 // GET - List all users with pending count (Admin only)
 export async function GET(request: NextRequest) {
@@ -184,6 +195,69 @@ export async function PUT(request: NextRequest) {
       throw Errors.validation('User ID and action are required')
     }
 
+    // For approve/reject, use direct database for reliability
+    if (action === 'approve' || action === 'reject') {
+      const newStatus = action === 'approve' ? 'APPROVED' : 'REJECTED'
+      const pool = getPool()
+      
+      try {
+        // Get user first
+        const userResult = await pool.query('SELECT * FROM users WHERE id = $1', [userId])
+        
+        if (userResult.rows.length === 0) {
+          await pool.end()
+          throw Errors.notFound('User not found')
+        }
+        
+        const user = userResult.rows[0]
+        
+        // Check for protected accounts
+        if (PROTECTED_EMAILS.includes(user.email.toLowerCase())) {
+          await pool.end()
+          throw Errors.forbidden('Cannot modify the primary SuperAdmin account')
+        }
+        
+        // Update user status
+        await pool.query(`
+          UPDATE users 
+          SET "approvalStatus" = $1, "isActive" = $2, "approvedBy" = $3, "approvedAt" = $4, "updatedAt" = $5
+          WHERE id = $6
+        `, [newStatus, action === 'approve', auth.user?.id, new Date(), new Date(), userId])
+        
+        // Create audit log
+        try {
+          await pool.query(`
+            INSERT INTO audit_logs (id, "userId", "userName", action, description, metadata, timestamp)
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
+          `, [
+            `audit-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            auth.user?.id,
+            auth.user?.name || auth.user?.email,
+            action === 'approve' ? 'USER_APPROVED' : 'USER_REJECTED',
+            `${auth.user?.name} ${action}ed user ${user.name} (${user.email}) as ${user.role}`,
+            JSON.stringify({ targetUserId: userId, targetUserEmail: user.email, targetUserRole: user.role }),
+            new Date()
+          ])
+        } catch {
+          // Ignore audit errors
+        }
+        
+        await pool.end()
+        
+        logger.info(`User ${action}ed via direct pg`, { admin: auth.user?.email, targetUser: user.email })
+        
+        return successResponse({ 
+          message: `Account ${action}ed successfully`,
+          userId,
+          newStatus
+        })
+      } catch (dbError: any) {
+        await pool.end()
+        throw dbError
+      }
+    }
+
+    // For other actions, try Prisma
     const prisma = await getPrisma()
 
     if (!prisma) {
@@ -203,7 +277,7 @@ export async function PUT(request: NextRequest) {
 
     // Check for protected accounts
     if (PROTECTED_EMAILS.includes(user.email.toLowerCase())) {
-      if (action === 'deactivate' || action === 'delete' || action === 'reject') {
+      if (action === 'deactivate' || action === 'delete') {
         throw Errors.forbidden('Cannot modify the primary SuperAdmin account')
       }
     }
@@ -211,36 +285,6 @@ export async function PUT(request: NextRequest) {
     let result
 
     switch (action) {
-      case 'approve':
-        result = await p.users.update({
-          where: { id: userId },
-          data: { 
-            approvalStatus: 'APPROVED',
-            isActive: true,
-            updatedAt: new Date()
-          }
-        })
-        logger.info('User approved', { admin: auth.user?.email, targetUser: user.email })
-        return successResponse({ 
-          message: 'Account approved successfully',
-          user: result
-        })
-
-      case 'reject':
-        result = await p.users.update({
-          where: { id: userId },
-          data: { 
-            approvalStatus: 'REJECTED',
-            isActive: false,
-            updatedAt: new Date()
-          }
-        })
-        logger.info('User rejected', { admin: auth.user?.email, targetUser: user.email })
-        return successResponse({ 
-          message: 'Account rejected',
-          user: result
-        })
-
       case 'activate':
         result = await p.users.update({
           where: { id: userId },
