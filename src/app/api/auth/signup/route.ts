@@ -117,8 +117,8 @@ export async function POST(request: NextRequest) {
         INSERT INTO users (
           id, email, name, "firstName", "lastName", password, role, 
           department, initials, phone, "isActive", "isFirstLogin", 
-          "approvalStatus", "createdAt"
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+          "approvalStatus", "createdAt", "updatedAt"
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
       `, [
         userId,
         email.toLowerCase(),
@@ -133,7 +133,8 @@ export async function POST(request: NextRequest) {
         true,
         false,
         'PENDING',
-        new Date()
+        new Date(),
+        new Date()  // updatedAt
       ])
 
       logger.info('User registered, pending approval', { userId, email, role })
