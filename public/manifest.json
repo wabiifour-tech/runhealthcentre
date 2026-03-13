@@ -1,0 +1,22 @@
+{
+  "name": "Redeemer's University Health Centre (RUHC)",
+  "short_name": "RUHC",
+  "description": "Redeemer's University Health Centre - Health Management System",
+  "start_url": "/hms",
+  "display": "standalone",
+  "background_color": "#1e40af",
+  "theme_color": "#1e40af",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/runlogo.jpg",
+      "sizes": "512x512",
+      "type": "image/jpeg",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["medical", "health", "healthcare"],
+  "lang": "en-NG",
+  "scope": "/",
+  "prefer_related_applications": false
+}
