@@ -1,6 +1,8 @@
 // Prisma Client for PostgreSQL (Neon) - Prisma 7.x Compatible
 // Works on Vercel serverless with Neon serverless driver
 
+import { Pool } from 'pg'
+
 // Global type for Prisma singleton
 const globalForPrisma = globalThis as unknown as {
   prisma: any | undefined
@@ -82,6 +84,24 @@ export const getPrisma = async (): Promise<any | null> => {
   return client
 }
 
+// Create a direct pg Pool for raw queries (fallback)
+let pool: Pool | null = null
+
+export const getPool = (): Pool => {
+  if (!pool) {
+    const dbUrl = process.env.DATABASE_URL
+    if (dbUrl) {
+      pool = new Pool({
+        connectionString: dbUrl,
+        max: 1,
+        ssl: { rejectUnauthorized: false },
+        connectionTimeoutMillis: 10000,
+      })
+    }
+  }
+  return pool!
+}
+
 // Test database connection with detailed feedback
 export async function testConnection(): Promise<{ 
   success: boolean
@@ -118,34 +138,71 @@ export async function testConnection(): Promise<{
   const host = hostMatch ? hostMatch[1] : 'unknown'
   const database = dbMatch ? dbMatch[1] : 'unknown'
 
-  const prisma = await getPrisma()
-  
-  if (!prisma) {
-    return { 
-      success: false, 
-      message: 'Failed to create Prisma client',
-      details: { host, database }
-    }
-  }
-  
+  // Try direct pg connection first (more reliable)
   try {
-    // Execute test query
-    await prisma.$queryRaw`SELECT 1 as test`
+    const pool = getPool()
+    const client = await pool.connect()
+    await client.query('SELECT 1 as test')
+    client.release()
     
-    console.log('[DB] ✅ Connection test successful')
+    console.log('[DB] ✅ Direct connection test successful')
     return { 
       success: true, 
       message: 'Database connected successfully',
       details: { host, database }
     }
   } catch (error: any) {
-    console.error('[DB] ❌ Connection test failed:', error.message)
+    console.error('[DB] ❌ Direct connection test failed:', error.message)
     return { 
       success: false, 
       message: `Connection failed: ${error.message}`,
       details: { host, database, error: error.message }
     }
   }
+}
+
+// Execute a query using direct pg connection (fallback for when Prisma fails)
+export async function query(sql: string, params: any[] = []): Promise<any[]> {
+  const pool = getPool()
+  const result = await pool.query(sql, params)
+  return result.rows
+}
+
+// Execute a single insert and return the inserted row
+export async function insertOne(table: string, data: Record<string, any>): Promise<any> {
+  const pool = getPool()
+  const keys = Object.keys(data)
+  const values = Object.values(data)
+  const placeholders = keys.map((_, i) => `$${i + 1}`).join(', ')
+  const columns = keys.join(', ')
+  
+  const sql = `INSERT INTO ${table} (${columns}) VALUES (${placeholders}) RETURNING *`
+  const result = await pool.query(sql, values)
+  return result.rows[0]
+}
+
+// Find one row by condition
+export async function findOne(table: string, condition: Record<string, any>): Promise<any | null> {
+  const pool = getPool()
+  const keys = Object.keys(condition)
+  const values = Object.values(condition)
+  const whereClause = keys.map((k, i) => `${k} = $${i + 1}`).join(' AND ')
+  
+  const sql = `SELECT * FROM ${table} WHERE ${whereClause} LIMIT 1`
+  const result = await pool.query(sql, values)
+  return result.rows[0] || null
+}
+
+// Update one row by ID
+export async function updateOne(table: string, id: string, data: Record<string, any>): Promise<any | null> {
+  const pool = getPool()
+  const keys = Object.keys(data)
+  const values = Object.values(data)
+  const setClause = keys.map((k, i) => `${k} = $${i + 1}`).join(', ')
+  
+  const sql = `UPDATE ${table} SET ${setClause} WHERE id = $${keys.length + 1} RETURNING *`
+  const result = await pool.query(sql, [...values, id])
+  return result.rows[0] || null
 }
 
 // Graceful shutdown
@@ -155,6 +212,11 @@ export async function disconnectPrisma(): Promise<void> {
       await globalForPrisma.prisma.$disconnect()
       globalForPrisma.prisma = undefined
       console.log('[DB] 🔌 Prisma client disconnected')
+    }
+    if (pool) {
+      await pool.end()
+      pool = null
+      console.log('[DB] 🔌 Pool disconnected')
     }
   } catch (error) {
     console.error('[DB] ⚠️ Error during disconnect:', error)

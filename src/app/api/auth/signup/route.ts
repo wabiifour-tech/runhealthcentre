@@ -1,7 +1,7 @@
 // New User Registration API - Multi-step with Auto-generated Email (@ruhc)
 import { NextRequest, NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
-import { getPrisma, testConnection } from '@/lib/db'
+import { getPrisma, query, insertOne, findOne } from '@/lib/db'
 import { createLogger } from '@/lib/logger'
 import { errorResponse, successResponse, Errors } from '@/lib/errors'
 
@@ -43,19 +43,18 @@ export async function POST(request: NextRequest) {
       // Generate the auto email
       const autoEmail = generateAutoEmail(firstName.trim(), lastName.trim())
 
-      // Check if email already exists
-      const prisma = await getPrisma()
-      if (prisma) {
-        const p = prisma as any
-        const existingUser = await p.users.findUnique({
-          where: { email: autoEmail }
-        }).catch(() => null)
-
-        if (existingUser) {
-          // Email already exists, suggest a variation
-          const timestamp = Date.now().toString().slice(-4)
-          const alternativeEmail = generateAutoEmail(firstName.trim(), lastName.trim()) + timestamp
+      // Check if email already exists using direct query
+      try {
+        const existingUsers = await query('SELECT id FROM users WHERE email = $1', [autoEmail])
+        if (existingUsers.length > 0) {
           throw Errors.validation(`An account with email ${autoEmail} already exists. Please contact administrator.`)
+        }
+      } catch (dbError: any) {
+        // If error is not about duplicate, log and continue
+        if (!dbError.message?.includes('already exists')) {
+          logger.warn('Could not check existing email', { error: dbError.message })
+        } else {
+          throw dbError
         }
       }
 
@@ -99,69 +98,64 @@ export async function POST(request: NextRequest) {
         throw Errors.validation('Invalid role selected')
       }
 
-      // Test database connection
-      const dbTest = await testConnection()
-      if (!dbTest.success) {
-        throw Errors.database('Database connection failed. Please try again later.')
-      }
-
-      const prisma = await getPrisma()
-      if (!prisma) {
-        throw Errors.database('Database client unavailable')
-      }
-
-      const p = prisma as any
+      // Generate user data
+      const hashedPassword = await bcrypt.hash(password, 12)
+      const userInitials = generateInitials(firstName, lastName)
+      const fullName = `${firstName.trim()} ${lastName.trim()}`
+      const userId = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
 
       // Check if email already exists
-      const existingUser = await p.users.findUnique({
-        where: { email: email.toLowerCase() }
-      }).catch(() => null)
-
-      if (existingUser) {
-        throw Errors.validation('An account with this email already exists')
+      try {
+        const existingUsers = await query('SELECT id FROM users WHERE email = $1', [email.toLowerCase()])
+        if (existingUsers.length > 0) {
+          throw Errors.validation('An account with this email already exists')
+        }
+      } catch (dbError: any) {
+        if (dbError.message?.includes('already exists')) {
+          throw dbError
+        }
+        logger.warn('Could not check existing email', { error: dbError.message })
       }
 
-      // Hash password
-      const hashedPassword = await bcrypt.hash(password, 12)
-
-      // Generate initials
-      const userInitials = generateInitials(firstName, lastName)
-
-      // Generate full name
-      const fullName = `${firstName.trim()} ${lastName.trim()}`
-
-      // Create user with PENDING approval status
-      const newUser = await p.users.create({
-        data: {
-          id: `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-          email: email.toLowerCase(),
-          name: fullName,
-          firstName: firstName.trim(),
-          lastName: lastName.trim(),
-          password: hashedPassword,
-          role,
-          department: department || null,
-          initials: userInitials,
-          phone: phone || null,
-          isActive: true,
-          isFirstLogin: false,
-          approvalStatus: 'PENDING',
-          createdAt: new Date()
-        }
-      }).catch((err: Error) => {
-        logger.error('Error creating user', { error: err.message })
-        throw Errors.database('Failed to create user account')
-      })
-
-      logger.info('User registered, pending approval', {
-        userId: newUser.id,
-        email: newUser.email,
-        role: newUser.role
-      })
-
-      // Create notification for admins/superadmins
+      // Create user using direct pg query
       try {
-        await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || ''}/api/notifications`, {
+        await query(`
+          INSERT INTO users (
+            id, email, name, "firstName", "lastName", password, role, 
+            department, initials, phone, "isActive", "isFirstLogin", 
+            "approvalStatus", "createdAt"
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+        `, [
+          userId,
+          email.toLowerCase(),
+          fullName,
+          firstName.trim(),
+          lastName.trim(),
+          hashedPassword,
+          role,
+          department || null,
+          userInitials,
+          phone || null,
+          true,
+          false,
+          'PENDING',
+          new Date()
+        ])
+
+        logger.info('User registered successfully', { userId, email, role })
+
+      } catch (insertError: any) {
+        logger.error('Failed to create user', { error: insertError.message })
+        throw Errors.database('Failed to create user account: ' + insertError.message)
+      }
+
+      // Create notification for admins/superadmins (non-blocking)
+      try {
+        const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || process.env.VERCEL_URL 
+          ? `https://${process.env.VERCEL_URL}` 
+          : 'https://runhealthcentre.vercel.app'
+        
+        await fetch(`${baseUrl}/api/notifications`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -170,8 +164,8 @@ export async function POST(request: NextRequest) {
             message: `${fullName} has registered as ${role} and is awaiting approval.`,
             targetRoles: ['SUPER_ADMIN', 'ADMIN'],
             data: {
-              userId: newUser.id,
-              userEmail: newUser.email,
+              userId,
+              userEmail: email,
               userName: fullName,
               userRole: role
             },
@@ -185,11 +179,11 @@ export async function POST(request: NextRequest) {
       return successResponse({
         message: 'Registration submitted successfully! An administrator will review your application. You will be able to login once approved.',
         user: {
-          id: newUser.id,
-          email: newUser.email,
-          name: newUser.name,
-          role: newUser.role,
-          approvalStatus: newUser.approvalStatus
+          id: userId,
+          email: email.toLowerCase(),
+          name: fullName,
+          role,
+          approvalStatus: 'PENDING'
         },
         requiresApproval: true
       })
