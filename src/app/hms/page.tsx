@@ -46,7 +46,7 @@ import {
   MessageSquare, AlertCircle, Zap, UserCheck, Fingerprint, Camera, FolderOpen, Undo2, CheckCheck, Check,
   TrendingUp, TrendingDown, BarChart3, PieChart as PieChartIcon, FileSpreadsheet, FileDown, Moon, Inbox,
   ArrowUpRight, ArrowDownRight, Minus, Command, Keyboard, X, Info, HelpCircle, ChevronDown, ChevronUp, QrCode, Database, Save, RotateCcw, History,
-  Megaphone
+  Megaphone, Video, VideoOff, ScreenShare, ScreenShareOff, PhoneOff, PhoneCall
 } from 'lucide-react'
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
@@ -1253,6 +1253,82 @@ interface Ward {
   occupiedBeds: number
   floor: string
   nurseInCharge?: string
+}
+
+// ============== VIDEO CONSULTATION ==============
+interface VideoConsultation {
+  id: string
+  patientId: string
+  patient?: Patient
+  doctorId: string
+  doctorName: string
+  doctorInitials?: string
+  // Consultation details
+  consultationId?: string // Link to existing consultation
+  chiefComplaint?: string
+  // Scheduling
+  scheduledDateTime?: string
+  // Session details
+  status: 'scheduled' | 'waiting' | 'in_progress' | 'completed' | 'cancelled' | 'no_show'
+  startedAt?: string
+  endedAt?: string
+  duration?: number // in minutes
+  // WebRTC signaling
+  roomCode: string // Unique room identifier for WebRTC
+  // Participants
+  participantIds: string[] // IDs of all participants
+  // Recording (optional)
+  isRecorded?: boolean
+  recordingUrl?: string
+  // Notes
+  notes?: string
+  followUpRequired?: boolean
+  followUpDate?: string
+  // Audit
+  createdBy: string
+  createdAt: string
+  updatedAt?: string
+  cancelledAt?: string
+  cancelledBy?: string
+  cancellationReason?: string
+}
+
+// Video Consultation Participant
+interface VideoConsultationParticipant {
+  id: string
+  consultationId: string
+  userId: string
+  userName: string
+  userRole: 'DOCTOR' | 'PATIENT' | 'NURSE' | 'OTHER'
+  joinedAt?: string
+  leftAt?: string
+  // Media state
+  isVideoEnabled: boolean
+  isAudioEnabled: boolean
+  // Connection
+  connectionState: 'connecting' | 'connected' | 'disconnected' | 'failed'
+}
+
+// WebRTC Signaling Message
+interface SignalingMessage {
+  type: 'offer' | 'answer' | 'ice-candidate' | 'user-joined' | 'user-left' | 'media-state-change'
+  senderId: string
+  senderName: string
+  recipientId?: string
+  roomCode: string
+  payload: any
+  timestamp: string
+}
+
+// Chat Message during Video Consultation
+interface VideoConsultationChat {
+  id: string
+  consultationId: string
+  senderId: string
+  senderName: string
+  message: string
+  timestamp: string
+  isSystem?: boolean
 }
 
 // ============== OPERATING THEATRE ==============
@@ -3535,6 +3611,7 @@ export default function HMSApp() {
   const [patientTasks, setPatientTasks] = useState<PatientTask[]>([])
   const [activeAlarm, setActiveAlarm] = useState<PatientTask | null>(null)
   const [alarmSound, setAlarmSound] = useState<HTMLAudioElement | null>(null)
+  const [alarmSoundStopped, setAlarmSoundStopped] = useState(false) // Track if alarm sound is stopped
   const [showTaskDialog, setShowTaskDialog] = useState(false)
   const [taskForm, setTaskForm] = useState<{
     patientId: string
@@ -3553,6 +3630,39 @@ export default function HMSApp() {
   const [devotionals, setDevotionals] = useState<OpenHeavensDevotional[]>([])
   const [currentDevotional, setCurrentDevotional] = useState<OpenHeavensDevotional | null>(null)
   const [devotionalLoading, setDevotionalLoading] = useState(true)
+  
+  // ============== VIDEO CONSULTATION STATE ==============
+  const [videoConsultations, setVideoConsultations] = useState<VideoConsultation[]>([])
+  const [activeVideoConsultation, setActiveVideoConsultation] = useState<VideoConsultation | null>(null)
+  const [showVideoConsultationDialog, setShowVideoConsultationDialog] = useState(false)
+  const [showScheduleVideoDialog, setShowScheduleVideoDialog] = useState(false)
+  const [videoConsultationForm, setVideoConsultationForm] = useState<{
+    patientId: string
+    doctorId: string
+    scheduledDate: string
+    scheduledTime: string
+    chiefComplaint: string
+    notes: string
+  }>({ patientId: '', doctorId: '', scheduledDate: '', scheduledTime: '', chiefComplaint: '', notes: '' })
+  
+  // WebRTC state
+  const [localStream, setLocalStream] = useState<MediaStream | null>(null)
+  const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null)
+  const [isVideoEnabled, setIsVideoEnabled] = useState(true)
+  const [isAudioEnabled, setIsAudioEnabled] = useState(true)
+  const [isScreenSharing, setIsScreenSharing] = useState(false)
+  const [isConnecting, setIsConnecting] = useState(false)
+  const [connectionStatus, setConnectionStatus] = useState<'disconnected' | 'connecting' | 'connected' | 'failed'>('disconnected')
+  const [videoCallDuration, setVideoCallDuration] = useState(0)
+  const [videoChatMessages, setVideoChatMessages] = useState<VideoConsultationChat[]>([])
+  const [videoChatInput, setVideoChatInput] = useState('')
+  const [showVideoChat, setShowVideoChat] = useState(false)
+  
+  // WebRTC refs
+  const peerConnectionRef = useRef<RTCPeerConnection | null>(null)
+  const localVideoRef = useRef<HTMLVideoElement | null>(null)
+  const remoteVideoRef = useRef<HTMLVideoElement | null>(null)
+  const videoCallTimerRef = useRef<NodeJS.Timeout | null>(null)
   
   // Fetch today's Open Heavens devotional
   useEffect(() => {
@@ -4682,6 +4792,34 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
     return () => clearInterval(interval)
   }, [patientTasks, activeAlarm])
 
+  // Stop alarm sound ONLY - keeps the alarm overlay visible
+  const stopAlarmSound = async () => {
+    // Stop the alarm sound interval
+    if ((window as any).alarmInterval) {
+      clearInterval((window as any).alarmInterval)
+      ;(window as any).alarmInterval = null
+    }
+    
+    // Mark sound as stopped
+    setAlarmSoundStopped(true)
+    
+    // Log the action
+    if (user && activeAlarm) {
+      logAudit({
+        action: 'ALARM_SOUND_STOPPED',
+        entityType: 'patient_task',
+        entityId: activeAlarm.id,
+        entityName: activeAlarm.taskName,
+        details: `Alarm sound stopped for task: ${activeAlarm.taskName}`,
+        userId: user.id,
+        userName: user.name,
+        userRole: user.role
+      })
+    }
+    
+    showToast('Alarm sound stopped. Please take action on the task.', 'info')
+  }
+
   // Dismiss alarm
   const dismissAlarm = (action: 'complete' | 'snooze' | 'dismiss') => {
     if (!activeAlarm) return
@@ -4692,12 +4830,17 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
       ;(window as any).alarmInterval = null
     }
     
+    // Reset sound stopped state
+    setAlarmSoundStopped(false)
+    
     if (action === 'complete') {
       setPatientTasks(prev => prev.map(t => 
         t.id === activeAlarm.id 
           ? { ...t, status: 'completed' as const, completedAt: new Date().toISOString(), completedBy: user?.name || '' }
           : t
       ))
+      // Update in database
+      saveTaskToDB({ ...activeAlarm, status: 'completed', completedAt: new Date().toISOString(), completedBy: user?.name || '' })
     } else if (action === 'snooze') {
       // Snooze for 10 minutes
       const snoozeTime = new Date(activeAlarm.scheduledTime)
@@ -4707,6 +4850,8 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
           ? { ...t, scheduledTime: snoozeTime.toISOString() }
           : t
       ))
+      // Update in database
+      saveTaskToDB({ ...activeAlarm, scheduledTime: snoozeTime.toISOString() })
     }
     
     setActiveAlarm(null)
@@ -4758,6 +4903,510 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
       const taskTime = new Date(t.scheduledTime)
       return taskTime >= now && taskTime <= twoHoursLater
     }).sort((a, b) => new Date(a.scheduledTime).getTime() - new Date(b.scheduledTime).getTime())
+  }
+
+  // ============== VIDEO CONSULTATION FUNCTIONS ==============
+  // WebRTC Configuration (using public STUN servers)
+  const rtcConfig: RTCConfiguration = {
+    iceServers: [
+      { urls: 'stun:stun.l.google.com:19302' },
+      { urls: 'stun:stun1.l.google.com:19302' },
+      { urls: 'stun:stun2.l.google.com:19302' },
+    ]
+  }
+
+  // Generate unique room code
+  const generateRoomCode = () => {
+    return `RUHC-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`
+  }
+
+  // Format video call duration
+  const formatVideoCallDuration = (seconds: number) => {
+    const mins = Math.floor(seconds / 60)
+    const secs = seconds % 60
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
+  }
+
+  // Schedule a new video consultation
+  const scheduleVideoConsultation = async () => {
+    if (!user) {
+      showToast('You must be logged in to schedule a consultation', 'warning')
+      return
+    }
+    if (!videoConsultationForm.patientId || !videoConsultationForm.doctorId) {
+      showToast('Please select a patient and doctor', 'warning')
+      return
+    }
+
+    const patient = patients.find(p => p.id === videoConsultationForm.patientId)
+    const doctor = systemUsers.find(u => u.id === videoConsultationForm.doctorId)
+    
+    if (!patient || !doctor) {
+      showToast('Invalid patient or doctor selection', 'warning')
+      return
+    }
+
+    const scheduledDateTime = videoConsultationForm.scheduledDate && videoConsultationForm.scheduledTime
+      ? new Date(`${videoConsultationForm.scheduledDate}T${videoConsultationForm.scheduledTime}`).toISOString()
+      : new Date().toISOString()
+
+    const newConsultation: VideoConsultation = {
+      id: `vc_${Date.now()}`,
+      patientId: videoConsultationForm.patientId,
+      patient,
+      doctorId: videoConsultationForm.doctorId,
+      doctorName: doctor.name,
+      doctorInitials: doctor.initials || getInitials(doctor.name.split(' ')[0], doctor.name.split(' ')[1] || ''),
+      chiefComplaint: videoConsultationForm.chiefComplaint,
+      scheduledDateTime,
+      status: 'scheduled',
+      roomCode: generateRoomCode(),
+      participantIds: [user.id, videoConsultationForm.doctorId],
+      notes: videoConsultationForm.notes,
+      createdBy: user.id,
+      createdAt: new Date().toISOString()
+    }
+
+    // Save to state
+    setVideoConsultations(prev => [newConsultation, ...prev])
+
+    // Save to database
+    try {
+      await fetch('/api/data', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'videoConsultation', data: newConsultation })
+      })
+    } catch (error) {
+      console.error('Failed to save video consultation:', error)
+    }
+
+    // Create notification for doctor
+    createNotification({
+      userId: videoConsultationForm.doctorId,
+      type: 'video_consultation',
+      title: 'New Video Consultation Scheduled',
+      message: `Video consultation with ${patient.firstName} ${patient.lastName} scheduled for ${formatDateTime(scheduledDateTime)}`,
+      data: { consultationId: newConsultation.id, roomCode: newConsultation.roomCode }
+    })
+
+    showToast('Video consultation scheduled successfully!', 'success')
+    setShowScheduleVideoDialog(false)
+    setVideoConsultationForm({ patientId: '', doctorId: '', scheduledDate: '', scheduledTime: '', chiefComplaint: '', notes: '' })
+  }
+
+  // Start video consultation (doctor initiates)
+  const startVideoConsultation = async (consultation: VideoConsultation) => {
+    if (!user) return
+
+    setIsConnecting(true)
+    setConnectionStatus('connecting')
+
+    try {
+      // Get user media
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { width: 1280, height: 720, facingMode: 'user' },
+        audio: { echoCancellation: true, noiseSuppression: true }
+      })
+
+      setLocalStream(stream)
+      if (localVideoRef.current) {
+        localVideoRef.current.srcObject = stream
+      }
+
+      // Update consultation status
+      const updatedConsultation = {
+        ...consultation,
+        status: 'in_progress' as const,
+        startedAt: new Date().toISOString()
+      }
+      setActiveVideoConsultation(updatedConsultation)
+      setVideoConsultations(prev => prev.map(c => c.id === consultation.id ? updatedConsultation : c))
+
+      // Update in database
+      await fetch('/api/data', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'videoConsultation', data: updatedConsultation })
+      })
+
+      // Create peer connection
+      const pc = new RTCPeerConnection(rtcConfig)
+      peerConnectionRef.current = pc
+
+      // Add local tracks
+      stream.getTracks().forEach(track => pc.addTrack(track, stream))
+
+      // Handle incoming tracks
+      pc.ontrack = (event) => {
+        setRemoteStream(event.streams[0])
+        if (remoteVideoRef.current) {
+          remoteVideoRef.current.srcObject = event.streams[0]
+        }
+        setConnectionStatus('connected')
+        setIsConnecting(false)
+      }
+
+      // Handle connection state changes
+      pc.onconnectionstatechange = () => {
+        if (pc.connectionState === 'connected') {
+          setConnectionStatus('connected')
+          setIsConnecting(false)
+        } else if (pc.connectionState === 'disconnected' || pc.connectionState === 'failed') {
+          setConnectionStatus('disconnected')
+        }
+      }
+
+      // Handle ICE candidates
+      pc.onicecandidate = (event) => {
+        if (event.candidate) {
+          // Send ICE candidate via signaling server (simulated with broadcast)
+          broadcastSignalingMessage({
+            type: 'ice-candidate',
+            senderId: user.id,
+            senderName: user.name,
+            roomCode: consultation.roomCode,
+            payload: event.candidate,
+            timestamp: new Date().toISOString()
+          })
+        }
+      }
+
+      // Create offer if doctor
+      if (user.role === 'DOCTOR') {
+        const offer = await pc.createOffer()
+        await pc.setLocalDescription(offer)
+        
+        // Broadcast offer
+        broadcastSignalingMessage({
+          type: 'offer',
+          senderId: user.id,
+          senderName: user.name,
+          roomCode: consultation.roomCode,
+          payload: offer,
+          timestamp: new Date().toISOString()
+        })
+      }
+
+      // Start call timer
+      videoCallTimerRef.current = setInterval(() => {
+        setVideoCallDuration(prev => prev + 1)
+      }, 1000)
+
+      setShowVideoConsultationDialog(true)
+      setConnectionStatus('connected')
+
+      // Log audit
+      logAudit({
+        action: 'VIDEO_CONSULTATION_STARTED',
+        entityType: 'video_consultation',
+        entityId: consultation.id,
+        entityName: `Video Consultation - ${consultation.roomCode}`,
+        details: `Video consultation started by ${user.name}`,
+        userId: user.id,
+        userName: user.name,
+        userRole: user.role
+      })
+
+    } catch (error: any) {
+      console.error('Failed to start video consultation:', error)
+      setConnectionStatus('failed')
+      setIsConnecting(false)
+      showToast(`Failed to start video: ${error.message}`, 'error')
+    }
+  }
+
+  // Join existing video consultation
+  const joinVideoConsultation = async (consultation: VideoConsultation) => {
+    if (!user) return
+
+    setIsConnecting(true)
+    setConnectionStatus('connecting')
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { width: 1280, height: 720, facingMode: 'user' },
+        audio: { echoCancellation: true, noiseSuppression: true }
+      })
+
+      setLocalStream(stream)
+      if (localVideoRef.current) {
+        localVideoRef.current.srcObject = stream
+      }
+
+      const updatedConsultation = {
+        ...consultation,
+        status: 'in_progress' as const,
+        participantIds: [...new Set([...consultation.participantIds, user.id])]
+      }
+      setActiveVideoConsultation(updatedConsultation)
+
+      const pc = new RTCPeerConnection(rtcConfig)
+      peerConnectionRef.current = pc
+
+      stream.getTracks().forEach(track => pc.addTrack(track, stream))
+
+      pc.ontrack = (event) => {
+        setRemoteStream(event.streams[0])
+        if (remoteVideoRef.current) {
+          remoteVideoRef.current.srcObject = event.streams[0]
+        }
+        setConnectionStatus('connected')
+        setIsConnecting(false)
+      }
+
+      pc.onconnectionstatechange = () => {
+        if (pc.connectionState === 'connected') {
+          setConnectionStatus('connected')
+          setIsConnecting(false)
+        }
+      }
+
+      pc.onicecandidate = (event) => {
+        if (event.candidate) {
+          broadcastSignalingMessage({
+            type: 'ice-candidate',
+            senderId: user.id,
+            senderName: user.name,
+            roomCode: consultation.roomCode,
+            payload: event.candidate,
+            timestamp: new Date().toISOString()
+          })
+        }
+      }
+
+      videoCallTimerRef.current = setInterval(() => {
+        setVideoCallDuration(prev => prev + 1)
+      }, 1000)
+
+      setShowVideoConsultationDialog(true)
+      
+      // Add system message
+      setVideoChatMessages(prev => [...prev, {
+        id: `msg_${Date.now()}`,
+        consultationId: consultation.id,
+        senderId: 'system',
+        senderName: 'System',
+        message: `${user.name} joined the consultation`,
+        timestamp: new Date().toISOString(),
+        isSystem: true
+      }])
+
+    } catch (error: any) {
+      console.error('Failed to join video consultation:', error)
+      setConnectionStatus('failed')
+      setIsConnecting(false)
+      showToast(`Failed to join: ${error.message}`, 'error')
+    }
+  }
+
+  // Broadcast signaling message (simulated - in production use WebSocket)
+  const broadcastSignalingMessage = async (message: SignalingMessage) => {
+    try {
+      await fetch('/api/realtime', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          event: 'video_signaling',
+          data: message
+        })
+      })
+    } catch (error) {
+      console.error('Failed to broadcast signaling message:', error)
+    }
+  }
+
+  // Toggle video
+  const toggleVideo = () => {
+    if (localStream) {
+      const videoTrack = localStream.getVideoTracks()[0]
+      if (videoTrack) {
+        videoTrack.enabled = !videoTrack.enabled
+        setIsVideoEnabled(videoTrack.enabled)
+      }
+    }
+  }
+
+  // Toggle audio
+  const toggleAudio = () => {
+    if (localStream) {
+      const audioTrack = localStream.getAudioTracks()[0]
+      if (audioTrack) {
+        audioTrack.enabled = !audioTrack.enabled
+        setIsAudioEnabled(audioTrack.enabled)
+      }
+    }
+  }
+
+  // Toggle screen share
+  const toggleScreenShare = async () => {
+    try {
+      if (isScreenSharing) {
+        // Stop screen share, return to camera
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { width: 1280, height: 720, facingMode: 'user' },
+          audio: true
+        })
+        setLocalStream(stream)
+        if (localVideoRef.current) {
+          localVideoRef.current.srcObject = stream
+        }
+        setIsScreenSharing(false)
+      } else {
+        // Start screen share
+        const stream = await navigator.mediaDevices.getDisplayMedia({
+          video: true,
+          audio: true
+        })
+        setLocalStream(stream)
+        if (localVideoRef.current) {
+          localVideoRef.current.srcObject = stream
+        }
+        setIsScreenSharing(true)
+
+        // Handle stream end
+        stream.getVideoTracks()[0].onended = () => {
+          setIsScreenSharing(false)
+          toggleVideo() // Re-enable camera
+        }
+      }
+    } catch (error) {
+      console.error('Screen share error:', error)
+      showToast('Failed to share screen', 'error')
+    }
+  }
+
+  // Send chat message during video call
+  const sendVideoChatMessage = () => {
+    if (!videoChatInput.trim() || !activeVideoConsultation || !user) return
+
+    const newMessage: VideoConsultationChat = {
+      id: `msg_${Date.now()}`,
+      consultationId: activeVideoConsultation.id,
+      senderId: user.id,
+      senderName: user.name,
+      message: videoChatInput.trim(),
+      timestamp: new Date().toISOString()
+    }
+
+    setVideoChatMessages(prev => [...prev, newMessage])
+    setVideoChatInput('')
+
+    // Broadcast to other participants
+    fetch('/api/realtime', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        event: 'video_chat',
+        data: { consultationId: activeVideoConsultation.id, message: newMessage }
+      })
+    })
+  }
+
+  // End video consultation
+  const endVideoConsultation = async () => {
+    if (!activeVideoConsultation || !user) return
+
+    // Stop all tracks
+    if (localStream) {
+      localStream.getTracks().forEach(track => track.stop())
+    }
+    if (remoteStream) {
+      remoteStream.getTracks().forEach(track => track.stop())
+    }
+
+    // Close peer connection
+    if (peerConnectionRef.current) {
+      peerConnectionRef.current.close()
+      peerConnectionRef.current = null
+    }
+
+    // Stop timer
+    if (videoCallTimerRef.current) {
+      clearInterval(videoCallTimerRef.current)
+      videoCallTimerRef.current = null
+    }
+
+    // Update consultation
+    const endedConsultation = {
+      ...activeVideoConsultation,
+      status: 'completed' as const,
+      endedAt: new Date().toISOString(),
+      duration: videoCallDuration ? Math.floor(videoCallDuration / 60) : undefined
+    }
+
+    setVideoConsultations(prev => prev.map(c => c.id === activeVideoConsultation.id ? endedConsultation : c))
+
+    // Save to database
+    await fetch('/api/data', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'videoConsultation', data: endedConsultation })
+    })
+
+    // Log audit
+    logAudit({
+      action: 'VIDEO_CONSULTATION_ENDED',
+      entityType: 'video_consultation',
+      entityId: activeVideoConsultation.id,
+      entityName: `Video Consultation - ${activeVideoConsultation.roomCode}`,
+      details: `Video consultation ended. Duration: ${formatVideoCallDuration(videoCallDuration)}`,
+      userId: user.id,
+      userName: user.name,
+      userRole: user.role
+    })
+
+    // Reset state
+    setActiveVideoConsultation(null)
+    setLocalStream(null)
+    setRemoteStream(null)
+    setConnectionStatus('disconnected')
+    setVideoCallDuration(0)
+    setShowVideoConsultationDialog(false)
+    setIsVideoEnabled(true)
+    setIsAudioEnabled(true)
+    setIsScreenSharing(false)
+
+    showToast('Video consultation ended', 'success')
+  }
+
+  // Cancel video consultation
+  const cancelVideoConsultation = async (consultationId: string, reason: string) => {
+    if (!user) return
+
+    const cancelledConsultation = {
+      ...videoConsultations.find(c => c.id === consultationId)!,
+      status: 'cancelled' as const,
+      cancelledAt: new Date().toISOString(),
+      cancelledBy: user.id,
+      cancellationReason: reason
+    }
+
+    setVideoConsultations(prev => prev.map(c => c.id === consultationId ? cancelledConsultation : c))
+
+    await fetch('/api/data', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'videoConsultation', data: cancelledConsultation })
+    })
+
+    showToast('Video consultation cancelled', 'info')
+  }
+
+  // Get video consultations for current user
+  const getMyVideoConsultations = () => {
+    if (!user) return []
+    return videoConsultations.filter(c => 
+      c.doctorId === user.id || 
+      c.patientId === user.id ||
+      c.participantIds.includes(user.id)
+    ).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+  }
+
+  // Get scheduled video consultations
+  const getScheduledVideoConsultations = () => {
+    return videoConsultations.filter(c => c.status === 'scheduled')
+      .sort((a, b) => new Date(a.scheduledDateTime || a.createdAt).getTime() - new Date(b.scheduledDateTime || b.createdAt).getTime())
   }
 
   // Format live time for display
@@ -9406,6 +10055,8 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
     ...(user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN' ? [{ id: 'govReports', label: 'Gov. Reports', icon: FileText }] : []),
     // Telemedicine - Doctors only
     ...(user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN' || user?.role === 'DOCTOR' ? [{ id: 'telemedicine', label: 'Telemedicine', icon: Smartphone }] : []),
+    // Video Consultations - Doctors and Admins
+    ...(user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN' || user?.role === 'DOCTOR' || user?.role === 'NURSE' ? [{ id: 'videoConsultations', label: 'Video Consultations', icon: Video }] : []),
     // Open Heavens Devotional - Available to all
     { id: 'openHeavens', label: 'Open Heavens', icon: Heart },
     // Notifications Center - Admin only
@@ -9481,6 +10132,25 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
           <h1 className="text-6xl font-bold text-white mb-4 animate-pulse">
             ⚠️ TASK DUE! ⚠️
           </h1>
+          
+          {/* STOP ALARM SOUND BUTTON - Prominent and ALWAYS visible first */}
+          {!alarmSoundStopped ? (
+            <div className="mb-6 p-4 bg-white/30 rounded-xl animate-pulse">
+              <Button 
+                size="lg"
+                className="bg-red-800 hover:bg-red-900 text-white text-2xl px-12 py-8 h-auto font-bold shadow-2xl border-4 border-white"
+                onClick={stopAlarmSound}
+              >
+                <Volume2 className="w-8 h-8 mr-3" />
+                🔇 STOP ALARM SOUND
+              </Button>
+              <p className="text-white text-sm mt-2">Click to stop the alarm sound, then take action below</p>
+            </div>
+          ) : (
+            <div className="mb-6 p-3 bg-green-500/50 rounded-xl">
+              <p className="text-white text-lg font-semibold">🔇 Alarm sound stopped - Please take action below</p>
+            </div>
+          )}
           
           {/* Task Name */}
           <div className="bg-white/20 backdrop-blur-sm rounded-2xl p-6 mb-6">
@@ -18424,6 +19094,181 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                       </Button>
                     </div>
                   </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
+          {/* Video Consultations */}
+          {activeTab === 'videoConsultations' && (
+            <div className="space-y-6">
+              <div className="flex justify-between items-center">
+                <h3 className="text-lg font-semibold flex items-center gap-2">
+                  <Video className="h-5 w-5 text-blue-600" />
+                  Video Consultations
+                </h3>
+                <div className="flex gap-2">
+                  <Button className="bg-green-600 hover:bg-green-700" onClick={() => setShowScheduleVideoDialog(true)}>
+                    <Plus className="h-4 w-4 mr-2" /> Schedule Video Consultation
+                  </Button>
+                  <Button variant="outline" onClick={() => {
+                    // Start instant video consultation
+                    if (user?.role === 'DOCTOR') {
+                      const newConsultation: VideoConsultation = {
+                        id: `vc_${Date.now()}`,
+                        patientId: '',
+                        doctorId: user.id,
+                        doctorName: user.name,
+                        doctorInitials: user.initials || getInitials(user.name.split(' ')[0], user.name.split(' ')[1] || ''),
+                        status: 'waiting',
+                        roomCode: generateRoomCode(),
+                        participantIds: [user.id],
+                        createdBy: user.id,
+                        createdAt: new Date().toISOString()
+                      }
+                      setVideoConsultations(prev => [newConsultation, ...prev])
+                      setActiveVideoConsultation(newConsultation)
+                      startVideoConsultation(newConsultation)
+                    } else {
+                      showToast('Only doctors can start video consultations', 'warning')
+                    }
+                  }}>
+                    <Video className="h-4 w-4 mr-2" /> Start Now
+                  </Button>
+                </div>
+              </div>
+
+              {/* Stats Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <Card className="shadow-md border-l-4 border-l-green-500">
+                  <CardContent className="p-4">
+                    <p className="text-sm text-gray-500">Active Now</p>
+                    <p className="text-2xl font-bold text-green-600">
+                      {videoConsultations.filter(c => c.status === 'in_progress').length}
+                    </p>
+                  </CardContent>
+                </Card>
+                <Card className="shadow-md border-l-4 border-l-blue-500">
+                  <CardContent className="p-4">
+                    <p className="text-sm text-gray-500">Scheduled</p>
+                    <p className="text-2xl font-bold text-blue-600">
+                      {videoConsultations.filter(c => c.status === 'scheduled').length}
+                    </p>
+                  </CardContent>
+                </Card>
+                <Card className="shadow-md border-l-4 border-l-purple-500">
+                  <CardContent className="p-4">
+                    <p className="text-sm text-gray-500">Waiting</p>
+                    <p className="text-2xl font-bold text-purple-600">
+                      {videoConsultations.filter(c => c.status === 'waiting').length}
+                    </p>
+                  </CardContent>
+                </Card>
+                <Card className="shadow-md border-l-4 border-l-gray-500">
+                  <CardContent className="p-4">
+                    <p className="text-sm text-gray-500">Completed Today</p>
+                    <p className="text-2xl font-bold text-gray-600">
+                      {videoConsultations.filter(c => c.status === 'completed' && 
+                        new Date(c.endedAt || c.createdAt).toDateString() === new Date().toDateString()).length}
+                    </p>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Video Consultations List */}
+              <Card className="shadow-md">
+                <CardHeader>
+                  <CardTitle>All Video Consultations</CardTitle>
+                  <CardDescription>Manage and join video consultations</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {videoConsultations.length === 0 ? (
+                    <div className="text-center py-12 text-gray-500">
+                      <Video className="h-16 w-16 mx-auto mb-4 text-gray-300" />
+                      <h3 className="text-lg font-semibold mb-2">No Video Consultations</h3>
+                      <p className="mb-4">Schedule a video consultation to get started</p>
+                      <Button className="bg-blue-600 hover:bg-blue-700" onClick={() => setShowScheduleVideoDialog(true)}>
+                        <Plus className="h-4 w-4 mr-2" /> Schedule Video Consultation
+                      </Button>
+                    </div>
+                  ) : (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Patient</TableHead>
+                          <TableHead>Doctor</TableHead>
+                          <TableHead>Scheduled</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Duration</TableHead>
+                          <TableHead>Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {videoConsultations.slice(0, 20).map(consultation => {
+                          const patient = patients.find(p => p.id === consultation.patientId)
+                          return (
+                            <TableRow key={consultation.id}>
+                              <TableCell>
+                                {patient ? getFullName(patient.firstName, patient.lastName, patient.middleName, patient.title) : 
+                                  <span className="text-gray-400">Not assigned</span>}
+                              </TableCell>
+                              <TableCell>{consultation.doctorName}</TableCell>
+                              <TableCell>
+                                {consultation.scheduledDateTime ? formatDateTime(consultation.scheduledDateTime) : 'Immediate'}
+                              </TableCell>
+                              <TableCell>
+                                <Badge className={
+                                  consultation.status === 'in_progress' ? 'bg-green-100 text-green-800' :
+                                  consultation.status === 'waiting' ? 'bg-yellow-100 text-yellow-800' :
+                                  consultation.status === 'scheduled' ? 'bg-blue-100 text-blue-800' :
+                                  consultation.status === 'completed' ? 'bg-gray-100 text-gray-800' :
+                                  'bg-red-100 text-red-800'
+                                }>
+                                  {consultation.status.replace('_', ' ')}
+                                </Badge>
+                              </TableCell>
+                              <TableCell>
+                                {consultation.duration ? `${consultation.duration} min` : 
+                                  consultation.status === 'in_progress' ? 
+                                  <span className="text-green-600 font-medium">{formatVideoCallDuration(videoCallDuration)}</span> : 
+                                  '-'}
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex gap-2">
+                                  {consultation.status === 'scheduled' && (
+                                    <>
+                                      <Button size="sm" className="bg-green-600 hover:bg-green-700" onClick={() => startVideoConsultation(consultation)}>
+                                        <Video className="h-3 w-3 mr-1" /> Start
+                                      </Button>
+                                      <Button size="sm" variant="outline" onClick={() => cancelVideoConsultation(consultation.id, 'Cancelled by user')}>
+                                        Cancel
+                                      </Button>
+                                    </>
+                                  )}
+                                  {consultation.status === 'waiting' && (
+                                    <Button size="sm" className="bg-blue-600 hover:bg-blue-700" onClick={() => joinVideoConsultation(consultation)}>
+                                      <PhoneCall className="h-3 w-3 mr-1" /> Join
+                                    </Button>
+                                  )}
+                                  {consultation.status === 'in_progress' && (
+                                    <Button size="sm" className="bg-red-600 hover:bg-red-700" onClick={() => {
+                                      setActiveVideoConsultation(consultation)
+                                      setShowVideoConsultationDialog(true)
+                                    }}>
+                                      <Video className="h-3 w-3 mr-1" /> View
+                                    </Button>
+                                  )}
+                                  {consultation.status === 'completed' && (
+                                    <span className="text-gray-500 text-sm">Completed</span>
+                                  )}
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          )
+                        })}
+                      </TableBody>
+                    </Table>
+                  )}
                 </CardContent>
               </Card>
             </div>
@@ -27981,6 +28826,304 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
               setImportResults(null)
             }}>Close</Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Schedule Video Consultation Dialog */}
+      <Dialog open={showScheduleVideoDialog} onOpenChange={setShowScheduleVideoDialog}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Video className="h-5 w-5 text-blue-600" />
+              Schedule Video Consultation
+            </DialogTitle>
+            <DialogDescription>
+              Schedule a video consultation between a patient and doctor
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Patient *</Label>
+              <Select value={videoConsultationForm.patientId} onValueChange={v => {
+                const patient = patients.find(p => p.id === v)
+                setVideoConsultationForm(prev => ({ ...prev, patientId: v, chiefComplaint: prev.chiefComplaint || '' }))
+              }}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select patient" />
+                </SelectTrigger>
+                <SelectContent>
+                  {patients.filter(p => p.isActive).slice(0, 50).map(p => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {getFullName(p.firstName, p.lastName, p.middleName, p.title)} ({p.ruhcCode})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Doctor *</Label>
+              <Select value={videoConsultationForm.doctorId} onValueChange={v => {
+                const doctor = systemUsers.find(u => u.id === v)
+                setVideoConsultationForm(prev => ({ ...prev, doctorId: v, doctorId: v }))
+              }}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select doctor" />
+                </SelectTrigger>
+                <SelectContent>
+                  {systemUsers.filter(u => u.role === 'DOCTOR' && u.isActive).map(d => (
+                    <SelectItem key={d.id} value={d.id}>
+                      {d.name} {d.department ? `(${d.department})` : ''}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Date</Label>
+                <Input type="date" value={videoConsultationForm.scheduledDate} onChange={e => setVideoConsultationForm(prev => ({ ...prev, scheduledDate: e.target.value }))} />
+              </div>
+              <div className="space-y-2">
+                <Label>Time</Label>
+                <Input type="time" value={videoConsultationForm.scheduledTime} onChange={e => setVideoConsultationForm(prev => ({ ...prev, scheduledTime: e.target.value }))} />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Chief Complaint</Label>
+              <Textarea 
+                value={videoConsultationForm.chiefComplaint} 
+                onChange={e => setVideoConsultationForm(prev => ({ ...prev, chiefComplaint: e.target.value }))}
+                placeholder="Reason for consultation"
+                rows={2}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Notes</Label>
+              <Textarea 
+                value={videoConsultationForm.notes} 
+                onChange={e => setVideoConsultationForm(prev => ({ ...prev, notes: e.target.value }))}
+                placeholder="Additional notes"
+                rows={2}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowScheduleVideoDialog(false)}>Cancel</Button>
+            <Button className="bg-blue-600 hover:bg-blue-700" onClick={scheduleVideoConsultation}>
+              <Calendar className="h-4 w-4 mr-2" /> Schedule
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Video Consultation Call Dialog */}
+      <Dialog open={showVideoConsultationDialog} onOpenChange={(open) => {
+        if (!open) {
+          // Ask for confirmation before closing
+          if (activeVideoConsultation?.status === 'in_progress') {
+            if (confirm('Are you sure you want to end the video consultation?')) {
+              endVideoConsultation()
+            }
+          } else {
+            setShowVideoConsultationDialog(false)
+          }
+        }
+      }}>
+        <DialogContent className="max-w-5xl h-[90vh] p-0 overflow-hidden">
+          <div className="h-full flex flex-col bg-gray-900">
+            {/* Header */}
+            <div className="flex justify-between items-center p-4 bg-gray-800 text-white">
+              <div className="flex items-center gap-3">
+                <Video className="h-6 w-6 text-green-400" />
+                <div>
+                  <h3 className="font-semibold">{activeVideoConsultation?.doctorName} - Video Consultation</h3>
+                  <p className="text-sm text-gray-400">
+                    Room: {activeVideoConsultation?.roomCode} • 
+                    {connectionStatus === 'connected' ? (
+                      <span className="text-green-400 ml-1">Connected • {formatVideoCallDuration(videoCallDuration)}</span>
+                    ) : (
+                      <span className="text-yellow-400 ml-1">Connecting...</span>
+                    )}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <Badge className={cn(
+                  "px-3 py-1",
+                  connectionStatus === 'connected' ? 'bg-green-500' : 
+                  connectionStatus === 'connecting' ? 'bg-yellow-500' : 
+                  'bg-red-500'
+                )}>
+                  {connectionStatus === 'connected' ? '🟢 Live' : 
+                   connectionStatus === 'connecting' ? '🟡 Connecting...' : 
+                   '🔴 Disconnected'}
+                </Badge>
+              </div>
+            </div>
+
+            {/* Video Grid */}
+            <div className="flex-1 grid grid-cols-2 gap-2 p-2">
+              {/* Remote Video (Main) */}
+              <div className="relative bg-gray-800 rounded-lg overflow-hidden flex items-center justify-center">
+                <video
+                  ref={remoteVideoRef}
+                  autoPlay
+                  playsInline
+                  className="w-full h-full object-cover"
+                />
+                {!remoteStream && (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center text-white">
+                    <div className="w-24 h-24 rounded-full bg-gray-700 flex items-center justify-center mb-4">
+                      <User className="h-12 w-12 text-gray-400" />
+                    </div>
+                    <p className="text-gray-400">
+                      {isConnecting ? 'Connecting...' : 'Waiting for participant...'}
+                    </p>
+                  </div>
+                )}
+                <div className="absolute bottom-4 left-4 bg-black/50 px-3 py-1 rounded-full text-white text-sm">
+                  {activeVideoConsultation?.patient ? 
+                    `${activeVideoConsultation.patient.firstName} ${activeVideoConsultation.patient.lastName}` : 
+                    'Patient'}
+                </div>
+              </div>
+
+              {/* Local Video (Picture-in-Picture) */}
+              <div className="relative bg-gray-800 rounded-lg overflow-hidden">
+                <video
+                  ref={localVideoRef}
+                  autoPlay
+                  playsInline
+                  muted
+                  className="w-full h-full object-cover mirror"
+                />
+                {!localStream && (
+                  <div className="absolute inset-0 flex items-center justify-center text-white">
+                    <div className="text-center">
+                      <Camera className="h-12 w-12 mx-auto mb-2 text-gray-400" />
+                      <p className="text-gray-400 text-sm">Camera off</p>
+                    </div>
+                  </div>
+                )}
+                {/* Overlay controls */}
+                <div className="absolute bottom-4 right-4 flex gap-2">
+                  {!isVideoEnabled && (
+                    <Badge className="bg-red-500 text-white">Camera Off</Badge>
+                  )}
+                  {!isAudioEnabled && (
+                    <Badge className="bg-red-500 text-white">Muted</Badge>
+                  )}
+                </div>
+                <div className="absolute bottom-4 left-4 bg-black/50 px-3 py-1 rounded-full text-white text-sm">
+                  You ({user?.name})
+                </div>
+              </div>
+            </div>
+
+            {/* Chat Panel (Toggle) */}
+            {showVideoChat && (
+              <div className="h-64 border-t border-gray-700 bg-gray-800 flex flex-col">
+                <div className="p-2 border-b border-gray-700 flex justify-between items-center">
+                  <h4 className="text-white font-medium">Chat</h4>
+                  <Button variant="ghost" size="sm" className="text-gray-400" onClick={() => setShowVideoChat(false)}>
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+                <ScrollArea className="flex-1 p-2">
+                  {videoChatMessages.length === 0 ? (
+                    <p className="text-gray-500 text-center text-sm py-4">No messages yet</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {videoChatMessages.map(msg => (
+                        <div key={msg.id} className={cn(
+                          "p-2 rounded-lg max-w-[80%]",
+                          msg.senderId === user?.id ? "bg-blue-600 ml-auto" : 
+                          msg.isSystem ? "bg-gray-600 mx-auto text-center" : 
+                          "bg-gray-700"
+                        )}>
+                          <p className="text-xs text-gray-300 mb-1">{msg.senderName}</p>
+                          <p className="text-white text-sm">{msg.message}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </ScrollArea>
+                <div className="p-2 border-t border-gray-700 flex gap-2">
+                  <Input 
+                    value={videoChatInput}
+                    onChange={e => setVideoChatInput(e.target.value)}
+                    onKeyPress={e => e.key === 'Enter' && sendVideoChatMessage()}
+                    placeholder="Type a message..."
+                    className="bg-gray-700 border-gray-600 text-white"
+                  />
+                  <Button size="sm" onClick={sendVideoChatMessage}>
+                    <Send className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* Control Bar */}
+            <div className="p-4 bg-gray-800 flex justify-center gap-4">
+              <Button 
+                variant="ghost" 
+                size="lg"
+                className={cn(
+                  "rounded-full h-14 w-14",
+                  isAudioEnabled ? "bg-gray-700 text-white hover:bg-gray-600" : "bg-red-500 text-white hover:bg-red-600"
+                )}
+                onClick={toggleAudio}
+                title={isAudioEnabled ? "Mute" : "Unmute"}
+              >
+                {isAudioEnabled ? <Mic className="h-6 w-6" /> : <MicOff className="h-6 w-6" />}
+              </Button>
+              <Button 
+                variant="ghost" 
+                size="lg"
+                className={cn(
+                  "rounded-full h-14 w-14",
+                  isVideoEnabled ? "bg-gray-700 text-white hover:bg-gray-600" : "bg-red-500 text-white hover:bg-red-600"
+                )}
+                onClick={toggleVideo}
+                title={isVideoEnabled ? "Turn off camera" : "Turn on camera"}
+              >
+                {isVideoEnabled ? <Video className="h-6 w-6" /> : <VideoOff className="h-6 w-6" />}
+              </Button>
+              <Button 
+                variant="ghost" 
+                size="lg"
+                className={cn(
+                  "rounded-full h-14 w-14",
+                  isScreenSharing ? "bg-blue-500 text-white hover:bg-blue-600" : "bg-gray-700 text-white hover:bg-gray-600"
+                )}
+                onClick={toggleScreenShare}
+                title={isScreenSharing ? "Stop sharing" : "Share screen"}
+              >
+                {isScreenSharing ? <ScreenShareOff className="h-6 w-6" /> : <ScreenShare className="h-6 w-6" />}
+              </Button>
+              <Button 
+                variant="ghost" 
+                size="lg"
+                className={cn(
+                  "rounded-full h-14 w-14",
+                  showVideoChat ? "bg-blue-500 text-white hover:bg-blue-600" : "bg-gray-700 text-white hover:bg-gray-600"
+                )}
+                onClick={() => setShowVideoChat(!showVideoChat)}
+                title="Toggle chat"
+              >
+                <MessageSquare className="h-6 w-6" />
+              </Button>
+              <Button 
+                variant="ghost" 
+                size="lg"
+                className="rounded-full h-14 w-14 bg-red-600 text-white hover:bg-red-700"
+                onClick={endVideoConsultation}
+                title="End call"
+              >
+                <PhoneOff className="h-6 w-6" />
+              </Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
 
