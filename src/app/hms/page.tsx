@@ -4484,11 +4484,26 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
   const [certificateForm, setCertificateForm] = useState({ patientId: '', type: 'sick_leave' as 'sick_leave' | 'fitness' | 'medical_report', days: 1, startDate: '', endDate: '', diagnosis: '', recommendations: '', initials: '' })
   const [referralForm, setReferralForm] = useState({ patientId: '', referredTo: '', reason: '', diagnosis: '', treatmentGiven: '', initials: '' })
   const [dischargeForm, setDischargeForm] = useState({ patientId: '', admissionDate: '', dischargeDate: '', admissionDiagnosis: '', dischargeDiagnosis: '', treatmentSummary: '', medicationsOnDischarge: '', followUpInstructions: '', doctorInitials: '', nurseInitials: '' })
-  
+
   // Admissions state
   const [admissions, setAdmissions] = useState<Admission[]>([])
   const [showAdmissionDialog, setShowAdmissionDialog] = useState(false)
   const [showAdmissionDetails, setShowAdmissionDetails] = useState<Admission | null>(null)
+  const [dischargeAdmissionForm, setDischargeAdmissionForm] = useState({
+    admissionId: '',
+    patientId: '',
+    patientName: '',
+    wardName: '',
+    bedNumber: '',
+    admissionDiagnosis: '',
+    dischargeDiagnosis: '',
+    treatmentSummary: '',
+    medicationsOnDischarge: '',
+    followUpInstructions: '',
+    adviceToPatient: '',
+    dischargedBy: '',
+    nurseInitials: ''
+  })
   const [admissionForm, setAdmissionForm] = useState({
     patientId: '',
     admissionType: 'elective' as 'emergency' | 'elective' | 'transfer' | 'observation',
@@ -8746,6 +8761,171 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
     }
   }
 
+  // Open discharge dialog with pre-filled data
+  const openDischargeDialog = (admission: Admission) => {
+    const patient = patients.find(p => p.id === admission.patientId)
+    setDischargeAdmissionForm({
+      admissionId: admission.id,
+      patientId: admission.patientId,
+      patientName: patient ? getFullName(patient.firstName, patient.lastName, patient.middleName, patient.title) : 'Unknown',
+      wardName: admission.wardName,
+      bedNumber: String(admission.bedNumber),
+      admissionDiagnosis: admission.provisionalDiagnosis,
+      dischargeDiagnosis: '',
+      treatmentSummary: '',
+      medicationsOnDischarge: '',
+      followUpInstructions: '',
+      adviceToPatient: '',
+      dischargedBy: getUserDisplayName(user),
+      nurseInitials: ''
+    })
+    setShowDischargeDialog(true)
+  }
+
+  // Handle discharge form submission
+  const handleDischargeSubmit = async () => {
+    if (!dischargeAdmissionForm.dischargeDiagnosis || !dischargeAdmissionForm.treatmentSummary) {
+      showToast('Please fill in Discharge Diagnosis and Treatment Summary', 'warning')
+      return
+    }
+
+    const admission = admissions.find(a => a.id === dischargeAdmissionForm.admissionId)
+    if (!admission) {
+      showToast('Admission not found', 'error')
+      return
+    }
+
+    const dischargeSummary = `
+Admission Diagnosis: ${admission.provisionalDiagnosis}
+Discharge Diagnosis: ${dischargeAdmissionForm.dischargeDiagnosis}
+Treatment Summary: ${dischargeAdmissionForm.treatmentSummary}
+${dischargeAdmissionForm.medicationsOnDischarge ? `Medications on Discharge: ${dischargeAdmissionForm.medicationsOnDischarge}` : ''}
+${dischargeAdmissionForm.followUpInstructions ? `Follow-up Instructions: ${dischargeAdmissionForm.followUpInstructions}` : ''}
+${dischargeAdmissionForm.adviceToPatient ? `Advice to Patient: ${dischargeAdmissionForm.adviceToPatient}` : ''}
+Discharged By: ${dischargeAdmissionForm.dischargedBy}
+${dischargeAdmissionForm.nurseInitials ? `Nurse Initials: ${dischargeAdmissionForm.nurseInitials}` : ''}
+    `.trim()
+
+    // Update admission record
+    const updatedAdmission = {
+      status: 'discharged' as const,
+      dischargedAt: new Date().toISOString(),
+      dischargeSummary
+    }
+
+    setAdmissions(admissions.map(a => {
+      if (a.id === dischargeAdmissionForm.admissionId) {
+        return { ...a, ...updatedAdmission }
+      }
+      return a
+    }))
+
+    await updateInDB('admission', dischargeAdmissionForm.admissionId, updatedAdmission)
+
+    // Update patient record
+    const updatedPatient = {
+      currentUnit: undefined,
+      admissionDate: undefined,
+      bedNumber: undefined
+    }
+    setPatients(patients.map(p => {
+      if (p.id === admission.patientId) {
+        return { ...p, ...updatedPatient }
+      }
+      return p
+    }))
+    await updateInDB('patient', admission.patientId, updatedPatient)
+
+    // Create notification to Records Officer
+    const notificationToRecords: RoutingRequest = {
+      id: `discharge_notice_${Date.now()}`,
+      senderId: user?.id || '',
+      senderName: getUserDisplayName(user),
+      senderRole: user?.role || 'NURSE',
+      senderInitials: user?.initials,
+      receiverRole: 'RECORDS_OFFICER',
+      patientId: admission.patientId,
+      patientName: dischargeAdmissionForm.patientName,
+      patientHospitalNumber: patients.find(p => p.id === admission.patientId)?.ruhcCode,
+      requestType: 'other',
+      priority: 'routine',
+      purpose: 'general',
+      subject: `Patient Discharged: ${dischargeAdmissionForm.patientName}`,
+      message: `Patient was discharged from ${admission.wardName} (Bed ${admission.bedNumber}). Diagnosis: ${dischargeAdmissionForm.dischargeDiagnosis}. Please update patient records.`,
+      status: 'pending',
+      createdAt: new Date().toISOString(),
+      sentAt: new Date().toISOString()
+    }
+
+    // Save notification to database
+    setRoutingRequests(prev => [notificationToRecords, ...prev])
+    try {
+      await fetch('/api/data', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'routingRequest',
+          data: {
+            id: notificationToRecords.id,
+            senderId: notificationToRecords.senderId,
+            senderName: notificationToRecords.senderName,
+            senderRole: notificationToRecords.senderRole,
+            senderInitials: notificationToRecords.senderInitials,
+            receiverRole: notificationToRecords.receiverRole,
+            patientId: notificationToRecords.patientId,
+            patientName: notificationToRecords.patientName,
+            patientHospitalNumber: notificationToRecords.patientHospitalNumber,
+            requestType: notificationToRecords.requestType,
+            priority: notificationToRecords.priority,
+            purpose: notificationToRecords.purpose,
+            subject: notificationToRecords.subject,
+            message: notificationToRecords.message,
+            status: 'pending',
+            sentAt: notificationToRecords.sentAt
+          }
+        })
+      })
+    } catch (error) {
+      console.error('Error saving discharge notification:', error)
+    }
+
+    // Dispatch real-time events
+    window.dispatchEvent(new CustomEvent('patientDischarged', {
+      detail: { patientName: dischargeAdmissionForm.patientName }
+    }))
+    window.dispatchEvent(new CustomEvent('routingRequestSent', {
+      detail: { request: notificationToRecords, fromRole: user?.role, toRole: 'RECORDS_OFFICER' }
+    }))
+
+    // Broadcast real-time update
+    fetch('/api/realtime', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+        event: 'routingRequest_created', 
+        data: { item: notificationToRecords } 
+      })
+    })
+
+    showToast(`✅ Patient ${dischargeAdmissionForm.patientName} discharged successfully! Records Officer notified.`, 'success')
+    setShowDischargeDialog(false)
+    setDischargeAdmissionForm({
+      admissionId: '',
+      patientId: '',
+      patientName: '',
+      wardName: '',
+      bedNumber: '',
+      admissionDiagnosis: '',
+      dischargeDiagnosis: '',
+      treatmentSummary: '',
+      medicationsOnDischarge: '',
+      followUpInstructions: '',
+      adviceToPatient: '',
+      dischargedBy: '',
+      nurseInitials: ''
+    })
+  }
+
   // Record vitals
   const recordVitals = async () => {
     if (!user) {
@@ -11509,11 +11689,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                                     <Button variant="outline" size="sm" onClick={() => setShowAdmissionDetails(admission)}>
                                       <Eye className="h-3 w-3 mr-1" /> View
                                     </Button>
-                                    <Button variant="outline" size="sm" className="text-green-600" onClick={() => {
-                                      if (confirm('Discharge this patient?')) {
-                                        dischargeAdmission(admission.id, 'Discharged by ' + getUserDisplayName(user))
-                                      }
-                                    }}>
+                                    <Button variant="outline" size="sm" className="text-green-600" onClick={() => openDischargeDialog(admission)}>
                                       <CheckCircle className="h-3 w-3 mr-1" /> Discharge
                                     </Button>
                                   </div>
@@ -12505,7 +12681,110 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                   </CardContent>
                 </Card>
               )}
-              
+
+              {/* Current Medications for Inpatients */}
+              {selectedPatient.currentUnit && admissions.find(a => a.patientId === selectedPatient.id && a.status === 'active') && (
+                <Card className="shadow-lg border-l-4 border-l-purple-500">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Pill className="h-5 w-5 text-purple-600" />
+                      Current Medications (Inpatient)
+                      <Badge className="bg-purple-100 text-purple-800 ml-2">
+                        {(() => {
+                          const admission = admissions.find(a => a.patientId === selectedPatient.id && a.status === 'active')
+                          const patientConsultations = consultations.filter(c => c.patientId === selectedPatient.id && c.prescriptionItems && c.prescriptionItems.length > 0)
+                          const totalMeds = patientConsultations.reduce((acc, c) => acc + (c.prescriptionItems?.length || 0), 0)
+                          return totalMeds > 0 ? `${totalMeds} prescribed` : 'No active prescriptions'
+                        })()}
+                      </Badge>
+                    </CardTitle>
+                    <CardDescription>
+                      Current admission: {admissions.find(a => a.patientId === selectedPatient.id && a.status === 'active')?.wardName} - Bed {admissions.find(a => a.patientId === selectedPatient.id && a.status === 'active')?.bedNumber}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {(() => {
+                      const patientConsultations = consultations.filter(c => c.patientId === selectedPatient.id && c.prescriptionItems && c.prescriptionItems.length > 0)
+                      const recentMeds = medicationAdmins.filter(m => m.patientId === selectedPatient.id).slice(0, 5)
+
+                      if (patientConsultations.length === 0 && recentMeds.length === 0) {
+                        return (
+                          <div className="text-center py-6 text-gray-500">
+                            <Pill className="h-10 w-10 mx-auto mb-3 text-gray-300" />
+                            <p>No current medications prescribed</p>
+                          </div>
+                        )
+                      }
+
+                      return (
+                        <div className="space-y-4">
+                          {/* Prescribed Medications */}
+                          {patientConsultations.length > 0 && (
+                            <div>
+                              <h4 className="font-medium text-gray-700 mb-2">Prescribed Medications</h4>
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                {patientConsultations.flatMap(c => c.prescriptionItems || []).map((med, idx) => (
+                                  <div key={idx} className="p-3 bg-purple-50 rounded-lg border border-purple-200">
+                                    <div className="flex items-start justify-between">
+                                      <div>
+                                        <p className="font-medium text-purple-800">{med.drugName}</p>
+                                        <p className="text-sm text-gray-600">{med.dosage} - {med.frequency}</p>
+                                        {med.duration && <p className="text-xs text-gray-500">Duration: {med.duration}</p>}
+                                        {med.notes && <p className="text-xs text-gray-500 mt-1">{med.notes}</p>}
+                                      </div>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Recent Administrations */}
+                          {recentMeds.length > 0 && (
+                            <div>
+                              <h4 className="font-medium text-gray-700 mb-2 flex items-center gap-2">
+                                <Clock className="h-4 w-4" />
+                                Recent Administrations
+                              </h4>
+                              <div className="space-y-2">
+                                {recentMeds.slice(0, 3).map(med => (
+                                  <div key={med.id} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
+                                    <div className="flex items-center gap-3">
+                                      <div className="p-2 bg-green-100 rounded">
+                                        <Pill className="h-4 w-4 text-green-600" />
+                                      </div>
+                                      <div>
+                                        <p className="font-medium">{med.drugName} {med.dosage}</p>
+                                        <p className="text-xs text-gray-500">{med.route} • By {med.nurseInitials}</p>
+                                      </div>
+                                    </div>
+                                    <div className="text-right">
+                                      <p className="text-sm font-medium text-gray-600">
+                                        {formatDateTime(med.administeredAt)}
+                                      </p>
+                                      <p className="text-xs text-gray-400">
+                                        {(() => {
+                                          const diffMs = Date.now() - new Date(med.administeredAt).getTime()
+                                          const diffMins = Math.floor(diffMs / 60000)
+                                          if (diffMins < 60) return `${diffMins} min ago`
+                                          const diffHours = Math.floor(diffMins / 60)
+                                          if (diffHours < 24) return `${diffHours} hr ago`
+                                          return `${Math.floor(diffHours / 24)} days ago`
+                                        })()}
+                                      </p>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })()}
+                  </CardContent>
+                </Card>
+              )}
+
               {/* Medication Administration History */}
               <Card className="shadow-lg">
                 <CardHeader>
@@ -23456,8 +23735,187 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                   <Badge className="bg-red-100 text-red-800"><XCircle className="h-3 w-3 mr-1" />No Consent</Badge>
                 )}
               </div>
+
+              {/* Discharge Button for Active Admissions */}
+              {showAdmissionDetails.status === 'active' && (
+                <div className="pt-4 border-t">
+                  <Button 
+                    className="w-full bg-green-600 hover:bg-green-700"
+                    onClick={() => {
+                      const admission = showAdmissionDetails
+                      setShowAdmissionDetails(null)
+                      openDischargeDialog(admission)
+                    }}
+                  >
+                    <CheckCircle className="h-4 w-4 mr-2" /> Discharge Patient
+                  </Button>
+                </div>
+              )}
+
+              {/* Discharge Info for Discharged Patients */}
+              {showAdmissionDetails.status === 'discharged' && showAdmissionDetails.dischargedAt && (
+                <div className="pt-4 border-t">
+                  <div className="p-4 bg-green-50 rounded-lg border border-green-200">
+                    <h4 className="font-medium text-green-800 mb-2 flex items-center gap-2">
+                      <CheckCircle className="h-4 w-4" /> Patient Discharged
+                    </h4>
+                    <p className="text-sm text-gray-600">
+                      <span className="font-medium">Discharged at:</span> {formatDateTime(showAdmissionDetails.dischargedAt)}
+                    </p>
+                    {showAdmissionDetails.dischargeSummary && (
+                      <div className="mt-2">
+                        <p className="text-sm font-medium text-gray-700">Discharge Summary:</p>
+                        <p className="text-sm text-gray-600 whitespace-pre-wrap mt-1 bg-white p-2 rounded border">
+                          {showAdmissionDetails.dischargeSummary}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Discharge Patient Dialog */}
+      <Dialog open={showDischargeDialog} onOpenChange={setShowDischargeDialog}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-green-700">
+              <CheckCircle className="h-5 w-5" />
+              Discharge Patient
+            </DialogTitle>
+            <DialogDescription>
+              Complete the discharge form to release the patient from admission.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            {/* Patient Info */}
+            <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div>
+                  <span className="text-gray-500">Patient:</span>
+                  <p className="font-semibold">{dischargeAdmissionForm.patientName}</p>
+                </div>
+                <div>
+                  <span className="text-gray-500">Location:</span>
+                  <p className="font-semibold">{dischargeAdmissionForm.wardName} - Bed {dischargeAdmissionForm.bedNumber}</p>
+                </div>
+                <div className="col-span-2">
+                  <span className="text-gray-500">Admission Diagnosis:</span>
+                  <p className="font-semibold">{dischargeAdmissionForm.admissionDiagnosis}</p>
+                </div>
+              </div>
+            </div>
+
+            <Separator />
+
+            {/* Required Fields */}
+            <div className="space-y-4">
+              <h4 className="font-medium text-gray-700">Required Information</h4>
+              <div className="space-y-2">
+                <Label className="flex items-center gap-1">
+                  Discharge Diagnosis <span className="text-red-500">*</span>
+                </Label>
+                <Textarea
+                  value={dischargeAdmissionForm.dischargeDiagnosis}
+                  onChange={e => setDischargeAdmissionForm({ ...dischargeAdmissionForm, dischargeDiagnosis: e.target.value })}
+                  placeholder="Final diagnosis at discharge..."
+                  rows={2}
+                  className={cn(!dischargeAdmissionForm.dischargeDiagnosis && "border-red-200")}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="flex items-center gap-1">
+                  Treatment Summary <span className="text-red-500">*</span>
+                </Label>
+                <Textarea
+                  value={dischargeAdmissionForm.treatmentSummary}
+                  onChange={e => setDischargeAdmissionForm({ ...dischargeAdmissionForm, treatmentSummary: e.target.value })}
+                  placeholder="Summary of treatment given during admission..."
+                  rows={3}
+                  className={cn(!dischargeAdmissionForm.treatmentSummary && "border-red-200")}
+                />
+              </div>
+            </div>
+
+            <Separator />
+
+            {/* Optional Fields */}
+            <div className="space-y-4">
+              <h4 className="font-medium text-gray-500">Optional Information</h4>
+              <div className="space-y-2">
+                <Label>Medications on Discharge</Label>
+                <Textarea
+                  value={dischargeAdmissionForm.medicationsOnDischarge}
+                  onChange={e => setDischargeAdmissionForm({ ...dischargeAdmissionForm, medicationsOnDischarge: e.target.value })}
+                  placeholder="List medications to continue at home..."
+                  rows={2}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Follow-up Instructions</Label>
+                <Textarea
+                  value={dischargeAdmissionForm.followUpInstructions}
+                  onChange={e => setDischargeAdmissionForm({ ...dischargeAdmissionForm, followUpInstructions: e.target.value })}
+                  placeholder="Follow-up appointments, lifestyle modifications..."
+                  rows={2}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Advice to Patient</Label>
+                <Textarea
+                  value={dischargeAdmissionForm.adviceToPatient}
+                  onChange={e => setDischargeAdmissionForm({ ...dischargeAdmissionForm, adviceToPatient: e.target.value })}
+                  placeholder="Additional advice for the patient..."
+                  rows={2}
+                />
+              </div>
+            </div>
+
+            <Separator />
+
+            {/* Staff Info */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Discharged By</Label>
+                <Input
+                  value={dischargeAdmissionForm.dischargedBy}
+                  onChange={e => setDischargeAdmissionForm({ ...dischargeAdmissionForm, dischargedBy: e.target.value })}
+                  placeholder="Doctor/Nurse name"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Nurse Initials</Label>
+                <Input
+                  value={dischargeAdmissionForm.nurseInitials}
+                  onChange={e => setDischargeAdmissionForm({ ...dischargeAdmissionForm, nurseInitials: e.target.value.toUpperCase() })}
+                  placeholder="e.g., AB"
+                  maxLength={3}
+                  className="text-center font-mono uppercase"
+                />
+              </div>
+            </div>
+
+            {/* Notification Info */}
+            <div className="p-3 bg-yellow-50 rounded-lg border border-yellow-200 text-sm">
+              <p className="flex items-center gap-2 text-yellow-800">
+                <Bell className="h-4 w-4" />
+                <span>Records Officer will be notified automatically upon discharge.</span>
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowDischargeDialog(false)}>Cancel</Button>
+            <Button 
+              className="bg-green-600 hover:bg-green-700"
+              onClick={handleDischargeSubmit}
+              disabled={!dischargeAdmissionForm.dischargeDiagnosis || !dischargeAdmissionForm.treatmentSummary}
+            >
+              <CheckCircle className="h-4 w-4 mr-2" /> Complete Discharge
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
