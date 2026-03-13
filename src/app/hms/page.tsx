@@ -37,7 +37,7 @@ import { sendSMS, sendAppointmentReminder, sendQueueCall, sendPrescriptionReady,
 import {
   LogOut, Users, Calendar, Stethoscope, Pill, Microscope, Receipt,
   Shield, Activity, Search, Plus, Eye, Clock, Menu, Home,
-  UserPlus, Calculator, Mic, MicOff, Play, Pause, Send, Download,
+  UserPlus, Calculator, Mic, MicOff, Play, Pause, Send, Download, Upload,
   FileText, Bell, Cake, Watch, ClipboardList, Volume2, Trash2,
   Heart, Baby, Weight, Syringe, Settings, User, ChevronRight,
   Smartphone, Monitor, AlertTriangle, CheckCircle, Key, Lock, Building2,
@@ -2378,6 +2378,20 @@ export default function HMSApp() {
   const [staffMessages, setStaffMessages] = useState<StaffMessage[]>([])
   const [insuranceClaims, setInsuranceClaims] = useState<InsuranceClaim[]>([])
   const [diagnosisRecords, setDiagnosisRecords] = useState<DiagnosisRecord[]>([])
+  
+  // Smart Patient Search State
+  const [smartSearchQuery, setSmartSearchQuery] = useState('')
+  const [smartSearchResults, setSmartSearchResults] = useState<Patient[]>([])
+  const [showSmartSearchDropdown, setShowSmartSearchDropdown] = useState(false)
+  const [selectedSmartPatient, setSelectedSmartPatient] = useState<Patient | null>(null)
+  
+  // Patient Import State
+  const [showImportDialog, setShowImportDialog] = useState(false)
+  const [importFile, setImportFile] = useState<File | null>(null)
+  const [importProgress, setImportProgress] = useState(0)
+  const [importStatus, setImportStatus] = useState<'idle' | 'uploading' | 'processing' | 'completed' | 'error'>('idle')
+  const [importResults, setImportResults] = useState<any>(null)
+  const [importLoading, setImportLoading] = useState(false)
   
   // ============== NEW FEATURE STATES ==============
   // Electronic Prescriptions
@@ -7815,6 +7829,17 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
       return
     }
 
+    // Task 2: Validate Matric Number/Staff ID based on Patient Type
+    const patientType = patientForm.patientType || 'Student'
+    if (patientType === 'Student' && !patientForm.matricNumber?.trim()) {
+      showToast('Matric Number is required for Students', 'warning')
+      return
+    }
+    if ((patientType === 'Academic Staff' || patientType === 'Non-Academic Staff') && !patientForm.matricNumber?.trim()) {
+      showToast('Staff ID is required for Staff members', 'warning')
+      return
+    }
+
     // If editing an existing patient
     if (editingPatientId) {
       const updatedPatientData = {
@@ -8784,6 +8809,12 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
 
   // Handle discharge form submission
   const handleDischargeSubmit = async () => {
+    // Task 3: Permission check for discharge
+    if (!canDischargePatient()) {
+      showToast('Only Nurses, Doctors, and Records Officers can discharge patients', 'warning')
+      return
+    }
+
     if (!dischargeAdmissionForm.dischargeDiagnosis || !dischargeAdmissionForm.treatmentSummary) {
       showToast('Please fill in Discharge Diagnosis and Treatment Summary', 'warning')
       return
@@ -9230,6 +9261,78 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
   // Check if user can send patients to other departments (Records Officer feature)
   const canSendPatients = () => {
     return user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN' || user?.role === 'RECORDS_OFFICER'
+  }
+
+  // Check if user can discharge patients (Task 3: Restrict Discharge Permissions)
+  const canDischargePatient = () => {
+    return ['NURSE', 'DOCTOR', 'RECORDS_OFFICER', 'SUPER_ADMIN', 'ADMIN'].includes(user?.role || '')
+  }
+
+  // Smart Patient Search function
+  const performSmartSearch = (query: string) => {
+    setSmartSearchQuery(query)
+    if (!query.trim()) {
+      setSmartSearchResults([])
+      setShowSmartSearchDropdown(false)
+      return
+    }
+    
+    const results = fuzzySearchPatients(query, patients).slice(0, 10)
+    setSmartSearchResults(results)
+    setShowSmartSearchDropdown(results.length > 0)
+  }
+
+  // Handle patient import
+  const handlePatientImport = async () => {
+    if (!importFile) return
+    
+    setImportStatus('uploading')
+    setImportProgress(0)
+    
+    const formData = new FormData()
+    formData.append('file', importFile)
+    
+    try {
+      const response = await fetch('/api/patients/import', {
+        method: 'POST',
+        body: formData
+      })
+      
+      const result = await response.json()
+      
+      if (result.success) {
+        setImportStatus('completed')
+        setImportResults({
+          success: result.successCount,
+          errors: result.errorCount,
+          errorDetails: result.errors || []
+        })
+        setImportProgress(100)
+        
+        // Refresh patients list
+        if (result.importedPatients && result.importedPatients.length > 0) {
+          setPatients(prev => [...prev, ...result.importedPatients])
+        }
+        
+        showToast(`Successfully imported ${result.successCount} patients!`, 'success')
+      } else {
+        setImportStatus('error')
+        setImportResults({
+          success: 0,
+          errors: result.total || 1,
+          errorDetails: [result.error || 'Import failed']
+        })
+        showToast('Import failed. Please check the file format.', 'warning')
+      }
+    } catch (error) {
+      setImportStatus('error')
+      setImportResults({
+        success: 0,
+        errors: 1,
+        errorDetails: ['Network error. Please try again.']
+      })
+      showToast('Import failed due to network error.', 'warning')
+    }
   }
 
   // Navigation items
@@ -11689,9 +11792,12 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                                     <Button variant="outline" size="sm" onClick={() => setShowAdmissionDetails(admission)}>
                                       <Eye className="h-3 w-3 mr-1" /> View
                                     </Button>
-                                    <Button variant="outline" size="sm" className="text-green-600" onClick={() => openDischargeDialog(admission)}>
-                                      <CheckCircle className="h-3 w-3 mr-1" /> Discharge
-                                    </Button>
+                                    {/* Task 3: Discharge button with permission check */}
+                                    {canDischargePatient() && (
+                                      <Button variant="outline" size="sm" className="text-green-600" onClick={() => openDischargeDialog(admission)}>
+                                        <CheckCircle className="h-3 w-3 mr-1" /> Discharge
+                                      </Button>
+                                    )}
                                   </div>
                                 </div>
                               </div>
@@ -11748,6 +11854,183 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
           {/* Patients */}
           {activeTab === 'patients' && (
             <div className="space-y-4">
+              {/* Task 1: Smart Patient Search for Returning Patients */}
+              <Card className="shadow-lg border-2 border-blue-200 bg-gradient-to-r from-blue-50 to-teal-50">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <Search className="h-5 w-5 text-blue-600" />
+                    Smart Patient Search
+                  </CardTitle>
+                  <CardDescription>
+                    Search for existing patients before registering new ones. Search by Name, Matric Number, Staff ID, RUHC Code, or Phone.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="relative">
+                    <Input
+                      placeholder="Type to search patients (name, matric, staff ID, RUHC code, phone)..."
+                      className="h-12 text-lg pl-4 pr-4 border-2 focus:border-blue-500"
+                      value={smartSearchQuery}
+                      onChange={e => performSmartSearch(e.target.value)}
+                      onFocus={() => smartSearchQuery && smartSearchResults.length > 0 && setShowSmartSearchDropdown(true)}
+                      onBlur={() => setTimeout(() => setShowSmartSearchDropdown(false), 200)}
+                    />
+                    {smartSearchQuery && (
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-500">
+                        {smartSearchResults.length} result{smartSearchResults.length !== 1 ? 's' : ''}
+                      </div>
+                    )}
+                    
+                    {/* Search Results Dropdown */}
+                    {showSmartSearchDropdown && smartSearchResults.length > 0 && (
+                      <div className="absolute z-50 w-full mt-1 bg-white border-2 border-blue-200 rounded-lg shadow-xl max-h-96 overflow-y-auto">
+                        {smartSearchResults.map(patient => (
+                          <div 
+                            key={patient.id}
+                            className="p-3 border-b hover:bg-blue-50 cursor-pointer last:border-b-0"
+                            onClick={() => {
+                              setSelectedSmartPatient(patient)
+                              setShowSmartSearchDropdown(false)
+                            }}
+                          >
+                            <div className="flex items-center gap-3">
+                              <Avatar className="h-10 w-10">
+                                <AvatarFallback className={getAvatarColor(patient.firstName + ' ' + patient.lastName)}>
+                                  {getInitials(patient.firstName, patient.lastName)}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-semibold">{getFullName(patient.firstName, patient.lastName, patient.middleName, patient.title)}</span>
+                                  <Badge className="bg-gradient-to-r from-blue-600 to-teal-500 text-white text-xs">{patient.ruhcCode}</Badge>
+                                </div>
+                                <div className="flex items-center gap-2 text-sm text-gray-500">
+                                  {patient.matricNumber && <span>• {patient.matricNumber}</span>}
+                                  {patient.phone && <span>• {patient.phone}</span>}
+                                  {patient.patientType && <Badge variant="outline" className="text-xs">{patient.patientType}</Badge>}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  
+                  {/* Selected Patient Actions */}
+                  {selectedSmartPatient && (
+                    <div className="mt-4 p-4 bg-white rounded-lg border-2 border-green-200">
+                      <div className="flex items-center gap-4">
+                        <Avatar className="h-14 w-14">
+                          <AvatarFallback className={getAvatarColor(selectedSmartPatient.firstName + ' ' + selectedSmartPatient.lastName)}>
+                            {getInitials(selectedSmartPatient.firstName, selectedSmartPatient.lastName)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1">
+                          <h4 className="font-semibold text-lg">{getFullName(selectedSmartPatient.firstName, selectedSmartPatient.lastName, selectedSmartPatient.middleName, selectedSmartPatient.title)}</h4>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <Badge className="bg-gradient-to-r from-blue-600 to-teal-500 text-white">{selectedSmartPatient.ruhcCode}</Badge>
+                            {selectedSmartPatient.matricNumber && <Badge variant="outline">{selectedSmartPatient.matricNumber}</Badge>}
+                            {selectedSmartPatient.patientType && <Badge variant="secondary">{selectedSmartPatient.patientType}</Badge>}
+                            {selectedSmartPatient.phone && <span className="text-sm text-gray-500">📞 {selectedSmartPatient.phone}</span>}
+                          </div>
+                        </div>
+                        <div className="flex gap-2 flex-wrap">
+                          <Button 
+                            className="bg-green-600 hover:bg-green-700"
+                            onClick={() => {
+                              setSendPatientForm({
+                                patientId: selectedSmartPatient.id,
+                                destination: '' as any,
+                                staffId: '',
+                                staffName: '',
+                                notes: '',
+                                priority: 'normal'
+                              })
+                              setShowSendPatientDialog(true)
+                            }}
+                          >
+                            <Send className="h-4 w-4 mr-2" /> Send to Workflow
+                          </Button>
+                          <Button 
+                            variant="outline"
+                            onClick={() => {
+                              logPatientAccess(selectedSmartPatient.id, `${selectedSmartPatient.firstName} ${selectedSmartPatient.lastName}`, 'VIEW')
+                              setSelectedPatient(selectedSmartPatient)
+                              setActiveTab('patient-detail')
+                              setSelectedSmartPatient(null)
+                              setSmartSearchQuery('')
+                            }}
+                          >
+                            <Eye className="h-4 w-4 mr-2" /> View Details
+                          </Button>
+                          <Button 
+                            variant="outline"
+                            className="border-blue-500 text-blue-600 hover:bg-blue-50"
+                            onClick={() => {
+                              // Create new consultation for existing patient
+                              setConsultationForm({
+                                patientId: selectedSmartPatient.id,
+                                chiefComplaint: '',
+                                signsAndSymptoms: '',
+                                provisionalDiagnosis: '',
+                                finalDiagnosis: '',
+                                notes: '',
+                                prescriptions: [],
+                                labRequests: [],
+                                vitals: null
+                              })
+                              setShowConsultationDialog(true)
+                            }}
+                          >
+                            <FileText className="h-4 w-4 mr-2" /> New Visit
+                          </Button>
+                          <Button 
+                            variant="ghost"
+                            onClick={() => {
+                              setSelectedSmartPatient(null)
+                              setSmartSearchQuery('')
+                            }}
+                          >
+                            <XCircle className="h-4 w-4 mr-2" /> Clear
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* No Patient Found - Register New */}
+                  {smartSearchQuery && smartSearchResults.length === 0 && (
+                    <div className="mt-4 p-4 bg-yellow-50 rounded-lg border border-yellow-200 text-center">
+                      <p className="text-yellow-800 mb-2">No patient found matching "{smartSearchQuery}"</p>
+                      <Button 
+                        className="bg-blue-600 hover:bg-blue-700"
+                        onClick={() => {
+                          setShowPatientDialog(true)
+                          setEditingPatientId(null)
+                          // Pre-fill form with search query if it looks like a name
+                          if (smartSearchQuery.includes(' ')) {
+                            const parts = smartSearchQuery.split(' ')
+                            setPatientForm(prev => ({
+                              ...prev,
+                              firstName: parts[0] || '',
+                              lastName: parts.slice(1).join(' ') || '',
+                              gender: 'Male',
+                              nationality: 'Nigerian',
+                              currentUnit: 'opd',
+                              patientType: 'Student'
+                            }))
+                          }
+                        }}
+                      >
+                        <Plus className="h-4 w-4 mr-2" /> Register New Patient
+                      </Button>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Search and Actions Bar */}
               <div className="flex gap-4 justify-between flex-wrap">
                 <div className="relative flex-1 max-w-md">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -11764,6 +12047,21 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                   )}
                 </div>
                 <div className="flex gap-2">
+                  {/* Task 4: Import Button - Only for Admin and Super Admin */}
+                  {(user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN') && (
+                    <Button 
+                      variant="outline" 
+                      className="border-green-600 text-green-600 hover:bg-green-50"
+                      onClick={() => {
+                        setShowImportDialog(true)
+                        setImportStatus('idle')
+                        setImportFile(null)
+                        setImportResults({ success: 0, errors: 0, errorDetails: [] })
+                      }}
+                    >
+                      <Upload className="h-4 w-4 mr-2" /> Import Patients
+                    </Button>
+                  )}
                   {canEdit('patients') && (
                     <Button onClick={() => { setShowPatientDialog(true); setEditingPatientId(null); }} className="bg-blue-600 hover:bg-blue-700">
                       <Plus className="h-4 w-4 mr-2" /> Register Patient
@@ -20231,7 +20529,31 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                     <SelectContent>{titles.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
                   </Select>
                 </div>
-                <div className="space-y-2"><Label>Matric/Staff Number *</Label><Input value={patientForm.matricNumber} onChange={e => setPatientForm({ ...patientForm, matricNumber: e.target.value })} placeholder="e.g., RU/2024/1234" /></div>
+                {/* Task 2: Conditional Matric Number/Staff ID field based on Patient Type */}
+                <div className="space-y-2">
+                  <Label>
+                    {patientForm.patientType === 'Student' ? 'Matric Number *' : 
+                     (patientForm.patientType === 'Academic Staff' || patientForm.patientType === 'Non-Academic Staff') ? 'Staff ID *' : 
+                     'ID Number (Optional)'}
+                  </Label>
+                  <Input 
+                    value={patientForm.matricNumber} 
+                    onChange={e => setPatientForm({ ...patientForm, matricNumber: e.target.value })} 
+                    placeholder={
+                      patientForm.patientType === 'Student' ? 'e.g., RU/2024/1234' : 
+                      (patientForm.patientType === 'Academic Staff' || patientForm.patientType === 'Non-Academic Staff') ? 'e.g., STAFF/001' : 
+                      'Optional ID'
+                    }
+                    className={
+                      ((patientForm.patientType === 'Student' || patientForm.patientType === 'Academic Staff' || patientForm.patientType === 'Non-Academic Staff') && !patientForm.matricNumber?.trim()) 
+                        ? 'border-orange-300 focus:border-orange-500' 
+                        : ''
+                    }
+                  />
+                  {(patientForm.patientType === 'Student' || patientForm.patientType === 'Academic Staff' || patientForm.patientType === 'Non-Academic Staff') && !patientForm.matricNumber?.trim() && (
+                    <p className="text-xs text-orange-600">Required for {patientForm.patientType}</p>
+                  )}
+                </div>
                 <div className="space-y-2">
                   <Label>Patient Type *</Label>
                   <Select value={patientForm.patientType || 'Student'} onValueChange={v => setPatientForm({ ...patientForm, patientType: v as any })}>
@@ -23736,8 +24058,8 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                 )}
               </div>
 
-              {/* Discharge Button for Active Admissions */}
-              {showAdmissionDetails.status === 'active' && (
+              {/* Discharge Button for Active Admissions - Task 3: Permission check */}
+              {showAdmissionDetails.status === 'active' && canDischargePatient() && (
                 <div className="pt-4 border-t">
                   <Button 
                     className="w-full bg-green-600 hover:bg-green-700"
@@ -27452,6 +27774,212 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                 showToast('Failed to submit claim', 'warning')
               }
             }}><FileText className="h-4 w-4 mr-2" />Submit Claim</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Import Patients Dialog */}
+      <Dialog open={showImportDialog} onOpenChange={setShowImportDialog}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-blue-700">
+              <Upload className="h-5 w-5" />
+              Import Patients from Legacy System
+            </DialogTitle>
+            <DialogDescription>
+              Import patient records from CSV files. Maximum 10,000 records per import.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-6 py-4">
+            {/* Instructions */}
+            <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+              <h4 className="font-medium text-blue-800 mb-2">📋 Import Instructions</h4>
+              <ul className="text-sm text-blue-700 space-y-1">
+                <li>• Upload a CSV file with patient records</li>
+                <li>• Required columns: <strong>firstName</strong>, <strong>lastName</strong></li>
+                <li>• For Students/Staff: <strong>matricNumber</strong> or <strong>staffId</strong> is required</li>
+                <li>• Patient types: Student, Academic Staff, Non-Academic Staff, Outsider</li>
+                <li>• Duplicate matric/staff numbers will be skipped</li>
+              </ul>
+              <Button 
+                variant="link" 
+                className="p-0 h-auto mt-2 text-blue-600"
+                onClick={async () => {
+                  try {
+                    const response = await fetch('/api/patients/import')
+                    const blob = await response.blob()
+                    const url = URL.createObjectURL(blob)
+                    const a = document.createElement('a')
+                    a.href = url
+                    a.download = 'patient_import_template.csv'
+                    a.click()
+                    URL.revokeObjectURL(url)
+                    showToast('Template downloaded!', 'success')
+                  } catch (error) {
+                    showToast('Failed to download template', 'error')
+                  }
+                }}
+              >
+                <Download className="h-4 w-4 mr-1" /> Download CSV Template
+              </Button>
+            </div>
+            
+            {/* File Upload */}
+            <div className="space-y-4">
+              <Label>Upload CSV File</Label>
+              <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
+                <input
+                  type="file"
+                  accept=".csv"
+                  id="import-file"
+                  className="hidden"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0]
+                    if (!file) return
+                    
+                    if (!file.name.endsWith('.csv')) {
+                      showToast('Please upload a CSV file', 'warning')
+                      return
+                    }
+                    
+                    setImportLoading(true)
+                    try {
+                      const formData = new FormData()
+                      formData.append('file', file)
+                      formData.append('dryRun', 'false')
+                      
+                      const response = await fetch('/api/patients/import', {
+                        method: 'POST',
+                        body: formData
+                      })
+                      
+                      const result = await response.json()
+                      
+                      if (result.success) {
+                        setImportResults(result.data)
+                        showToast(`Successfully imported ${result.data.successCount} patients!`, 'success')
+                        // Refresh patients list from database
+                        loadDataFromDB(true)
+                      } else {
+                        showToast(result.error || 'Import failed', 'error')
+                      }
+                    } catch (error) {
+                      showToast('Import failed. Please check file format.', 'error')
+                    } finally {
+                      setImportLoading(false)
+                    }
+                  }}
+                />
+                <label htmlFor="import-file" className="cursor-pointer">
+                  <Upload className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+                  <p className="text-gray-600 font-medium">Click to upload CSV file</p>
+                  <p className="text-sm text-gray-400 mt-1">or drag and drop</p>
+                </label>
+              </div>
+            </div>
+            
+            {/* Import Results */}
+            {importResults && (
+              <div className="space-y-4">
+                <Separator />
+                <h4 className="font-medium">Import Results</h4>
+                
+                <div className="grid grid-cols-3 gap-4">
+                  <Card className="border-l-4 border-l-blue-500">
+                    <CardContent className="p-4">
+                      <p className="text-sm text-gray-500">Total Rows</p>
+                      <p className="text-2xl font-bold text-blue-600">{importResults.total || importResults.successCount + importResults.errorCount}</p>
+                    </CardContent>
+                  </Card>
+                  <Card className="border-l-4 border-l-green-500">
+                    <CardContent className="p-4">
+                      <p className="text-sm text-gray-500">Imported</p>
+                      <p className="text-2xl font-bold text-green-600">{importResults.successCount}</p>
+                    </CardContent>
+                  </Card>
+                  <Card className="border-l-4 border-l-red-500">
+                    <CardContent className="p-4">
+                      <p className="text-sm text-gray-500">Errors</p>
+                      <p className="text-2xl font-bold text-red-600">{importResults.errorCount}</p>
+                    </CardContent>
+                  </Card>
+                </div>
+                
+                {/* Error Details */}
+                {importResults.errors && importResults.errors.length > 0 && (
+                  <div className="mt-4">
+                    <h5 className="font-medium text-red-700 mb-2">Errors ({importResults.errors.length})</h5>
+                    <div className="max-h-60 overflow-y-auto border rounded-lg">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="w-20">Row</TableHead>
+                            <TableHead>Error</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {importResults.errors.slice(0, 50).map((err: any, i: number) => (
+                            <TableRow key={i}>
+                              <TableCell className="font-mono text-sm">{err.row}</TableCell>
+                              <TableCell className="text-red-600">{err.error}</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                      {importResults.errors.length > 50 && (
+                        <p className="p-2 text-center text-gray-500 text-sm">
+                          ... and {importResults.errors.length - 50} more errors
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
+                
+                {/* Imported Patients Preview */}
+                {importResults.imported && importResults.imported.length > 0 && (
+                  <div className="mt-4">
+                    <h5 className="font-medium text-green-700 mb-2">Successfully Imported</h5>
+                    <div className="max-h-40 overflow-y-auto border rounded-lg">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>RUHC Code</TableHead>
+                            <TableHead>Name</TableHead>
+                            <TableHead>Matric/Staff ID</TableHead>
+                            <TableHead>Type</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {importResults.imported.slice(0, 20).map((p: any, i: number) => (
+                            <TableRow key={i}>
+                              <TableCell className="font-mono text-sm">{p.ruhcCode}</TableCell>
+                              <TableCell>{p.name}</TableCell>
+                              <TableCell>{p.matricNumber || '-'}</TableCell>
+                              <TableCell>
+                                <Badge variant="outline">{p.patientType}</Badge>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                      {importResults.imported.length > 20 && (
+                        <p className="p-2 text-center text-gray-500 text-sm">
+                          ... and {importResults.imported.length - 20} more patients
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => {
+              setShowImportDialog(false)
+              setImportResults(null)
+            }}>Close</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
