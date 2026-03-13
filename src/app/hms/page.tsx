@@ -45,7 +45,8 @@ import {
   Timer, LogIn, Phone, Mail, ShieldCheck, Edit2, Cloud, CloudOff, RefreshCw, Wifi, WifiOff,
   MessageSquare, AlertCircle, Zap, UserCheck, Fingerprint, Camera, FolderOpen, Undo2, CheckCheck, Check,
   TrendingUp, TrendingDown, BarChart3, PieChart as PieChartIcon, FileSpreadsheet, FileDown, Moon, Inbox,
-  ArrowUpRight, ArrowDownRight, Minus, Command, Keyboard, X, Info, HelpCircle, ChevronDown, ChevronUp, QrCode, Database, Save, RotateCcw, History
+  ArrowUpRight, ArrowDownRight, Minus, Command, Keyboard, X, Info, HelpCircle, ChevronDown, ChevronUp, QrCode, Database, Save, RotateCcw, History,
+  Megaphone
 } from 'lucide-react'
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
@@ -2506,13 +2507,14 @@ export default function HMSApp() {
     reason: ''
   })
   const [campaignForm, setCampaignForm] = useState({
-    name: '',
-    type: 'vaccination' as 'vaccination' | 'awareness' | 'screening' | 'donation',
+    title: '',
+    type: 'awareness' as 'awareness' | 'vaccination' | 'screening' | 'education',
+    targetAudience: 'all' as 'students' | 'staff' | 'all',
     startDate: '',
     endDate: '',
-    target: 0,
     description: ''
   })
+  const [healthCampaigns, setHealthCampaigns] = useState<any[]>([])
   
   // Audit Log - Additional state
   const [blockedIPs, setBlockedIPs] = useState<{ ip: string; attempts: number; blockedUntil: string }[]>([])
@@ -2632,6 +2634,7 @@ export default function HMSApp() {
   const [newCertification, setNewCertification] = useState({
     staffId: '', staffName: '', certificationName: '', issuingBody: '', dateObtained: '', expiryDate: '', cpdPoints: '', certificateNumber: ''
   })
+  const [selectedCertification, setSelectedCertification] = useState<StaffCertification | null>(null)
   const [newTraining, setNewTraining] = useState({
     staffId: '', staffName: '', trainingTitle: '', trainingType: '', provider: '', startDate: '', endDate: '', hours: '', location: ''
   })
@@ -2640,6 +2643,9 @@ export default function HMSApp() {
   const [bloodDonors, setBloodDonors] = useState<BloodDonor[]>([])
   const [bloodUnits, setBloodUnits] = useState<BloodUnit[]>([])
   const [bloodTransfusions, setBloodTransfusions] = useState<BloodTransfusion[]>([])
+  const [selectedDonor, setSelectedDonor] = useState<BloodDonor | null>(null)
+  const [selectedTransfusion, setSelectedTransfusion] = useState<BloodTransfusion | null>(null)
+  const [showTransfusionReactionDialog, setShowTransfusionReactionDialog] = useState(false)
   
   // Medical Assets
   const [medicalAssets, setMedicalAssets] = useState<MedicalAsset[]>([])
@@ -3153,20 +3159,48 @@ export default function HMSApp() {
   const [showSignOutConfirmation, setShowSignOutConfirmation] = useState(false)
   const [signOutPhoto, setSignOutPhoto] = useState<string | null>(null)
   
-  const confirmSignOut = () => {
+  const confirmSignOut = async () => {
     if (!user || !attendanceSignInRecord) return
     
     const now = new Date()
     const timeString = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
     
+    // Calculate work hours
+    const calculateWorkHours = (signInTime: string) => {
+      try {
+        const [time, period] = signInTime.split(' ')
+        const [hours, minutes] = time.split(':').map(Number)
+        let totalMinutes = hours * 60 + minutes
+        if (period === 'PM' && hours !== 12) totalMinutes += 12 * 60
+        if (period === 'AM' && hours === 12) totalMinutes = minutes
+        
+        const nowMinutes = now.getHours() * 60 + now.getMinutes()
+        let diffMinutes = nowMinutes - totalMinutes
+        if (diffMinutes < 0) diffMinutes += 24 * 60 // Handle overnight
+        
+        const hrs = Math.floor(diffMinutes / 60)
+        const mins = diffMinutes % 60
+        return `${hrs}h ${mins}m`
+      } catch {
+        return 'N/A'
+      }
+    }
+    
     // Update the attendance record
+    const updatedRecord = {
+      signOutTime: timeString,
+      signOutPhoto: signOutPhoto || capturedPhoto,
+      clockOut: timeString,
+      signOutMethod: 'manual',
+      workHours: calculateWorkHours(attendanceSignInRecord.signInTime),
+      status: 'completed'
+    }
+    
     const updatedRecords = attendanceRecords.map(r => {
       if (r.id === attendanceSignInRecord.id) {
         return {
           ...r,
-          signOutTime: timeString,
-          signOutPhoto: signOutPhoto || capturedPhoto,
-          clockOut: timeString
+          ...updatedRecord
         }
       }
       return r
@@ -3179,6 +3213,14 @@ export default function HMSApp() {
     setCapturedPhoto(null)
     setSignOutPhoto(null)
     stopCamera()
+    
+    // Save to database
+    try {
+      await updateInDB('attendance', attendanceSignInRecord.id, updatedRecord)
+      console.log('✅ Attendance sign-out saved to database')
+    } catch (error) {
+      console.error('Failed to save sign-out to database:', error)
+    }
     
     logUserActivity('ATTENDANCE_SIGN_OUT', `Signed out at ${timeString}`, 'attendance', 'Sign Out')
     showToast('Signed out successfully. Goodbye!', 'success')
@@ -4667,6 +4709,7 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
     }
     
     setPatientTasks(prev => [...prev, newTask])
+    saveTaskToDB(newTask)
     setShowTaskDialog(false)
     setTaskForm({ patientId: '', taskId: '', scheduledTime: '', scheduledDate: '', notes: '', priority: 'routine', recurring: false, recurrenceInterval: 240 })
   }
@@ -5934,6 +5977,55 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
     try {
       await fetch('/api/data', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'insuranceClaim', id, data }) })
     } catch (error) { console.error('Failed to update insurance claim:', error) }
+  }
+
+  // Payment persistence
+  const savePaymentToDB = async (payment: Payment) => {
+    try {
+      await fetch('/api/data', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'payment', data: payment }) })
+    } catch (error) { console.error('Failed to save payment:', error) }
+  }
+
+  // Expense persistence
+  const saveExpenseToDB = async (expense: Expense) => {
+    try {
+      await fetch('/api/data', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'expense', data: expense }) })
+    } catch (error) { console.error('Failed to save expense:', error) }
+  }
+
+  // Staff Message persistence
+  const saveMessageToDB = async (message: StaffMessage) => {
+    try {
+      await fetch('/api/data', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'staffMessage', data: message }) })
+    } catch (error) { console.error('Failed to save message:', error) }
+  }
+
+  // Patient Task persistence
+  const saveTaskToDB = async (task: PatientTask) => {
+    try {
+      await fetch('/api/data', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'patientTask', data: task }) })
+    } catch (error) { console.error('Failed to save task:', error) }
+  }
+
+  // Dispensed Drug persistence
+  const saveDispensedDrugToDB = async (dispensed: DispensedDrug) => {
+    try {
+      await fetch('/api/data', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'dispensedDrug', data: dispensed }) })
+    } catch (error) { console.error('Failed to save dispensed drug:', error) }
+  }
+
+  // Backup Record persistence
+  const saveBackupToDB = async (backup: BackupRecord) => {
+    try {
+      await fetch('/api/data', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'backupRecord', data: backup }) })
+    } catch (error) { console.error('Failed to save backup record:', error) }
+  }
+
+  // Update Backup Record
+  const updateBackupInDB = async (id: string, data: Partial<BackupRecord>) => {
+    try {
+      await fetch('/api/data', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'backupRecord', id, data }) })
+    } catch (error) { console.error('Failed to update backup record:', error) }
   }
 
   // ============== STAFF MANAGEMENT FUNCTIONS ==============
@@ -7980,7 +8072,7 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
   }
 
   // Create Backup
-  const createBackup = () => {
+  const createBackup = async () => {
     const backupId = `backup_${Date.now()}`
     const startTime = new Date().toISOString()
     
@@ -7996,6 +8088,7 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
     }
     
     setBackupRecords(prev => [newBackup, ...prev])
+    await saveBackupToDB(newBackup)
     showToast('Creating backup...', 'info')
     
     try {
@@ -8037,21 +8130,76 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
       
       // Update backup record to completed
       const endTime = new Date().toISOString()
+      const completedBackup = { status: 'completed' as const, size: blob.size, completedAt: endTime }
       setBackupRecords(prev => prev.map(b => 
         b.id === backupId 
-          ? { ...b, status: 'completed', size: blob.size, completedAt: endTime }
+          ? { ...b, ...completedBackup }
           : b
       ))
+      await updateBackupInDB(backupId, completedBackup)
       
       showToast('Backup created successfully!', 'success')
     } catch (error) {
       // Update backup record to failed
+      const failedBackup = { status: 'failed' as const, completedAt: new Date().toISOString(), notes: 'Download failed' }
       setBackupRecords(prev => prev.map(b => 
         b.id === backupId 
-          ? { ...b, status: 'failed', completedAt: new Date().toISOString(), notes: 'Download failed' }
+          ? { ...b, ...failedBackup }
           : b
       ))
+      await updateBackupInDB(backupId, failedBackup)
       showToast('Backup failed. Please try again.', 'warning')
+    }
+  }
+
+  // Download a specific backup (regenerate from current data)
+  const downloadBackup = async (backup: BackupRecord) => {
+    if (backup.status !== 'completed') {
+      showToast('Cannot download incomplete backup', 'warning')
+      return
+    }
+
+    try {
+      // Gather all data for backup
+      const allData = {
+        backupInfo: {
+          version: '1.0',
+          createdAt: backup.startedAt,
+          createdBy: backup.createdBy || 'System',
+          facilityName: appSettings.facilityName,
+          backupId: backup.id
+        },
+        settings: appSettings,
+        patients,
+        appointments,
+        consultations,
+        vitals,
+        labRequests,
+        prescriptions,
+        bills,
+        drugs,
+        systemUsers,
+        announcements,
+        rosters,
+        admissions,
+        bloodDonors,
+        bloodUnits,
+        inventory,
+        equipment: medicalAssets
+      }
+      
+      const data = JSON.stringify(allData, null, 2)
+      const blob = new Blob([data], { type: 'application/json' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `ruhc_backup_${new Date(backup.startedAt).toISOString().split('T')[0]}.json`
+      a.click()
+      URL.revokeObjectURL(url)
+      
+      showToast('Backup downloaded successfully!', 'success')
+    } catch (error) {
+      showToast('Failed to download backup', 'error')
     }
   }
 
@@ -8651,7 +8799,7 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
   }
 
   // Record medication administration
-  const recordMedication = () => {
+  const recordMedication = async () => {
     if (!user) {
       showToast('You must be logged in to perform this action', 'warning')
       return
@@ -8672,6 +8820,9 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
     setMedicationAdmins([newMedAdmin, ...medicationAdmins])
     setShowMedicationDialog(false)
     setMedicationForm({ patientId: '', drugName: '', dosage: '', route: 'Oral', notes: '', initials: '' })
+
+    // Save to database
+    await saveMedicationAdminToDB(newMedAdmin)
 
     // Broadcast real-time update
     fetch('/api/realtime', {
@@ -14884,11 +15035,22 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                             </TableCell>
                             <TableCell>
                               {a.status !== 'completed' && a.status !== 'cancelled' && (
-                                <Button size="sm" onClick={() => {
+                                <Button size="sm" onClick={async () => {
                                   const statuses = ['dispatched', 'en_route', 'arrived', 'completed'] as const
                                   const currentIndex = statuses.indexOf(a.status as any)
                                   if (currentIndex < statuses.length - 1) {
-                                    setAmbulanceCalls(ambulanceCalls.map(c => c.id === a.id ? { ...c, status: statuses[currentIndex + 1] } : c))
+                                    const newStatus = statuses[currentIndex + 1]
+                                    try {
+                                      await fetch('/api/data', { 
+                                        method: 'PUT', 
+                                        headers: { 'Content-Type': 'application/json' }, 
+                                        body: JSON.stringify({ type: 'ambulanceCall', id: a.id, data: { status: newStatus } }) 
+                                      })
+                                      setAmbulanceCalls(ambulanceCalls.map(c => c.id === a.id ? { ...c, status: newStatus } : c))
+                                      showToast(`Status updated to ${newStatus}`, 'success')
+                                    } catch (error) {
+                                      showToast('Failed to update status', 'warning')
+                                    }
                                   }
                                 }}>Update Status</Button>
                               )}
@@ -15066,22 +15228,6 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                 </CardContent>
               </Card>
             </div>
-          )}
-
-          {/* Audit Logs */}
-          {activeTab === 'audit' && (
-            <Card className="shadow-md">
-              <CardHeader>
-                <CardTitle>Audit Logs</CardTitle>
-                <CardDescription>System activity and access logs</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="text-center text-gray-500 py-8">
-                  <Shield className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                  <p>Audit logs will be displayed here</p>
-                </div>
-              </CardContent>
-            </Card>
           )}
 
           {/* Audit Logs & Security */}
@@ -15421,7 +15567,15 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                   const unitPatients = patients.filter(p => p.currentUnit === unit.id)
                   const admittedPatients = unitPatients.filter(p => p.admissionDate)
                   return (
-                    <Card key={unit.id} className="shadow-md hover:shadow-lg transition-shadow cursor-pointer border-l-4" style={{ borderLeftColor: unit.id === 'opd' ? '#3B82F6' : unit.id === 'mmw' ? '#16A34A' : unit.id === 'fmw' ? '#EC4899' : '#F97316' }}>
+                    <Card 
+                      key={unit.id} 
+                      className="shadow-md hover:shadow-lg transition-shadow cursor-pointer border-l-4" 
+                      style={{ borderLeftColor: unit.id === 'opd' ? '#3B82F6' : unit.id === 'mmw' ? '#16A34A' : unit.id === 'fmw' ? '#EC4899' : '#F97316' }}
+                      onClick={() => {
+                        // Filter to show only patients in this unit
+                        showToast(`Viewing patients in ${unit.name}`, 'info')
+                      }}
+                    >
                       <CardContent className="p-6">
                         <div className="flex items-center justify-between mb-4">
                           <div className={cn("w-12 h-12 rounded-xl flex items-center justify-center", unit.color)}>
@@ -15777,6 +15931,14 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                                   occupant ? "bg-red-50 border-red-300" : "bg-green-50 border-green-300"
                                 )}
                                 title={occupant ? `${occupant.firstName} ${occupant.lastName}` : 'Available'}
+                                onClick={() => {
+                                  if (occupant) {
+                                    setSelectedPatient(occupant)
+                                    setActiveTab('patient-detail')
+                                  } else {
+                                    showToast(`Bed ${bedNum} is available for assignment`, 'info')
+                                  }
+                                }}
                               >
                                 <div className={cn(
                                   "w-8 h-8 rounded-full mx-auto mb-1 flex items-center justify-center text-xs font-bold",
@@ -15855,22 +16017,37 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                           <TableHead>Theatre</TableHead>
                           <TableHead>Priority</TableHead>
                           <TableHead>Status</TableHead>
+                          <TableHead>Actions</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {surgeryBookings.map(s => (
-                          <TableRow key={s.id}>
-                            <TableCell>{s.scheduledTime}</TableCell>
-                            <TableCell>{s.patient?.firstName} {s.patient?.lastName}</TableCell>
-                            <TableCell>{s.surgeryType}</TableCell>
-                            <TableCell>{s.surgeonName}</TableCell>
-                            <TableCell>{s.theatreName}</TableCell>
+                        {surgeryBookings.map(surgery => (
+                          <TableRow key={surgery.id}>
+                            <TableCell>{surgery.scheduledTime}</TableCell>
+                            <TableCell>{surgery.patient?.firstName} {surgery.patient?.lastName}</TableCell>
+                            <TableCell>{surgery.surgeryType}</TableCell>
+                            <TableCell>{surgery.surgeonName}</TableCell>
+                            <TableCell>{surgery.theatreName}</TableCell>
                             <TableCell>
-                              <Badge className={s.priority === 'emergency' ? 'bg-red-500 text-white' : s.priority === 'urgent' ? 'bg-yellow-500 text-white' : 'bg-gray-100'}>
-                                {s.priority}
+                              <Badge className={surgery.priority === 'emergency' ? 'bg-red-500 text-white' : surgery.priority === 'urgent' ? 'bg-yellow-500 text-white' : 'bg-gray-100'}>
+                                {surgery.priority}
                               </Badge>
                             </TableCell>
-                            <TableCell><Badge className={getStatusBadgeColor(s.status)}>{s.status}</Badge></TableCell>
+                            <TableCell><Badge className={getStatusBadgeColor(surgery.status)}>{surgery.status}</Badge></TableCell>
+                            <TableCell>
+                              <div className="flex gap-1">
+                                <Button size="sm" variant="outline" onClick={async () => {
+                                  await fetch('/api/data', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'surgeryBooking', id: surgery.id, data: { status: 'completed' } }) })
+                                  setSurgeryBookings(surgeryBookings.map(s => s.id === surgery.id ? { ...s, status: 'completed' } : s))
+                                  showToast('Surgery marked as completed', 'success')
+                                }}>Complete</Button>
+                                <Button size="sm" variant="destructive" onClick={async () => {
+                                  await fetch('/api/data', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'surgeryBooking', id: surgery.id, data: { status: 'cancelled' } }) })
+                                  setSurgeryBookings(surgeryBookings.map(s => s.id === surgery.id ? { ...s, status: 'cancelled' } : s))
+                                  showToast('Surgery cancelled', 'warning')
+                                }}>Cancel</Button>
+                              </div>
+                            </TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
@@ -16201,19 +16378,41 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                           <TableHead>Amount</TableHead>
                           <TableHead>Status</TableHead>
                           <TableHead>Date</TableHead>
+                          <TableHead>Actions</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {nhiaClaims.slice(0, 20).map(c => (
-                          <TableRow key={c.id}>
-                            <TableCell className="font-mono">{c.id.slice(0, 8)}</TableCell>
-                            <TableCell>{c.patient?.firstName} {c.patient?.lastName}</TableCell>
-                            <TableCell className="font-mono">{c.enrolleeId}</TableCell>
-                            <TableCell>{c.hmoId}</TableCell>
-                            <TableCell><Badge variant="outline">{c.claimType}</Badge></TableCell>
-                            <TableCell className="font-bold">{formatCurrency(c.totalAmount)}</TableCell>
-                            <TableCell><Badge className={getStatusBadgeColor(c.status)}>{c.status}</Badge></TableCell>
-                            <TableCell>{formatDate(c.createdAt)}</TableCell>
+                        {nhiaClaims.slice(0, 20).map(claim => (
+                          <TableRow key={claim.id}>
+                            <TableCell className="font-mono">{claim.id.slice(0, 8)}</TableCell>
+                            <TableCell>{claim.patient?.firstName} {claim.patient?.lastName}</TableCell>
+                            <TableCell className="font-mono">{claim.enrolleeId}</TableCell>
+                            <TableCell>{claim.hmoId}</TableCell>
+                            <TableCell><Badge variant="outline">{claim.claimType}</Badge></TableCell>
+                            <TableCell className="font-bold">{formatCurrency(claim.totalAmount)}</TableCell>
+                            <TableCell><Badge className={getStatusBadgeColor(claim.status)}>{claim.status}</Badge></TableCell>
+                            <TableCell>{formatDate(claim.createdAt)}</TableCell>
+                            <TableCell>
+                              <div className="flex gap-1">
+                                {claim.status === 'draft' && (
+                                  <Button size="sm" className="bg-green-600 hover:bg-green-700" onClick={async () => {
+                                    await fetch('/api/data', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'insuranceClaim', id: claim.id, data: { status: 'submitted', submittedAt: new Date().toISOString() } }) })
+                                    setNhiaClaims(nhiaClaims.map(c => c.id === claim.id ? { ...c, status: 'submitted' } : c))
+                                    showToast('Claim submitted!', 'success')
+                                  }}>Submit</Button>
+                                )}
+                                {claim.status === 'submitted' && (
+                                  <Button size="sm" variant="outline" className="text-green-600" onClick={async () => {
+                                    await fetch('/api/data', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'insuranceClaim', id: claim.id, data: { status: 'approved' } }) })
+                                    setNhiaClaims(nhiaClaims.map(c => c.id === claim.id ? { ...c, status: 'approved' } : c))
+                                    showToast('Claim approved!', 'success')
+                                  }}>Approve</Button>
+                                )}
+                                {claim.status !== 'draft' && claim.status !== 'submitted' && (
+                                  <span className="text-xs text-gray-500">No actions</span>
+                                )}
+                              </div>
+                            </TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
@@ -16329,15 +16528,42 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                       <p className="text-center text-gray-500 py-8">No donors registered</p>
                     ) : (
                       <div className="space-y-2">
-                        {bloodDonors.slice(0, 10).map(d => (
-                          <div key={d.id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                        {bloodDonors.slice(0, 10).map(donor => (
+                          <div key={donor.id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
                             <div>
-                              <p className="font-medium">{d.name}</p>
-                              <p className="text-xs text-gray-500">{d.phone}</p>
+                              <p className="font-medium">{donor.name}</p>
+                              <p className="text-xs text-gray-500">{donor.phone}</p>
                             </div>
-                            <div className="text-right">
-                              <Badge className="bg-red-100 text-red-800">{d.bloodGroup}</Badge>
-                              <p className="text-xs text-gray-500">{d.totalDonations} donations</p>
+                            <div className="flex items-center gap-2">
+                              <div className="text-right">
+                                <Badge className="bg-red-100 text-red-800">{donor.bloodGroup}</Badge>
+                                <p className="text-xs text-gray-500">{donor.totalDonations} donations</p>
+                              </div>
+                              <div className="flex gap-1">
+                                <Button size="sm" variant="outline" onClick={() => {
+                                  setSelectedDonor(donor)
+                                  setShowBloodDonorDialog(true)
+                                }}>Edit</Button>
+                                {donor.isEligible && (
+                                  <Button size="sm" className="bg-red-600 hover:bg-red-700" onClick={async () => {
+                                    const newUnit = {
+                                      id: `bu_${Date.now()}`,
+                                      donorId: donor.id,
+                                      donorName: donor.name,
+                                      bloodGroup: donor.bloodGroup,
+                                      componentType: 'whole_blood' as const,
+                                      volumeMl: 450,
+                                      collectionDate: new Date().toISOString().split('T')[0],
+                                      expiryDate: new Date(Date.now() + 42 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+                                      status: 'available' as const
+                                    }
+                                    await fetch('/api/data', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'bloodUnit', data: newUnit }) })
+                                    setBloodUnits(prev => [...prev, newUnit])
+                                    setBloodDonors(prev => prev.map(d => d.id === donor.id ? { ...d, totalDonations: d.totalDonations + 1, lastDonationDate: new Date().toISOString() } : d))
+                                    showToast('Blood unit collected!', 'success')
+                                  }}>Collect</Button>
+                                )}
+                              </div>
                             </div>
                           </div>
                         ))}
@@ -16356,15 +16582,35 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                       <p className="text-center text-gray-500 py-8">No transfusions recorded</p>
                     ) : (
                       <div className="space-y-2">
-                        {bloodTransfusions.slice(0, 10).map(t => (
-                          <div key={t.id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                        {bloodTransfusions.slice(0, 10).map(transfusion => (
+                          <div key={transfusion.id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
                             <div>
-                              <p className="font-medium">{t.patient?.firstName} {t.patient?.lastName}</p>
-                              <p className="text-xs text-gray-500">{t.componentType} - {t.volumeMl}ml</p>
+                              <p className="font-medium">{transfusion.patient?.firstName} {transfusion.patient?.lastName}</p>
+                              <p className="text-xs text-gray-500">{transfusion.componentType} - {transfusion.volumeMl}ml</p>
                             </div>
-                            <div className="text-right">
-                              <Badge className="bg-red-100 text-red-800">{t.bloodGroup}</Badge>
-                              <p className="text-xs text-gray-500">{formatDate(t.startedAt)}</p>
+                            <div className="flex items-center gap-2">
+                              <div className="text-right">
+                                <Badge className="bg-red-100 text-red-800">{transfusion.bloodGroup}</Badge>
+                                <p className="text-xs text-gray-500">{formatDate(transfusion.startedAt)}</p>
+                              </div>
+                              <div className="flex gap-1">
+                                {!transfusion.completedAt && (
+                                  <>
+                                    <Button size="sm" variant="outline" className="text-green-600" onClick={async () => {
+                                      await fetch('/api/data', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'bloodTransfusion', id: transfusion.id, data: { completedAt: new Date().toISOString() } }) })
+                                      setBloodTransfusions(prev => prev.map(t => t.id === transfusion.id ? { ...t, completedAt: new Date().toISOString() } : t))
+                                      showToast('Transfusion completed!', 'success')
+                                    }}>Complete</Button>
+                                    <Button size="sm" variant="outline" className="text-red-600" onClick={() => {
+                                      setShowTransfusionReactionDialog(true)
+                                      setSelectedTransfusion(transfusion)
+                                    }}>Record Reaction</Button>
+                                  </>
+                                )}
+                                {transfusion.completedAt && (
+                                  <Badge className="bg-green-100 text-green-800">Completed</Badge>
+                                )}
+                              </div>
                             </div>
                           </div>
                         ))}
@@ -16435,22 +16681,40 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                           <TableHead>Status</TableHead>
                           <TableHead>Next Maintenance</TableHead>
                           <TableHead>Value</TableHead>
+                          <TableHead>Actions</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {medicalAssets.map(a => (
-                          <TableRow key={a.id}>
-                            <TableCell className="font-mono">{a.assetTag}</TableCell>
-                            <TableCell className="font-medium">{a.name}</TableCell>
-                            <TableCell>{a.category}</TableCell>
-                            <TableCell>{a.location}</TableCell>
+                        {medicalAssets.map(asset => (
+                          <TableRow key={asset.id}>
+                            <TableCell className="font-mono">{asset.assetTag}</TableCell>
+                            <TableCell className="font-medium">{asset.name}</TableCell>
+                            <TableCell>{asset.category}</TableCell>
+                            <TableCell>{asset.location}</TableCell>
                             <TableCell>
-                              <Badge className={a.status === 'in_use' ? 'bg-green-100 text-green-800' : a.status === 'maintenance' ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100 text-gray-800'}>
-                                {a.status}
+                              <Badge className={asset.status === 'in_use' ? 'bg-green-100 text-green-800' : asset.status === 'maintenance' ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100 text-gray-800'}>
+                                {asset.status}
                               </Badge>
                             </TableCell>
-                            <TableCell>{a.nextMaintenanceDate ? formatDate(a.nextMaintenanceDate) : '-'}</TableCell>
-                            <TableCell>{a.purchasePrice ? formatCurrency(a.purchasePrice) : '-'}</TableCell>
+                            <TableCell>{asset.nextMaintenanceDate ? formatDate(asset.nextMaintenanceDate) : '-'}</TableCell>
+                            <TableCell>{asset.purchasePrice ? formatCurrency(asset.purchasePrice) : '-'}</TableCell>
+                            <TableCell>
+                              <div className="flex gap-1">
+                                <Button size="sm" variant="outline" onClick={() => {
+                                  setAssetForm({ 
+                                    ...asset, 
+                                    purchasePrice: String(asset.purchasePrice || 0),
+                                    purchaseDate: asset.purchaseDate || ''
+                                  } as any)
+                                  setShowAssetDialog(true)
+                                }}>Edit</Button>
+                                <Button size="sm" variant="outline" onClick={async () => {
+                                  await fetch('/api/data', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'medicalAsset', id: asset.id, data: { status: 'maintenance' } }) })
+                                  setMedicalAssets(medicalAssets.map(a => a.id === asset.id ? { ...a, status: 'maintenance' } : a))
+                                  showToast('Asset marked for maintenance', 'info')
+                                }}>Maintenance</Button>
+                              </div>
+                            </TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
@@ -16794,21 +17058,36 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                               <TableHead>Expiry</TableHead>
                               <TableHead>CPD Points</TableHead>
                               <TableHead>Status</TableHead>
+                              <TableHead>Actions</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
-                            {staffCertifications.map(c => (
-                              <TableRow key={c.id}>
-                                <TableCell>{c.staffName}</TableCell>
-                                <TableCell className="font-medium">{c.certificationName}</TableCell>
-                                <TableCell>{c.issuingBody}</TableCell>
-                                <TableCell>{formatDate(c.dateObtained)}</TableCell>
-                                <TableCell>{c.expiryDate ? formatDate(c.expiryDate) : 'N/A'}</TableCell>
-                                <TableCell>{c.cpdPoints || '-'}</TableCell>
+                            {staffCertifications.map(cert => (
+                              <TableRow key={cert.id}>
+                                <TableCell>{cert.staffName}</TableCell>
+                                <TableCell className="font-medium">{cert.certificationName}</TableCell>
+                                <TableCell>{cert.issuingBody}</TableCell>
+                                <TableCell>{formatDate(cert.dateObtained)}</TableCell>
+                                <TableCell>{cert.expiryDate ? formatDate(cert.expiryDate) : 'N/A'}</TableCell>
+                                <TableCell>{cert.cpdPoints || '-'}</TableCell>
                                 <TableCell>
-                                  <Badge className={c.isExpired ? 'bg-red-100 text-red-800' : c.isExpiringSoon ? 'bg-yellow-100 text-yellow-800' : 'bg-green-100 text-green-800'}>
-                                    {c.isExpired ? 'Expired' : c.isExpiringSoon ? 'Expiring Soon' : 'Valid'}
+                                  <Badge className={cert.isExpired ? 'bg-red-100 text-red-800' : cert.isExpiringSoon ? 'bg-yellow-100 text-yellow-800' : 'bg-green-100 text-green-800'}>
+                                    {cert.isExpired ? 'Expired' : cert.isExpiringSoon ? 'Expiring Soon' : 'Valid'}
                                   </Badge>
+                                </TableCell>
+                                <TableCell>
+                                  <div className="flex gap-1">
+                                    <Button size="sm" variant="outline" onClick={() => {
+                                      setSelectedCertification(cert)
+                                      setShowAddCertificationDialog(true)
+                                    }}>Edit</Button>
+                                    <Button size="sm" variant="outline" className="text-green-600" onClick={async () => {
+                                      const newExpiry = new Date(Date.now() + 365*24*60*60*1000).toISOString().split('T')[0]
+                                      await fetch('/api/data', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'certification', id: cert.id, data: { expiryDate: newExpiry, isExpired: false, isExpiringSoon: false } }) })
+                                      setStaffCertifications(staffCertifications.map(c => c.id === cert.id ? { ...c, expiryDate: newExpiry, isExpired: false, isExpiringSoon: false } : c))
+                                      showToast('Certification renewed!', 'success')
+                                    }}>Renew</Button>
+                                  </div>
                                 </TableCell>
                               </TableRow>
                             ))}
@@ -16934,7 +17213,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                             <TableCell><Badge className={getStatusBadgeColor(b.status)}>{b.status}</Badge></TableCell>
                             <TableCell>{b.completedAt ? `${Math.round((new Date(b.completedAt).getTime() - new Date(b.startedAt).getTime()) / 1000)}s` : '-'}</TableCell>
                             <TableCell>
-                              <Button size="sm" variant="outline" onClick={createBackup}>
+                              <Button size="sm" variant="outline" onClick={() => downloadBackup(b)} disabled={b.status !== 'completed'}>
                                 <Download className="h-4 w-4 mr-1" /> Download
                               </Button>
                             </TableCell>
@@ -18342,37 +18621,43 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
 
               {/* Active Campaigns */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {[
-                  { name: 'COVID-19 Vaccination Drive', status: 'active', participants: 245, target: 500, dates: 'Jan 15 - Feb 28, 2026', color: 'bg-green-500' },
-                  { name: 'Malaria Prevention Week', status: 'upcoming', participants: 0, target: 1000, dates: 'Mar 1 - Mar 7, 2026', color: 'bg-blue-500' },
-                  { name: 'HIV/AIDS Awareness', status: 'active', participants: 120, target: 300, dates: 'Ongoing', color: 'bg-red-500' },
-                  { name: 'Blood Donation Camp', status: 'upcoming', participants: 0, target: 100, dates: 'Feb 20, 2026', color: 'bg-orange-500' },
-                ].map((campaign, i) => (
-                  <Card key={i} className="shadow-md hover:shadow-lg transition-shadow">
-                    <CardContent className="p-4">
-                      <div className="flex items-start justify-between mb-3">
-                        <div className={`w-3 h-3 rounded-full ${campaign.color}`} />
-                        <Badge className={campaign.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}>
-                          {campaign.status}
-                        </Badge>
-                      </div>
-                      <h3 className="font-semibold text-gray-800 mb-2">{campaign.name}</h3>
-                      <p className="text-sm text-gray-500 mb-3">{campaign.dates}</p>
-                      <div className="mb-2">
-                        <div className="flex justify-between text-xs mb-1">
-                          <span>Progress</span>
-                          <span>{campaign.participants}/{campaign.target}</span>
+                {healthCampaigns.length === 0 ? (
+                  <div className="col-span-full text-center py-8 text-gray-500">
+                    <Megaphone className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                    <p>No health campaigns yet</p>
+                    <p className="text-sm mt-2">Click "New Campaign" to create your first campaign</p>
+                  </div>
+                ) : (
+                  healthCampaigns.map((campaign) => (
+                    <Card key={campaign.id} className="shadow-md hover:shadow-lg transition-shadow">
+                      <CardContent className="p-4">
+                        <div className="flex items-start justify-between mb-3">
+                          <Badge className={campaign.status === 'active' ? 'bg-green-100 text-green-800' : campaign.status === 'planning' ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'}>
+                            {campaign.status || 'planning'}
+                          </Badge>
+                          <Badge variant="outline">{campaign.type}</Badge>
                         </div>
-                        <Progress value={(campaign.participants / campaign.target) * 100} className="h-2" />
-                      </div>
-                      <Button variant="outline" size="sm" className="w-full mt-2" onClick={() => {
-                        setSelectedCampaign(campaign)
-                        setShowCampaignDetailsDialog(true)
-                        showToast('Campaign details loaded', 'info')
-                      }}>View Details</Button>
-                    </CardContent>
-                  </Card>
-                ))}
+                        <h3 className="font-semibold text-gray-800 mb-2">{campaign.title}</h3>
+                        <p className="text-sm text-gray-500 mb-3">
+                          {campaign.startDate && campaign.endDate 
+                            ? `${formatDate(campaign.startDate)} - ${formatDate(campaign.endDate)}`
+                            : campaign.startDate 
+                              ? `Starts: ${formatDate(campaign.startDate)}`
+                              : 'Dates to be determined'}
+                        </p>
+                        <p className="text-xs text-gray-600 mb-3 line-clamp-2">{campaign.description}</p>
+                        <div className="flex items-center justify-between text-xs text-gray-500 mb-2">
+                          <span>Target: {campaign.targetAudience || 'All'}</span>
+                        </div>
+                        <Button variant="outline" size="sm" className="w-full mt-2" onClick={() => {
+                          setSelectedCampaign(campaign)
+                          setShowCampaignDetailsDialog(true)
+                          showToast('Campaign details loaded', 'info')
+                        }}>View Details</Button>
+                      </CardContent>
+                    </Card>
+                  ))
+                )}
               </div>
             </div>
           )}
@@ -23267,6 +23552,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                   notes: dispenseForm.notes
                 }
                 setDispensedDrugs([newDispensed, ...dispensedDrugs])
+                saveDispensedDrugToDB(newDispensed)
                 setDrugs(drugs.map(d =>
                   d.id === dispenseForm.drugId
                     ? { ...d, quantityInStock: d.quantityInStock - dispenseForm.quantity }
@@ -24106,6 +24392,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                   collectedAt: new Date().toISOString()
                 }
                 setPayments([newPayment, ...payments])
+                savePaymentToDB(newPayment)
                 setShowPaymentDialog(false)
                 showToast(`Payment recorded! Receipt: ${newPayment.receiptNumber}`, 'success')
               }} className="bg-green-600 hover:bg-green-700">Record Payment</Button>
@@ -24163,6 +24450,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
               if (!expenseForm.category || !expenseForm.amount || !expenseForm.authorizedBy) { showToast('Please fill required fields', 'warning'); return }
               const newExpense: Expense = { id: `exp${Date.now()}`, ...expenseForm, createdAt: new Date().toISOString() }
               setExpenses([newExpense, ...expenses])
+              saveExpenseToDB(newExpense)
               setShowExpenseDialog(false)
             }} className="bg-red-600 hover:bg-red-700">Record Expense</Button>
           </DialogFooter>
@@ -24386,6 +24674,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                 isRead: false
               }
               setStaffMessages([newMsg, ...staffMessages])
+              saveMessageToDB(newMsg)
               showToast(messageForm.isBroadcast ? 'Broadcast sent to all staff' : `Message sent to ${messageForm.recipientName || getRoleDisplayName(messageForm.recipientRole as UserRole) + 's'}`, 'success')
               setShowMessageDialog(false)
               setMessageForm({ recipientId: '', recipientName: '', recipientRole: '', subject: '', content: '', message: '', priority: 'normal', isBroadcast: false })
