@@ -1,19 +1,26 @@
-// New User Registration API - Multi-step with Auto-generated Email (@ruhc)
-import { NextRequest, NextResponse } from 'next/server'
+// New User Registration API - Direct pg connection (no Prisma dependency)
+import { NextRequest } from 'next/server'
 import bcrypt from 'bcryptjs'
-import { getPrisma, query, insertOne, findOne } from '@/lib/db'
+import { Pool } from 'pg'
 import { createLogger } from '@/lib/logger'
 import { errorResponse, successResponse, Errors } from '@/lib/errors'
 
 const logger = createLogger('Signup')
 
+// Create a direct pool connection
+function getPool(): Pool {
+  return new Pool({
+    connectionString: process.env.DATABASE_URL,
+    max: 1,
+    ssl: { rejectUnauthorized: false },
+    connectionTimeoutMillis: 10000,
+  })
+}
+
 // Generate auto email from first name and last name
 function generateAutoEmail(firstName: string, lastName: string): string {
-  // Remove spaces, special characters, and convert to lowercase
   const cleanFirst = firstName.toLowerCase().replace(/[^a-z]/g, '')
   const cleanLast = lastName.toLowerCase().replace(/[^a-z]/g, '')
-  
-  // Combine first + last name @ruhc
   return `${cleanFirst}${cleanLast}@ruhc`
 }
 
@@ -24,6 +31,8 @@ function generateInitials(firstName: string, lastName: string): string {
 
 // POST - Step-by-step registration
 export async function POST(request: NextRequest) {
+  const pool = getPool()
+  
   try {
     const body = await request.json()
     const { step, firstName, lastName, email, password, confirmPassword, role, department, phone } = body
@@ -43,19 +52,10 @@ export async function POST(request: NextRequest) {
       // Generate the auto email
       const autoEmail = generateAutoEmail(firstName.trim(), lastName.trim())
 
-      // Check if email already exists using direct query
-      try {
-        const existingUsers = await query('SELECT id FROM users WHERE email = $1', [autoEmail])
-        if (existingUsers.length > 0) {
-          throw Errors.validation(`An account with email ${autoEmail} already exists. Please contact administrator.`)
-        }
-      } catch (dbError: any) {
-        // If error is not about duplicate, log and continue
-        if (!dbError.message?.includes('already exists')) {
-          logger.warn('Could not check existing email', { error: dbError.message })
-        } else {
-          throw dbError
-        }
+      // Check if email already exists
+      const result = await pool.query('SELECT id FROM users WHERE email = $1', [autoEmail])
+      if (result.rows.length > 0) {
+        throw Errors.validation(`An account with email ${autoEmail} already exists. Please contact administrator.`)
       }
 
       logger.info('Auto email generated', { firstName, lastName, autoEmail })
@@ -98,64 +98,53 @@ export async function POST(request: NextRequest) {
         throw Errors.validation('Invalid role selected')
       }
 
-      // Generate user data
+      // Check if email already exists
+      const existingResult = await pool.query('SELECT id FROM users WHERE email = $1', [email.toLowerCase()])
+      if (existingResult.rows.length > 0) {
+        throw Errors.validation('An account with this email already exists')
+      }
+
+      // Hash password
       const hashedPassword = await bcrypt.hash(password, 12)
+
+      // Generate user data
       const userInitials = generateInitials(firstName, lastName)
       const fullName = `${firstName.trim()} ${lastName.trim()}`
       const userId = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
 
-      // Check if email already exists
+      // Create user
+      await pool.query(`
+        INSERT INTO users (
+          id, email, name, "firstName", "lastName", password, role, 
+          department, initials, phone, "isActive", "isFirstLogin", 
+          "approvalStatus", "createdAt"
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+      `, [
+        userId,
+        email.toLowerCase(),
+        fullName,
+        firstName.trim(),
+        lastName.trim(),
+        hashedPassword,
+        role,
+        department || null,
+        userInitials,
+        phone || null,
+        true,
+        false,
+        'PENDING',
+        new Date()
+      ])
+
+      logger.info('User registered, pending approval', { userId, email, role })
+
+      // Create notification for admins (non-blocking)
       try {
-        const existingUsers = await query('SELECT id FROM users WHERE email = $1', [email.toLowerCase()])
-        if (existingUsers.length > 0) {
-          throw Errors.validation('An account with this email already exists')
-        }
-      } catch (dbError: any) {
-        if (dbError.message?.includes('already exists')) {
-          throw dbError
-        }
-        logger.warn('Could not check existing email', { error: dbError.message })
-      }
-
-      // Create user using direct pg query
-      try {
-        await query(`
-          INSERT INTO users (
-            id, email, name, "firstName", "lastName", password, role, 
-            department, initials, phone, "isActive", "isFirstLogin", 
-            "approvalStatus", "createdAt"
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
-        `, [
-          userId,
-          email.toLowerCase(),
-          fullName,
-          firstName.trim(),
-          lastName.trim(),
-          hashedPassword,
-          role,
-          department || null,
-          userInitials,
-          phone || null,
-          true,
-          false,
-          'PENDING',
-          new Date()
-        ])
-
-        logger.info('User registered successfully', { userId, email, role })
-
-      } catch (insertError: any) {
-        logger.error('Failed to create user', { error: insertError.message })
-        throw Errors.database('Failed to create user account: ' + insertError.message)
-      }
-
-      // Create notification for admins/superadmins (non-blocking)
-      try {
-        const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || process.env.VERCEL_URL 
+        const baseUrl = process.env.VERCEL_URL 
           ? `https://${process.env.VERCEL_URL}` 
           : 'https://runhealthcentre.vercel.app'
         
-        await fetch(`${baseUrl}/api/notifications`, {
+        fetch(`${baseUrl}/api/notifications`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -163,17 +152,12 @@ export async function POST(request: NextRequest) {
             title: 'New User Registration',
             message: `${fullName} has registered as ${role} and is awaiting approval.`,
             targetRoles: ['SUPER_ADMIN', 'ADMIN'],
-            data: {
-              userId,
-              userEmail: email,
-              userName: fullName,
-              userRole: role
-            },
+            data: { userId, userEmail: email, userName: fullName, userRole: role },
             priority: 'high'
           })
-        })
-      } catch (notifError) {
-        logger.warn('Failed to send notification', { error: String(notifError) })
+        }).catch(() => {})
+      } catch {
+        // Ignore notification errors
       }
 
       return successResponse({
@@ -192,6 +176,9 @@ export async function POST(request: NextRequest) {
     throw Errors.validation('Invalid step')
 
   } catch (error) {
+    logger.error('Signup error', { error: error instanceof Error ? error.message : String(error) })
     return errorResponse(error, { module: 'Signup', operation: 'register' })
+  } finally {
+    await pool.end()
   }
 }
