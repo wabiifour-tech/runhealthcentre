@@ -46,7 +46,7 @@ import {
   MessageSquare, AlertCircle, Zap, UserCheck, Fingerprint, Camera, FolderOpen, Undo2, CheckCheck, Check,
   TrendingUp, TrendingDown, BarChart3, PieChart as PieChartIcon, FileSpreadsheet, FileDown, Moon, Inbox,
   ArrowUpRight, ArrowDownRight, Minus, Command, Keyboard, X, Info, HelpCircle, ChevronDown, ChevronUp, QrCode, Database, Save, RotateCcw, History,
-  Megaphone, Video, VideoOff, ScreenShare, ScreenShareOff, PhoneOff, PhoneCall
+  Megaphone, Video, VideoOff, ScreenShare, ScreenShareOff, PhoneOff, PhoneCall, Droplet
 } from 'lucide-react'
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
@@ -4907,7 +4907,7 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
 
   // ============== VIDEO CONSULTATION FUNCTIONS ==============
   // WebRTC Configuration (using public STUN servers)
-  const rtcConfig: RTCConfiguration = {
+  const rtcConfig = {
     iceServers: [
       { urls: 'stun:stun.l.google.com:19302' },
       { urls: 'stun:stun1.l.google.com:19302' },
