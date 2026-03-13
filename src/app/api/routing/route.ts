@@ -1,8 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { Pool } from 'pg'
 import { createLogger } from '@/lib/logger'
 import { errorResponse, successResponse } from '@/lib/errors'
 
 const logger = createLogger('RoutingAPI')
+
+// Direct database connection as fallback
+function getPool(): Pool {
+  return new Pool({
+    connectionString: process.env.DATABASE_URL,
+    max: 1,
+    ssl: { rejectUnauthorized: false },
+    connectionTimeoutMillis: 5000,
+  })
+}
 
 // Get prisma client
 async function getPrisma() {
@@ -77,25 +88,48 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'User ID required' }, { status: 400 })
     }
 
+    // Try Prisma first
     const prisma = await getPrisma()
-    if (!prisma) {
-      return successResponse({ requests: [], mode: 'demo' })
+    if (prisma) {
+      try {
+        await ensureRoutingSchema(prisma)
+
+        // Use parameterized query to prevent SQL injection
+        const requests = await prisma.$queryRaw`
+          SELECT * FROM routing_requests 
+          WHERE receiver_id = ${userId} 
+             OR receiver_role = ${userRole || ''} 
+             OR sender_id = ${userId}
+          ORDER BY created_at DESC
+          LIMIT 100
+        `
+
+        return successResponse({ requests: requests || [] })
+      } catch (prismaError: any) {
+        logger.warn('Prisma failed, trying direct pg', { error: prismaError.message })
+      }
     }
 
-    await ensureRoutingSchema(prisma)
+    // Fallback to direct pg
+    const pool = getPool()
+    try {
+      const result = await pool.query(`
+        SELECT * FROM routing_requests 
+        WHERE receiver_id = $1 
+           OR receiver_role = $2 
+           OR sender_id = $1
+        ORDER BY created_at DESC
+        LIMIT 100
+      `, [userId, userRole || ''])
 
-    // Use parameterized query to prevent SQL injection
-    // Prisma.$queryRaw uses parameterized queries when using ${} syntax
-    const requests = await prisma.$queryRaw`
-      SELECT * FROM routing_requests 
-      WHERE receiver_id = ${userId} 
-         OR receiver_role = ${userRole || ''} 
-         OR sender_id = ${userId}
-      ORDER BY created_at DESC
-      LIMIT 100
-    `
+      await pool.end()
+      return successResponse({ requests: result.rows || [] })
+    } catch (dbError: any) {
+      await pool.end()
+      logger.error('Database error', { error: dbError.message })
+      return successResponse({ requests: [] })
+    }
 
-    return successResponse({ requests: requests || [] })
   } catch (error: any) {
     logger.error('Error fetching routing requests:', error)
     return errorResponse(error, { module: 'RoutingAPI', operation: 'get' })
@@ -106,67 +140,108 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
+
+    // Try Prisma first
     const prisma = await getPrisma()
+    if (prisma) {
+      try {
+        await ensureRoutingSchema(prisma)
 
-    if (!prisma) {
-      return successResponse({ 
-        request: { ...body, status: 'pending' }, 
-        mode: 'demo' 
-      })
+        // Use parameterized query to prevent SQL injection
+        await prisma.$executeRaw`
+          INSERT INTO routing_requests (
+            id, sender_id, sender_name, sender_role, sender_initials,
+            receiver_id, receiver_name, receiver_role, receiver_department,
+            patient_id, patient_name, patient_hospital_number,
+            request_type, priority, purpose, subject, message, notes,
+            status, created_at
+          ) VALUES (
+            ${body.id},
+            ${body.senderId || ''},
+            ${body.senderName || ''},
+            ${body.senderRole || ''},
+            ${body.senderInitials || null},
+            ${body.receiverId || null},
+            ${body.receiverName || null},
+            ${body.receiverRole || null},
+            ${body.receiverDepartment || null},
+            ${body.patientId || null},
+            ${body.patientName || null},
+            ${body.patientHospitalNumber || null},
+            ${body.requestType || 'general'},
+            ${body.priority || 'routine'},
+            ${body.purpose || null},
+            ${body.subject || ''},
+            ${body.message || null},
+            ${body.notes || null},
+            'pending',
+            NOW()
+          )
+        `
+        
+        logger.info('Routing request created via Prisma', { id: body.id, to: body.receiverRole || body.receiverName })
+
+        // Broadcast real-time update
+        try {
+          await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || ''}/api/realtime`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              event: 'routingRequest_created',
+              data: { item: body }
+            })
+          })
+        } catch (e) {
+          // Silent fail
+        }
+
+        return successResponse({ request: body })
+      } catch (prismaError: any) {
+        logger.warn('Prisma failed, trying direct pg', { error: prismaError.message })
+      }
     }
 
-    await ensureRoutingSchema(prisma)
-
-    // Use parameterized query to prevent SQL injection
-    // Prisma.$executeRaw uses parameterized queries when using ${} syntax
-    await prisma.$executeRaw`
-      INSERT INTO routing_requests (
-        id, sender_id, sender_name, sender_role, sender_initials,
-        receiver_id, receiver_name, receiver_role, receiver_department,
-        patient_id, patient_name, patient_hospital_number,
-        request_type, priority, purpose, subject, message, notes,
-        status, created_at
-      ) VALUES (
-        ${body.id},
-        ${body.senderId || ''},
-        ${body.senderName || ''},
-        ${body.senderRole || ''},
-        ${body.senderInitials || null},
-        ${body.receiverId || null},
-        ${body.receiverName || null},
-        ${body.receiverRole || null},
-        ${body.receiverDepartment || null},
-        ${body.patientId || null},
-        ${body.patientName || null},
-        ${body.patientHospitalNumber || null},
-        ${body.requestType || 'general'},
-        ${body.priority || 'routine'},
-        ${body.purpose || null},
-        ${body.subject || ''},
-        ${body.message || null},
-        ${body.notes || null},
-        'pending',
-        NOW()
-      )
-    `
-    
-    logger.info('Routing request created', { id: body.id, to: body.receiverRole || body.receiverName, purpose: body.purpose })
-
-    // Broadcast real-time update
+    // Fallback to direct pg
+    const pool = getPool()
     try {
-      await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || ''}/api/realtime`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          event: 'routingRequest_created',
-          data: { item: body }
-        })
-      })
-    } catch (e) {
-      // Silent fail
+      await pool.query(`
+        INSERT INTO routing_requests (
+          id, sender_id, sender_name, sender_role, sender_initials,
+          receiver_id, receiver_name, receiver_role, receiver_department,
+          patient_id, patient_name, patient_hospital_number,
+          request_type, priority, purpose, subject, message, notes,
+          status, created_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, 'pending', NOW())
+      `, [
+        body.id,
+        body.senderId || '',
+        body.senderName || '',
+        body.senderRole || '',
+        body.senderInitials || null,
+        body.receiverId || null,
+        body.receiverName || null,
+        body.receiverRole || null,
+        body.receiverDepartment || null,
+        body.patientId || null,
+        body.patientName || null,
+        body.patientHospitalNumber || null,
+        body.requestType || 'general',
+        body.priority || 'routine',
+        body.purpose || null,
+        body.subject || '',
+        body.message || null,
+        body.notes || null
+      ])
+
+      await pool.end()
+      logger.info('Routing request created via direct pg', { id: body.id })
+      return successResponse({ request: body })
+    } catch (dbError: any) {
+      await pool.end()
+      logger.error('Database error', { error: dbError.message })
+      return successResponse({ request: body, warning: 'Database write may have failed' })
     }
 
-    return successResponse({ request: body })
   } catch (error: any) {
     logger.error('Error creating routing request:', error)
     return errorResponse(error, { module: 'RoutingAPI', operation: 'create' })

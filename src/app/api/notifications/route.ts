@@ -1,6 +1,20 @@
 // Notifications API - Persistent notification storage with role-based support
 import { NextRequest, NextResponse } from 'next/server'
+import { Pool } from 'pg'
 import { getPrisma } from '@/lib/db'
+import { createLogger } from '@/lib/logger'
+
+const logger = createLogger('Notifications')
+
+// Direct database connection as fallback
+function getPool(): Pool {
+  return new Pool({
+    connectionString: process.env.DATABASE_URL,
+    max: 1,
+    ssl: { rejectUnauthorized: false },
+    connectionTimeoutMillis: 5000,
+  })
+}
 
 // Ensure notifications table exists
 async function ensureNotificationsTable(prisma: any) {
@@ -40,45 +54,86 @@ export async function GET(request: NextRequest) {
     const unreadOnly = searchParams.get('unreadOnly') === 'true'
     const limit = parseInt(searchParams.get('limit') || '50')
 
+    // Try Prisma first
     const prisma = await getPrisma()
-    if (!prisma) return NextResponse.json({ error: 'No database' }, { status: 500 })
+    if (prisma) {
+      try {
+        await ensureNotificationsTable(prisma)
+        const p = prisma as any
 
-    await ensureNotificationsTable(prisma)
-    const p = prisma as any
+        // Build where clause - include both user-specific and role-based notifications
+        let conditions = []
+        if (userId) {
+          conditions.push(`"userId" = '${userId}'`)
+        }
+        if (userRole) {
+          conditions.push(`"targetRoles" LIKE '%${userRole}%'`)
+        }
+        
+        const whereClause = conditions.length > 0 ? conditions.join(' OR ') : '1=1'
+        const unreadCondition = unreadOnly ? ' AND read = FALSE' : ''
 
-    // Build where clause - include both user-specific and role-based notifications
-    let conditions = []
-    if (userId) {
-      conditions.push(`"userId" = '${userId}'`)
+        const notifications = await p.$queryRawUnsafe(`
+          SELECT id, "userId", "targetRoles", type, title, message, data, priority, read, "createdAt"::text
+          FROM notifications
+          WHERE (${whereClause})${unreadCondition}
+          ORDER BY 
+            CASE WHEN priority = 'high' THEN 0 ELSE 1 END,
+            "createdAt" DESC
+          LIMIT ${limit}
+        `)
+
+        // Get unread count
+        const unreadCount = await p.$queryRawUnsafe(`
+          SELECT COUNT(*)::text as count FROM notifications
+          WHERE (${whereClause}) AND read = FALSE
+        `)
+
+        return NextResponse.json({
+          success: true,
+          notifications,
+          unreadCount: unreadCount[0]?.count || '0'
+        })
+      } catch (prismaError: any) {
+        logger.warn('Prisma failed, trying direct pg', { error: prismaError.message })
+      }
     }
-    if (userRole) {
-      conditions.push(`"targetRoles" LIKE '%${userRole}%'`)
+
+    // Fallback to direct pg
+    const pool = getPool()
+    try {
+      let conditions = []
+      if (userId) conditions.push(`"userId" = '${userId}'`)
+      if (userRole) conditions.push(`"targetRoles" LIKE '%${userRole}%'`)
+      const whereClause = conditions.length > 0 ? conditions.join(' OR ') : '1=1'
+      const unreadCondition = unreadOnly ? ' AND read = FALSE' : ''
+
+      const result = await pool.query(`
+        SELECT id, "userId", "targetRoles", type, title, message, data, priority, read, "createdAt"::text
+        FROM notifications
+        WHERE (${whereClause})${unreadCondition}
+        ORDER BY 
+          CASE WHEN priority = 'high' THEN 0 ELSE 1 END,
+          "createdAt" DESC
+        LIMIT $1
+      `, [limit])
+
+      const countResult = await pool.query(`
+        SELECT COUNT(*)::text as count FROM notifications
+        WHERE (${whereClause}) AND read = FALSE
+      `)
+
+      await pool.end()
+      return NextResponse.json({
+        success: true,
+        notifications: result.rows,
+        unreadCount: countResult.rows[0]?.count || '0'
+      })
+    } catch (dbError: any) {
+      await pool.end()
+      logger.error('Database error', { error: dbError.message })
+      return NextResponse.json({ error: dbError.message }, { status: 500 })
     }
-    
-    const whereClause = conditions.length > 0 ? conditions.join(' OR ') : '1=1'
-    const unreadCondition = unreadOnly ? ' AND read = FALSE' : ''
-
-    const notifications = await p.$queryRawUnsafe(`
-      SELECT id, "userId", "targetRoles", type, title, message, data, priority, read, "createdAt"::text
-      FROM notifications
-      WHERE (${whereClause})${unreadCondition}
-      ORDER BY 
-        CASE WHEN priority = 'high' THEN 0 ELSE 1 END,
-        "createdAt" DESC
-      LIMIT ${limit}
-    `)
-
-    // Get unread count
-    const unreadCount = await p.$queryRawUnsafe(`
-      SELECT COUNT(*)::text as count FROM notifications
-      WHERE (${whereClause}) AND read = FALSE
-    `)
-
-    return NextResponse.json({
-      success: true,
-      notifications,
-      unreadCount: unreadCount[0]?.count || '0'
-    })
 
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 })
@@ -95,58 +150,80 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'type and title required' }, { status: 400 })
     }
 
-    const prisma = await getPrisma()
-    if (!prisma) return NextResponse.json({ error: 'No database' }, { status: 500 })
-
-    await ensureNotificationsTable(prisma)
-    const p = prisma as any
-
     const id = `notif-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
     const now = new Date().toISOString()
     const dataJson = data ? JSON.stringify(data).replace(/'/g, "''") : null
     const targetRolesStr = targetRoles ? JSON.stringify(targetRoles).replace(/'/g, "''") : null
     const notifPriority = priority || 'normal'
 
-    await p.$executeRawUnsafe(`
-      INSERT INTO notifications (id, "userId", "targetRoles", type, title, message, data, priority, read, "createdAt")
-      VALUES (
-        '${id}',
-        ${userId ? `'${userId}'` : 'NULL'},
-        ${targetRolesStr ? `'${targetRolesStr}'` : 'NULL'},
-        '${type}',
-        '${title.replace(/'/g, "''")}',
-        ${message ? `'${message.replace(/'/g, "''")}'` : 'NULL'},
-        ${dataJson ? `'${dataJson}'` : 'NULL'},
-        '${notifPriority}',
-        FALSE,
-        '${now}'
-      )
-    `)
+    // Try Prisma first
+    const prisma = await getPrisma()
+    if (prisma) {
+      try {
+        await ensureNotificationsTable(prisma)
+        const p = prisma as any
 
-    // Fetch created notification
-    const result = await p.$queryRawUnsafe(`
-      SELECT id, "userId", "targetRoles", type, title, message, data, priority, read, "createdAt"::text
-      FROM notifications WHERE id = '${id}'
-    `)
+        await p.$executeRawUnsafe(`
+          INSERT INTO notifications (id, "userId", "targetRoles", type, title, message, data, priority, read, "createdAt")
+          VALUES (
+            '${id}',
+            ${userId ? `'${userId}'` : 'NULL'},
+            ${targetRolesStr ? `'${targetRolesStr}'` : 'NULL'},
+            '${type}',
+            '${title.replace(/'/g, "''")}',
+            ${message ? `'${message.replace(/'/g, "''")}'` : 'NULL'},
+            ${dataJson ? `'${dataJson}'` : 'NULL'},
+            '${notifPriority}',
+            FALSE,
+            '${now}'
+          )
+        `)
 
-    // Broadcast to realtime endpoint for immediate notification
-    try {
-      await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || ''}/api/realtime`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          event: 'notification_created',
-          data: { notification: Array.isArray(result) ? result[0] : result, targetRoles }
+        logger.info('Notification created via Prisma', { id, type })
+
+        // Broadcast to realtime endpoint for immediate notification
+        try {
+          await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || ''}/api/realtime`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              event: 'notification_created',
+              data: { notification: { id, type, title, message, targetRoles }, targetRoles }
+            })
+          })
+        } catch {
+          // Silent fail
+        }
+
+        return NextResponse.json({
+          success: true,
+          notification: { id, userId, targetRoles, type, title, message, data, priority: notifPriority, read: false, createdAt: now }
         })
-      })
-    } catch {
-      // Silent fail
+      } catch (prismaError: any) {
+        logger.warn('Prisma failed, trying direct pg', { error: prismaError.message })
+      }
     }
 
-    return NextResponse.json({
-      success: true,
-      notification: Array.isArray(result) ? result[0] : result
-    })
+    // Fallback to direct pg
+    const pool = getPool()
+    try {
+      await pool.query(`
+        INSERT INTO notifications (id, "userId", "targetRoles", type, title, message, data, priority, read, "createdAt")
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, FALSE, $9)
+      `, [id, userId, targetRolesStr, type, title, message, dataJson, notifPriority, now])
+
+      await pool.end()
+      logger.info('Notification created via direct pg', { id, type })
+
+      return NextResponse.json({
+        success: true,
+        notification: { id, userId, targetRoles, type, title, message, data, priority: notifPriority, read: false, createdAt: now }
+      })
+    } catch (dbError: any) {
+      await pool.end()
+      logger.error('Database error', { error: dbError.message })
+      return NextResponse.json({ error: dbError.message }, { status: 500 })
+    }
 
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 })
@@ -159,37 +236,67 @@ export async function PUT(request: NextRequest) {
     const body = await request.json()
     const { id, userId, userRole, markAllRead } = body
 
+    // Try Prisma first
     const prisma = await getPrisma()
-    if (!prisma) return NextResponse.json({ error: 'No database' }, { status: 500 })
+    if (prisma) {
+      try {
+        const p = prisma as any
 
-    const p = prisma as any
+        if (markAllRead) {
+          // Build conditions for marking all read
+          let conditions = []
+          if (userId) {
+            conditions.push(`"userId" = '${userId}'`)
+          }
+          if (userRole) {
+            conditions.push(`"targetRoles" LIKE '%${userRole}%'`)
+          }
+          const whereClause = conditions.length > 0 ? conditions.join(' OR ') : '1=1'
+          
+          await p.$executeRawUnsafe(`
+            UPDATE notifications SET read = TRUE WHERE (${whereClause}) AND read = FALSE
+          `)
+          return NextResponse.json({ success: true, message: 'All marked as read' })
+        }
 
-    if (markAllRead) {
-      // Build conditions for marking all read
-      let conditions = []
-      if (userId) {
-        conditions.push(`"userId" = '${userId}'`)
+        if (id) {
+          // Mark specific notification as read
+          await p.$executeRawUnsafe(`
+            UPDATE notifications SET read = TRUE WHERE id = '${id}'
+          `)
+          return NextResponse.json({ success: true, message: 'Marked as read' })
+        }
+      } catch (prismaError: any) {
+        logger.warn('Prisma failed, trying direct pg', { error: prismaError.message })
       }
-      if (userRole) {
-        conditions.push(`"targetRoles" LIKE '%${userRole}%'`)
-      }
-      const whereClause = conditions.length > 0 ? conditions.join(' OR ') : '1=1'
-      
-      await p.$executeRawUnsafe(`
-        UPDATE notifications SET read = TRUE WHERE (${whereClause}) AND read = FALSE
-      `)
-      return NextResponse.json({ success: true, message: 'All marked as read' })
     }
 
-    if (id) {
-      // Mark specific notification as read
-      await p.$executeRawUnsafe(`
-        UPDATE notifications SET read = TRUE WHERE id = '${id}'
-      `)
-      return NextResponse.json({ success: true, message: 'Marked as read' })
-    }
+    // Fallback to direct pg
+    const pool = getPool()
+    try {
+      if (markAllRead) {
+        let conditions = []
+        if (userId) conditions.push(`"userId" = $1`)
+        if (userRole) conditions.push(`"targetRoles" LIKE '%' || $2 || '%'`)
+        const whereClause = conditions.length > 0 ? conditions.join(' OR ') : '1=1'
+        
+        await pool.query(`UPDATE notifications SET read = TRUE WHERE (${whereClause}) AND read = FALSE`, [userId, userRole])
+        await pool.end()
+        return NextResponse.json({ success: true, message: 'All marked as read' })
+      }
 
-    return NextResponse.json({ error: 'id or markAllRead required' }, { status: 400 })
+      if (id) {
+        await pool.query(`UPDATE notifications SET read = TRUE WHERE id = $1`, [id])
+        await pool.end()
+        return NextResponse.json({ success: true, message: 'Marked as read' })
+      }
+
+      await pool.end()
+      return NextResponse.json({ error: 'id or markAllRead required' }, { status: 400 })
+    } catch (dbError: any) {
+      await pool.end()
+      return NextResponse.json({ error: dbError.message }, { status: 500 })
+    }
 
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 })
@@ -204,26 +311,51 @@ export async function DELETE(request: NextRequest) {
     const userId = searchParams.get('userId')
     const clearAll = searchParams.get('clearAll') === 'true'
 
+    // Try Prisma first
     const prisma = await getPrisma()
-    if (!prisma) return NextResponse.json({ error: 'No database' }, { status: 500 })
+    if (prisma) {
+      try {
+        const p = prisma as any
 
-    const p = prisma as any
+        if (clearAll && userId) {
+          await p.$executeRawUnsafe(`
+            DELETE FROM notifications WHERE "userId" = '${userId}'
+          `)
+          return NextResponse.json({ success: true, message: 'All notifications cleared' })
+        }
 
-    if (clearAll && userId) {
-      await p.$executeRawUnsafe(`
-        DELETE FROM notifications WHERE "userId" = '${userId}'
-      `)
-      return NextResponse.json({ success: true, message: 'All notifications cleared' })
+        if (id) {
+          await p.$executeRawUnsafe(`
+            DELETE FROM notifications WHERE id = '${id}'
+          `)
+          return NextResponse.json({ success: true, message: 'Notification deleted' })
+        }
+      } catch (prismaError: any) {
+        logger.warn('Prisma failed, trying direct pg', { error: prismaError.message })
+      }
     }
 
-    if (id) {
-      await p.$executeRawUnsafe(`
-        DELETE FROM notifications WHERE id = '${id}'
-      `)
-      return NextResponse.json({ success: true, message: 'Notification deleted' })
-    }
+    // Fallback to direct pg
+    const pool = getPool()
+    try {
+      if (clearAll && userId) {
+        await pool.query(`DELETE FROM notifications WHERE "userId" = $1`, [userId])
+        await pool.end()
+        return NextResponse.json({ success: true, message: 'All notifications cleared' })
+      }
 
-    return NextResponse.json({ error: 'id or clearAll required' }, { status: 400 })
+      if (id) {
+        await pool.query(`DELETE FROM notifications WHERE id = $1`, [id])
+        await pool.end()
+        return NextResponse.json({ success: true, message: 'Notification deleted' })
+      }
+
+      await pool.end()
+      return NextResponse.json({ error: 'id or clearAll required' }, { status: 400 })
+    } catch (dbError: any) {
+      await pool.end()
+      return NextResponse.json({ error: dbError.message }, { status: 500 })
+    }
 
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 })
