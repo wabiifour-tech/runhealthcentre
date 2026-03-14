@@ -99,7 +99,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Handle "Remember Me"
-        let rememberToken = null
+        let rememberToken: string | undefined = undefined
         const updateFields = ['"lastLogin" = $1']
         const updateValues: any[] = [new Date()]
         

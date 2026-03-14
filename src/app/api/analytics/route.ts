@@ -101,7 +101,7 @@ export async function GET(request: NextRequest) {
 
 // Helper functions for analytics calculations
 async function getDailyPatientCounts(prisma: any, days: number) {
-  const result = []
+  const result: { date: string; label: string; patients: number; consultations: number }[] = []
   const today = new Date()
   
   for (let i = days - 1; i >= 0; i--) {
@@ -142,7 +142,7 @@ async function getDailyPatientCounts(prisma: any, days: number) {
 }
 
 async function getMonthlyPatientCounts(prisma: any, months: number) {
-  const result = []
+  const result: { month: string; label: string; patients: number; consultations: number }[] = []
   const today = new Date()
   
   for (let i = months - 1; i >= 0; i--) {
@@ -180,7 +180,7 @@ async function getMonthlyPatientCounts(prisma: any, months: number) {
 }
 
 async function getSemesterPatientCounts(prisma: any) {
-  const result = []
+  const result: { semester: string; year: number; patients: number }[] = []
   const today = new Date()
   const currentYear = today.getFullYear()
   
@@ -223,7 +223,7 @@ async function getSemesterPatientCounts(prisma: any) {
 }
 
 async function getYearlyPatientCounts(prisma: any) {
-  const result = []
+  const result: { year: number; patients: number; consultations: number }[] = []
   const currentYear = new Date().getFullYear()
   
   for (let year = currentYear - 4; year <= currentYear; year++) {

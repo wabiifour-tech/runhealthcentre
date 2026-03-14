@@ -444,7 +444,7 @@ interface Payment {
   patientId: string
   patient?: Patient
   amount: number
-  paymentMethod: 'cash' | 'card' | 'transfer' | 'insurance'
+  paymentMethod: 'cash' | 'card' | 'transfer' | 'insurance' | 'online'
   receiptNumber: string
   description: string
   collectedBy: string
@@ -501,9 +501,14 @@ interface Equipment {
   id: string
   name: string
   category: string
+  assetTag?: string
   serialNumber?: string
+  manufacturer?: string
+  model?: string
+  purchasePrice?: number
   location: string
-  status: 'working' | 'needs_repair' | 'under_maintenance' | 'retired'
+  department?: string
+  status: 'available' | 'in_use' | 'maintenance' | 'retired' | 'disposed'
   purchaseDate?: string
   lastMaintenance?: string
   nextMaintenance?: string
@@ -666,7 +671,7 @@ interface Consultation {
   advice?: string
   followUpDate?: string
   // Routing
-  referredTo?: 'nurse' | 'records' | 'laboratory' | 'pharmacy' | 'opd' | 'mmw' | 'fmw' | 'wdu' | 'emergency'
+  referredTo?: 'nurse' | 'records' | 'laboratory' | 'pharmacy' | 'opd' | 'mmw' | 'fmw' | 'wdu' | 'emergency' | 'matron' | 'doctor'
   referralNotes?: string
   // Send-back functionality
   sendBackTo?: ('nurse' | 'pharmacy' | 'laboratory' | 'records')[]
@@ -1026,10 +1031,12 @@ interface ShiftSwapRequest {
   id: string
   requesterId: string
   requesterName: string
-  requesterShift: RosterEntry
+  requesterShift?: RosterEntry
   requestedStaffId: string
   requestedStaffName: string
   requestedShift?: RosterEntry
+  shiftDate?: string
+  shift?: 'morning' | 'afternoon' | 'night'
   reason: string
   status: 'pending' | 'approved' | 'rejected' | 'cancelled'
   reviewedBy?: string
@@ -1195,14 +1202,6 @@ interface PrescriptionItem {
   quantity: number
   instructions?: string
   status: 'pending' | 'dispensed' | 'out_of_stock'
-}
-
-interface DrugInteraction {
-  drug1: string
-  drug2: string
-  severity: 'mild' | 'moderate' | 'severe'
-  description: string
-  recommendation: string
 }
 
 // ============== QUEUE MANAGEMENT ==============
@@ -1695,22 +1694,24 @@ const getMatchScore = (term: string, patient: Patient): number => {
   return score
 }
 
-// Log patient file access for confidentiality tracking
-const logPatientAccess = (patientId: string, patientName: string, action: 'VIEW' | 'EDIT' | 'PRINT' | 'EXPORT', isSensitive: boolean = false) => {
-  if (!user) return
-  
-  const entry = logAudit({
-    userId: user.id,
-    userName: user.name,
-    userRole: user.role,
-    action,
-    resourceType: 'patient',
-    resourceId: patientId,
-    resourceIdentifier: patientName,
-    isSensitive
-  })
-  
-  setAuditLogs(prev => [entry, ...prev.slice(0, 999)])
+// Normalize drug name helper
+const normalizeDrugName = (name: string): string => {
+  return name.toLowerCase().trim()
+    .replace(/hydrochloride|hcl|sodium|potassium/gi, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+// Calculate patient age
+const calculateAge = (dateOfBirth: string): number => {
+  const today = new Date()
+  const birthDate = new Date(dateOfBirth)
+  let age = today.getFullYear() - birthDate.getFullYear()
+  const monthDiff = today.getMonth() - birthDate.getMonth()
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+    age--
+  }
+  return age
 }
 
 // Check for drug interactions when prescribing
@@ -1726,14 +1727,6 @@ const checkAndAlertDrugInteractions = (newDrug: string, existingDrugs: string[],
   return { interactions, allergyChecks }
 }
 
-// Normalize drug name helper
-const normalizeDrugName = (name: string): string => {
-  return name.toLowerCase().trim()
-    .replace(/hydrochloride|hcl|sodium|potassium/gi, '')
-    .replace(/\s+/g, ' ')
-    .trim()
-}
-
 // Check if patient file access requires break-the-glass
 const requiresBreakGlass = (patient: Patient): boolean => {
   // Flag sensitive records (HIV, mental health, VIP, etc.)
@@ -1743,43 +1736,8 @@ const requiresBreakGlass = (patient: Patient): boolean => {
   return sensitiveConditions.some(c => conditions.includes(c)) || (patient as any).isSensitive === true
 }
 
-// Handle break-the-glass access
-const handleBreakGlassAccess = (patientId: string, action: string, reason: string) => {
-  const patient = patients.find(p => p.id === patientId)
-  if (!patient || !user) return
-  
-  logAudit({
-    userId: user.id,
-    userName: user.name,
-    userRole: user.role,
-    action: 'BREAK_GLASS',
-    resourceType: 'patient',
-    resourceId: patientId,
-    resourceIdentifier: `${patient.firstName} ${patient.lastName}`,
-    isSensitive: true,
-    justification: reason
-  })
-  
-  showToast('Emergency access granted and logged', 'warning')
-  setShowBreakGlassDialog(false)
-  setBreakGlassReason('')
-  setPendingPatientAccess(null)
-}
-
-// Calculate patient age
-const calculateAge = (dateOfBirth: string): number => {
-  const today = new Date()
-  const birthDate = new Date(dateOfBirth)
-  let age = today.getFullYear() - birthDate.getFullYear()
-  const monthDiff = today.getMonth() - birthDate.getMonth()
-  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
-    age--
-  }
-  return age
-}
-
-// Send notification helpers
-const sendPatientNotification = async (
+// Send notification helpers - note: this is a utility function that needs to be called from within component
+const sendPatientNotificationHelper = async (
   patient: Patient, 
   type: 'appointment_reminder' | 'queue_update' | 'prescription_ready' | 'lab_result',
   data: Record<string, string>
@@ -1803,30 +1761,6 @@ const sendPatientNotification = async (
     console.error('Notification error:', error)
     return { success: false, error: 'Failed to send notification' }
   }
-}
-
-// Generate quick message
-const sendQuickMessageToStaff = (
-  templateKey: 'patientReady' | 'labResultReady' | 'prescriptionReady' | 'consultationUrgent' | 'medicationDue' | 'handoffNote',
-  variables: Record<string, string>,
-  recipientId: string,
-  recipientRole: string
-) => {
-  if (!user) return
-  
-  const message = createQuickMessage(templateKey, variables, {
-    senderId: user.id,
-    senderName: user.name,
-    senderRole: user.role,
-    recipientId,
-    recipientRole: recipientRole as any,
-    patientId: variables.patientId,
-    patientName: variables.patientName,
-    priority: templateKey === 'consultationUrgent' ? 'urgent' : 'normal'
-  })
-  
-  setInternalMessages(prev => [message, ...prev])
-  showToast(`Message sent to ${recipientRole}`, 'success')
 }
 
 // ============== REFERENCE DATA ==============
@@ -3213,7 +3147,7 @@ export default function HMSApp() {
       clockOut: timeString,
       signOutMethod: 'manual',
       workHours: calculateWorkHours(attendanceSignInRecord.signInTime),
-      status: 'completed'
+      status: 'present' as const  // User signed out, so they were present
     }
     
     const updatedRecords = attendanceRecords.map(r => {
@@ -3290,7 +3224,7 @@ export default function HMSApp() {
   const [showSignOutConfirmation, setShowSignOutConfirmation] = useState(false)
   
   // Show toast notification - defined early for use in other functions
-  const showToast = (message: string, type: 'info' | 'success' | 'warning' = 'info') => {
+  const showToast = (message: string, type: 'info' | 'success' | 'warning' | 'error' = 'info') => {
     const id = `toast_${Date.now()}`
     setToastNotifications(prev => [...prev, { id, message, type, timestamp: new Date() }])
     // Auto remove after 5 seconds
@@ -29419,17 +29353,22 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                 showToast('Please fill required fields', 'warning')
                 return
               }
-              const newUnit = {
+              const newUnit: BloodUnit = {
                 id: `bu_${Date.now()}`,
-                ...bloodUnitForm,
-                status: 'available',
-                createdAt: new Date().toISOString()
+                donorId: bloodUnitForm.donorId || undefined,
+                donorName: bloodUnitForm.donorName,
+                bloodGroup: bloodUnitForm.bloodGroup,
+                componentType: bloodUnitForm.componentType,
+                volumeMl: bloodUnitForm.volumeMl,
+                collectionDate: bloodUnitForm.collectionDate,
+                expiryDate: bloodUnitForm.expiryDate || new Date(Date.now() + 42 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // Default 42 days
+                status: 'available'
               }
               try {
                 await fetch('/api/data', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ type: 'bloodUnit', data: newUnit }) })
                 setBloodUnits(prev => [...prev, newUnit])
                 setShowBloodUnitDialog(false)
-                setBloodUnitForm({ donorId: '', donorName: '', bloodGroup: '', componentType: 'whole_blood', volumeMl: 450, collectionDate: new Date().toISOString().split('T')[0] })
+                setBloodUnitForm({ donorId: '', donorName: '', bloodGroup: '', componentType: 'whole_blood', volumeMl: 450, collectionDate: new Date().toISOString().split('T')[0], expiryDate: new Date(Date.now() + 42 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] })
                 showToast('Blood unit added successfully!', 'success')
               } catch (error) {
                 showToast('Failed to add blood unit', 'warning')
@@ -29586,11 +29525,15 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                 showToast('Please select your shift and target staff', 'warning')
                 return
               }
-              const newRequest = {
+              const newRequest: ShiftSwapRequest = {
                 id: `swap_${Date.now()}`,
-                ...shiftSwapForm,
-                requesterId: user?.id,
-                requesterName: user?.name,
+                requesterId: user?.id || '',
+                requesterName: user?.name || '',
+                requestedStaffId: shiftSwapForm.requestedStaffId,
+                requestedStaffName: shiftSwapForm.requestedStaffName,
+                shiftDate: shiftSwapForm.shiftDate,
+                shift: shiftSwapForm.shift,
+                reason: shiftSwapForm.reason,
                 status: 'pending',
                 createdAt: new Date().toISOString()
               }
@@ -29598,7 +29541,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                 await fetch('/api/data', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ type: 'shiftSwap', data: newRequest }) })
                 setShiftSwapRequests(prev => [...prev, newRequest])
                 setShowShiftSwapDialog(false)
-                setShiftSwapForm({ requesterShiftId: '', targetStaffId: '', targetShiftId: '', reason: '' })
+                setShiftSwapForm({ requesterId: '', requestedStaffId: '', requestedStaffName: '', shiftDate: '', shift: 'morning', reason: '' })
                 showToast('Shift swap request submitted!', 'success')
               } catch (error) {
                 showToast('Failed to submit request', 'warning')
@@ -29626,7 +29569,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Campaign Type</Label>
-                <Select value={campaignForm.type} onValueChange={v => setCampaignForm({...campaignForm, type: v})}>
+                <Select value={campaignForm.type} onValueChange={v => setCampaignForm({...campaignForm, type: v as 'awareness' | 'vaccination' | 'screening' | 'education'})}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="awareness">Awareness</SelectItem>
@@ -29638,7 +29581,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
               </div>
               <div className="space-y-2">
                 <Label>Target Audience</Label>
-                <Select value={campaignForm.targetAudience} onValueChange={v => setCampaignForm({...campaignForm, targetAudience: v})}>
+                <Select value={campaignForm.targetAudience} onValueChange={v => setCampaignForm({...campaignForm, targetAudience: v as 'students' | 'staff' | 'all'})}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="students">Students</SelectItem>
@@ -29740,23 +29683,23 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                 return
               }
               const patient = patients.find(p => p.id === insuranceForm.patientId)
-              const newClaim = {
+              const newClaim: InsuranceClaim = {
                 id: `nhia_${Date.now()}`,
                 patientId: insuranceForm.patientId,
                 patient: patient,
                 insuranceProvider: insuranceForm.insuranceProvider || 'NHIA',
+                policyNumber: insuranceForm.policyNumber || 'N/A',
                 claimAmount: insuranceForm.claimAmount,
                 diagnosis: insuranceForm.diagnosis,
                 services: insuranceForm.services,
-                status: 'draft',
-                submittedBy: user?.name,
-                createdAt: new Date().toISOString()
+                status: 'pending',
+                submittedAt: new Date().toISOString()
               }
               try {
                 await fetch('/api/data', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ type: 'insuranceClaim', data: newClaim }) })
                 setInsuranceClaims(prev => [...prev, newClaim])
                 setShowNhiaClaimDialog(false)
-                setInsuranceForm({ patientId: '', insuranceProvider: 'NHIA', claimAmount: 0, diagnosis: '', services: '' })
+                setInsuranceForm({ patientId: '', insuranceProvider: 'NHIA', policyNumber: '', claimAmount: 0, diagnosis: '', services: '' })
                 showToast('NHIA claim submitted!', 'success')
               } catch (error) {
                 showToast('Failed to submit claim', 'warning')

@@ -3,19 +3,25 @@
 
 export interface AuditLogEntry {
   id: string
-  timestamp: Date
+  timestamp: Date | string
   userId: string
   userName: string
   userRole: string
-  action: 'VIEW' | 'EDIT' | 'CREATE' | 'DELETE' | 'PRINT' | 'EXPORT' | 'BREAK_GLASS'
-  resourceType: 'patient' | 'vital' | 'consultation' | 'prescription' | 'lab_result' | 'medical_certificate'
-  resourceId: string
+  action: string // Flexible to support various actions: VIEW, EDIT, CREATE, DELETE, PRINT, EXPORT, BREAK_GLASS, ALARM_SOUND_STOPPED, VIDEO_CONSULTATION_STARTED, etc.
+  resourceType?: string // 'patient' | 'vital' | 'consultation' | 'prescription' | 'lab_result' | 'medical_certificate' | 'patient_task' | etc.
+  resourceId?: string
   resourceIdentifier?: string // e.g., patient name or RUHC code
   details?: string
   ipAddress?: string
   sessionId?: string
   isSensitive?: boolean // For HIV, mental health records
   justification?: string // For break-the-glass access
+  notes?: string
+  description?: string
+  // Legacy field aliases for backwards compatibility
+  entityType?: string
+  entityId?: string
+  entityName?: string
 }
 
 // In-memory audit log (synced to database)
@@ -32,18 +38,28 @@ export function logAudit(params: {
   userId: string
   userName: string
   userRole: string
-  action: AuditLogEntry['action']
-  resourceType: AuditLogEntry['resourceType']
-  resourceId: string
+  action: string
+  resourceType?: string
+  resourceId?: string
   resourceIdentifier?: string
   details?: string
   isSensitive?: boolean
   justification?: string
+  notes?: string
+  description?: string
+  // Legacy aliases
+  entityType?: string
+  entityId?: string
+  entityName?: string
 }): AuditLogEntry {
   const entry: AuditLogEntry = {
     id: generateId(),
     timestamp: new Date(),
-    ...params
+    ...params,
+    // Map legacy fields to standard fields
+    resourceType: params.resourceType || params.entityType,
+    resourceId: params.resourceId || params.entityId,
+    resourceIdentifier: params.resourceIdentifier || params.entityName
   }
   
   // Add to memory
@@ -57,7 +73,7 @@ export function logAudit(params: {
   // Sync to database (async, non-blocking)
   syncToDatabase(entry)
   
-  console.log(`[AUDIT] ${params.action} by ${params.userName} on ${params.resourceType}:${params.resourceId}`)
+  console.log(`[AUDIT] ${params.action} by ${params.userName}`)
   
   return entry
 }

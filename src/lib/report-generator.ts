@@ -34,7 +34,7 @@ interface MedicationData {
   duration: string
 }
 
-interface DailyReportData {
+export interface DailyReportData {
   date: string
   totalPatients: number
   newRegistrations: number
