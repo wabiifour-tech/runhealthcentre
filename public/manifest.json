@@ -1,0 +1,48 @@
+{
+  "name": "RUHC HMS",
+  "short_name": "RUHC",
+  "description": "Redeemer's University Health Centre - Health Management System. Works offline!",
+  "start_url": "/hms",
+  "display": "standalone",
+  "background_color": "#1e40af",
+  "theme_color": "#1e40af",
+  "orientation": "any",
+  "scope": "/",
+  "prefer_related_applications": false,
+  "icons": [
+    {
+      "src": "/runlogo.jpg",
+      "sizes": "512x512",
+      "type": "image/jpeg",
+      "purpose": "any"
+    },
+    {
+      "src": "/runlogo.jpg",
+      "sizes": "512x512",
+      "type": "image/jpeg",
+      "purpose": "maskable"
+    }
+  ],
+  "categories": ["medical", "health", "healthcare"],
+  "lang": "en-NG",
+  "dir": "ltr",
+  "screenshots": [],
+  "shortcuts": [
+    {
+      "name": "New Patient",
+      "short_name": "Patient",
+      "description": "Register a new patient",
+      "url": "/hms?tab=reception&action=new-patient",
+      "icons": [{ "src": "/runlogo.jpg", "sizes": "96x96" }]
+    },
+    {
+      "name": "Queue",
+      "short_name": "Queue",
+      "description": "View queue",
+      "url": "/hms?tab=queue",
+      "icons": [{ "src": "/runlogo.jpg", "sizes": "96x96" }]
+    }
+  ],
+  "related_applications": [],
+  "display_override": ["window-controls-overlay", "standalone", "browser"]
+}

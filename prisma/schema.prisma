@@ -1,0 +1,1311 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+}
+
+// User model for authentication and staff management
+model users {
+  id                String    @id
+  email             String    @unique
+  name              String
+  firstName         String?   // Separate first name for auto email generation
+  lastName          String?   // Separate last name for auto email generation
+  password          String
+  viewablePassword  String?   // Plain text password viewable by SuperAdmin only
+  role              String    // SUPER_ADMIN, ADMIN, DOCTOR, NURSE, PHARMACIST, LAB_TECHNICIAN, MATRON, RECORDS_OFFICER
+  department        String?
+  initials          String?
+  phone             String?
+  dateOfBirth       DateTime?
+  profilePhoto      String?
+  isActive          Boolean   @default(true)
+  isFirstLogin      Boolean   @default(true)
+  approvalStatus    String    @default("PENDING") // PENDING, APPROVED, REJECTED
+  approvedBy        String?   // ID of admin who approved
+  approvedAt        DateTime? // When approved
+  rememberToken     String?   // For "Remember Me" functionality
+  tokenExpiresAt    DateTime? // When remember token expires
+  lastLogin         DateTime?
+  passwordResetAt   DateTime? // When password was last reset by admin
+  passwordResetBy   String?   // ID of admin who reset the password
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+}
+
+// Patient model
+model patients {
+  id                      String    @id
+  hospitalNumber          String?
+  ruhcCode                String    @unique
+  matricNumber            String?
+  patientType             String?   // Student, Academic Staff, Non-Academic Staff, Outsider
+  firstName               String
+  lastName                String
+  middleName              String?
+  title                   String?
+  dateOfBirth             String?
+  gender                  String?
+  bloodGroup              String?
+  genotype                String?
+  phone                   String?
+  email                   String?
+  address                 String?
+  city                    String?
+  state                   String?
+  lga                     String?
+  nationality             String?
+  religion                String?
+  occupation              String?
+  maritalStatus           String?
+  nokName                 String?
+  nokRelationship         String?
+  nokPhone                String?
+  nokAddress              String?
+  emergencyContactName    String?
+  emergencyContactPhone   String?
+  emergencyContactRelationship String?
+  insuranceNumber         String?
+  insuranceProvider       String?
+  allergies               String?
+  chronicConditions       String?
+  currentMedications      String?
+  currentUnit             String?
+  bedNumber               Int?
+  admissionDate           DateTime?
+  dischargeDate           DateTime?
+  isActive                Boolean   @default(true)
+  registeredAt            DateTime  @default(now())
+  registeredBy            String?
+  lastEditedBy            String?
+  lastEditedAt            DateTime?
+}
+
+// Consultation model
+model consultations {
+  id                      String    @id
+  patientId               String?
+  patient                 Json?
+  doctorId                String?
+  doctorName              String?
+  status                  String    @default("pending") // pending, in_progress, completed, sent_back, pending_review
+  chiefComplaint          String?
+  historyOfPresentIllness String?
+  pastMedicalHistory      String?
+  signsAndSymptoms        String?
+  bloodPressureSystolic   String?
+  bloodPressureDiastolic  String?
+  temperature             String?
+  pulse                   String?
+  respiratoryRate         String?
+  weight                  String?
+  height                  String?
+  oxygenSaturation        String?
+  generalExamination      String?
+  systemExamination       String?
+  investigationsRequested Json?
+  scanRequested           Json?
+  scanFindings            String?
+  provisionalDiagnosis    String?
+  finalDiagnosis          String?
+  treatmentPlan           String?
+  prescriptions           Json?
+  referredTo              String?   // nurse, doctor, lab, pharmacy - who this consultation is sent to
+  referralTo              String?
+  referralNotes           String?
+  sendBackTo              Json?
+  sendBackNotes           String?
+  sentByNurseInitials     String?   // Initials of nurse who sent the file
+  sentAt                  DateTime?
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+}
+
+// Vital signs model
+model vital_signs {
+  id                      String    @id
+  patientId               String?
+  patient                 Json?
+  recordedBy              String?
+  bloodPressureSystolic   String?
+  bloodPressureDiastolic  String?
+  temperature             String?
+  pulse                   String?
+  respiratoryRate         String?
+  weight                  String?
+  height                  String?
+  oxygenSaturation        String?
+  painScore               String?
+  notes                   String?
+  recordedAt              DateTime  @default(now())
+}
+
+// Lab requests model
+model lab_requests {
+  id                      String    @id
+  patientId               String?
+  patient                 Json?
+  requestedBy             String?
+  tests                   Json?
+  status                  String    @default("pending") // pending, in_progress, completed
+  notes                   String?
+  requestedAt             DateTime  @default(now())
+  completedAt             DateTime?
+}
+
+// Lab results model
+model lab_results {
+  id                      String    @id
+  requestId               String?
+  patientId               String?
+  patient                 Json?
+  testName                String?
+  result                  String?
+  notes                   String?
+  performedBy             String?
+  createdAt               DateTime  @default(now())
+}
+
+// Prescriptions model
+model prescriptions {
+  id                      String    @id
+  patientId               String?
+  patient                 Json?
+  prescribedBy            String?
+  medications             Json?
+  status                  String    @default("pending") // pending, dispensed
+  notes                   String?
+  createdAt               DateTime  @default(now())
+  dispensedAt             DateTime?
+}
+
+// Queue entries model
+model queue_entries {
+  id                      String    @id
+  patientId               String?
+  patient                 Json?
+  unit                    String?
+  status                  String    @default("waiting") // waiting, in_progress, completed
+  priority                Int       @default(0)
+  notes                   String?
+  checkedInAt             DateTime  @default(now())
+  seenAt                  DateTime?
+}
+
+// Appointments model
+model appointments {
+  id                      String    @id
+  patientId               String?
+  patient                 Json?
+  doctorId                String?
+  doctorName              String?
+  type                    String?
+  reason                  String?
+  appointmentDate         String?
+  startTime               String?
+  endTime                 String?
+  status                  String    @default("scheduled") // scheduled, completed, cancelled
+  notes                   String?
+  initials                String?
+  createdAt               DateTime  @default(now())
+}
+
+// Admissions model
+model admissions {
+  id                      String    @id
+  patientId               String?
+  patient                 Json?
+  unit                    String?
+  bedNumber               Int?
+  reason                  String?
+  status                  String    @default("admitted") // admitted, discharged
+  admittedAt              DateTime  @default(now())
+  dischargedAt            DateTime?
+  notes                   String?
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+}
+
+// Drugs model
+model drugs {
+  id                      String    @id
+  name                    String
+  category                String?
+  dosageForm              String?
+  strength                String?
+  unit                    String?
+  price                   Float?
+  quantityInStock         Int       @default(0)
+  reorderLevel            Int       @default(10)
+  isActive                Boolean   @default(true)
+  createdAt               DateTime  @default(now())
+}
+
+// Lab tests model
+model lab_tests {
+  id                      String    @id
+  name                    String
+  category                String?
+  price                   Float?
+  turnaroundTime          String?
+  isActive                Boolean   @default(true)
+  createdAt               DateTime  @default(now())
+}
+
+// Announcements model
+model announcements {
+  id                      String    @id
+  title                   String
+  content                 String?
+  type                    String    @default("general") // general, birthday, urgent, event
+  createdBy               String?
+  createdAt               DateTime  @default(now())
+}
+
+// Voice notes model
+model voice_notes {
+  id                      String    @id
+  patientId               String?
+  patient                 Json?
+  recipientRole           String?
+  transcription           String?
+  audioUrl                String?
+  initials                String?
+  createdBy               String?
+  createdAt               DateTime  @default(now())
+}
+
+// Medical certificates model
+model medical_certificates {
+  id                      String    @id
+  patientId               String?
+  patient                 Json?
+  type                    String?
+  diagnosis               String?
+  daysOff                 Int?
+  startDate               String?
+  endDate                 String?
+  notes                   String?
+  issuedBy                String?
+  createdAt               DateTime  @default(now())
+}
+
+// Referral letters model
+model referral_letters {
+  id                      String    @id
+  patientId               String?
+  patient                 Json?
+  referredTo              String?
+  reason                  String?
+  diagnosis               String?
+  notes                   String?
+  issuedBy                String?
+  createdAt               DateTime  @default(now())
+}
+
+// Discharge summaries model
+model discharge_summaries {
+  id                      String    @id
+  patientId               String?
+  patient                 Json?
+  admissionDate           String?
+  dischargeDate           String?
+  diagnosis               String?
+  treatment               String?
+  medications             String?
+  followUp                String?
+  notes                   String?
+  dischargedBy            String?
+  createdAt               DateTime  @default(now())
+}
+
+// Audit logs model
+model audit_logs {
+  id                      String    @id
+  userId                  String?
+  userName                String?
+  action                  String
+  description             String?
+  metadata                Json?
+  timestamp               DateTime  @default(now())
+}
+
+// Duty Roster model
+model rosters {
+  id                      String    @id
+  staffId                 String?
+  staffName               String?
+  staffRole               String?
+  subDepartment           String?   // OPD, Male Medical Ward, Female Medical Ward, etc.
+  date                    String    // YYYY-MM-DD format
+  shift                   String    // morning, afternoon, night
+  notes                   String?
+  createdBy               String?
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+}
+
+// Attendance model
+model attendance {
+  id                      String    @id
+  staffId                 String?
+  staffName               String?
+  staffRole               String?
+  subDepartment           String?   // OPD, Male Medical Ward, Female Medical Ward, etc. - for nurses
+  date                    String    // toDateString format
+  signInTime              String?
+  signInPhoto             String?
+  signOutTime             String?
+  signOutPhoto            String?
+  shift                   String    // morning, afternoon, night
+  status                  String    @default("present") // present, late, absent, on_leave
+  deviceId                String?
+  notes                   String?
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+}
+
+// App settings model
+model app_settings {
+  id                      String    @id
+  
+  // Facility Information
+  facilityName            String    @default("Redeemer's University Health Centre (RUHC)")
+  facilityShortName       String    @default("RUHC")
+  facilityCode            String    @default("RUHC-2026")
+  facilityAddress         String?
+  facilityCity            String?
+  facilityState           String?
+  facilityCountry         String    @default("Nigeria")
+  
+  // Contact Information
+  primaryPhone            String?
+  secondaryPhone          String?
+  emergencyPhone          String?
+  emailAddress            String?
+  website                 String?
+  
+  // Branding
+  logoUrl                 String?
+  logoBase64              String?
+  primaryColor            String    @default("#1e40af")
+  secondaryColor          String    @default("#3b82f6")
+  accentColor             String    @default("#10b981")
+  
+  // Operational Settings
+  openingTime             String    @default("08:00")
+  closingTime             String    @default("18:00")
+  workingDays             String    @default("Monday,Friday")
+  timezone                String    @default("Africa/Lagos")
+  currency                String    @default("NGN")
+  currencySymbol          String    @default("₦")
+  
+  // Feature Flags
+  enableOnlineBooking     Boolean   @default(false)
+  enableSmsNotifications  Boolean   @default(false)
+  enableEmailNotifications Boolean  @default(false)
+  enableVoiceNotes        Boolean   @default(true)
+  enableDailyDevotionals  Boolean   @default(true)
+  enableDrugInteractionCheck Boolean @default(true)
+  enableVitalAlerts       Boolean   @default(true)
+  enableAuditLogging      Boolean   @default(true)
+  enableBreakGlass        Boolean   @default(true)
+  enableTwoFactor         Boolean   @default(false)
+  
+  // Custom Messages
+  welcomeMessage          String?
+  headerMessage           String?
+  footerMessage           String?
+  
+  // Security Settings
+  sessionTimeoutMinutes   Int       @default(30)
+  maxLoginAttempts        Int       @default(5)
+  lockoutDurationMinutes  Int       @default(30)
+  passwordMinLength       Int       @default(8)
+  passwordRequireUppercase Boolean  @default(true)
+  passwordRequireLowercase Boolean  @default(true)
+  passwordRequireNumber   Boolean   @default(true)
+  passwordRequireSpecial  Boolean   @default(false)
+  passwordExpiryDays      Int       @default(90)
+  
+  // Audit Log Settings
+  auditLogRetentionDays   Int       @default(90)
+  logPatientAccess        Boolean   @default(true)
+  logDataModifications    Boolean   @default(true)
+  logLoginAttempts        Boolean   @default(true)
+  
+  // Notification Provider Settings
+  smsProvider             String?   // 'twilio', 'africastalking', 'termii', 'custom'
+  smsApiKey               String?
+  smsApiSecret            String?
+  smsSenderId             String?
+  emailProvider           String?   // 'resend', 'sendgrid', 'smtp'
+  emailApiKey             String?
+  smtpHost                String?
+  smtpPort                Int?
+  smtpUser                String?
+  smtpPassword            String?
+  
+  // Role Permissions (JSON string)
+  rolePermissions         String?   // JSON object with permissions per role
+  
+  // Queue Settings
+  queuePrefix             String    @default("RUHC")
+  queueStartNumber        Int       @default(1)
+  queueResetDaily         Boolean   @default(true)
+  
+  // Backup Settings
+  autoBackupEnabled       Boolean   @default(false)
+  backupFrequency         String?   // 'daily', 'weekly', 'monthly'
+  backupRetentionDays     Int       @default(30)
+  lastBackupAt            DateTime?
+  
+  // System
+  lastUpdated             DateTime?
+  updatedBy               String?
+  createdAt               DateTime  @default(now())
+}
+
+// Routing Requests - Cross-role communication
+model routing_requests {
+  id                      String    @id
+  // Sender info
+  sender_id               String
+  sender_name             String
+  sender_role             String
+  sender_initials         String?
+  // Receiver info
+  receiver_id             String?
+  receiver_name           String?
+  receiver_role           String?
+  receiver_department     String?
+  // Patient info
+  patient_id              String?
+  patient_name            String?
+  patient_hospital_number String?
+  // Request details
+  request_type            String    // consultation, lab_test, prescription, etc.
+  priority                String    @default("routine") // routine, urgent, emergency
+  subject                 String
+  message                 String?
+  notes                   String?
+  // Related entities
+  consultation_id         String?
+  lab_request_id          String?
+  prescription_id         String?
+  // Status tracking
+  status                  String    @default("pending") // pending, acknowledged, in_progress, completed, cancelled, returned
+  acknowledged_at         DateTime?
+  acknowledged_by         String?
+  completed_at            DateTime?
+  completed_by            String?
+  completion_notes        String?
+  // Timestamps
+  created_at              DateTime  @default(now())
+  updated_at              DateTime  @updatedAt
+  
+  @@index([receiver_id])
+  @@index([receiver_role])
+  @@index([sender_id])
+  @@index([status])
+}
+
+// Insurance Claims
+model insurance_claims {
+  id                      String    @id
+  patientId               String?
+  patient                 Json?
+  enrolleeId              String?
+  hmoId                   String?
+  claimType               String?   // capitation, fee_for_service, referral
+  services                Json?
+  totalAmount             Float?
+  approvedAmount          Float?
+  diagnosis               String?
+  icdCode                 String?
+  status                  String    @default("draft") // draft, submitted, processing, approved, rejected, paid
+  submittedAt             DateTime?
+  processedAt             DateTime?
+  processedBy             String?
+  rejectionReason         String?
+  notes                   String?
+  createdBy               String?
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+}
+
+// Surgery Bookings
+model surgery_bookings {
+  id                      String    @id
+  patientId               String?
+  patient                 Json?
+  surgeryType             String?
+  surgeonId               String?
+  surgeonName             String?
+  anesthetistId           String?
+  anesthetistName         String?
+  theatreId               String?
+  theatreName             String?
+  scheduledDate           String?
+  scheduledTime           String?
+  estimatedDuration       Int?      // minutes
+  status                  String    @default("scheduled") // scheduled, in_progress, completed, cancelled, postponed
+  priority                String    @default("routine") // routine, urgent, emergency
+  preOpChecklist          Json?
+  notes                   String?
+  bookedBy                String?
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+}
+
+// Immunization Records
+model immunization_records {
+  id                      String    @id
+  patientId               String?
+  patient                 Json?
+  vaccineName             String?
+  doseNumber              Int?
+  batchNumber             String?
+  administeredBy          String?
+  administeredAt          DateTime?
+  nextDoseDate            DateTime?
+  reactions               String?
+  notes                   String?
+  createdAt               DateTime  @default(now())
+}
+
+// Blood Donors
+model blood_donors {
+  id                      String    @id
+  name                    String?
+  phone                   String?
+  email                   String?
+  bloodGroup              String?
+  genotype                String?
+  lastDonationDate        DateTime?
+  totalDonations          Int       @default(0)
+  isEligible              Boolean   @default(true)
+  notes                   String?
+  registeredAt            DateTime  @default(now())
+}
+
+// Blood Units
+model blood_units {
+  id                      String    @id
+  donorId                 String?
+  donorName               String?
+  bloodGroup              String?
+  componentType           String?   // whole_blood, plasma, platelets, red_cells
+  volumeMl                Int?
+  collectionDate          DateTime?
+  expiryDate              DateTime?
+  status                  String    @default("available") // available, reserved, transfused, discarded, expired
+  reservedForPatientId    String?
+  transfusedAt            DateTime?
+  transfusedToPatientId   String?
+  notes                   String?
+  createdAt               DateTime  @default(now())
+}
+
+// Medication Administrations
+model medication_administrations {
+  id                      String    @id
+  patientId               String?
+  patient                 Json?
+  drugName                String?
+  dosage                  String?
+  route                   String?
+  administeredBy          String?
+  administeredAt          DateTime?
+  notes                   String?
+  createdAt               DateTime  @default(now())
+}
+
+// Patient Tasks / Interventions
+model patient_tasks {
+  id                      String    @id
+  patientId               String?
+  patient                 Json?
+  taskId                  String?
+  taskName                String?
+  scheduledTime           DateTime?
+  duration                Int?      // minutes
+  notes                   String?
+  status                  String    @default("pending") // pending, in_progress, completed, missed, cancelled
+  priority                String    @default("routine") // routine, urgent, stat
+  assignedBy              String?
+  startedAt               DateTime?
+  completedAt             DateTime?
+  completedBy             String?
+  recurring               Boolean   @default(false)
+  recurrenceInterval      Int?      // minutes
+  nextOccurrence          DateTime?
+  createdAt               DateTime  @default(now())
+}
+
+// Notifications
+model notifications {
+  id                      String    @id
+  userId                  String?
+  targetRoles             String?   // JSON array of roles
+  type                    String?
+  title                   String?
+  message                 String?
+  data                    Json?
+  priority                String    @default("normal")
+  read                    Boolean   @default(false)
+  createdAt               DateTime  @default(now())
+}
+
+// Patient Wallet
+model patient_wallets {
+  id                      String    @id
+  patientId               String    @unique
+  patient                 Json?
+  balance                 Float     @default(0)
+  lastTransactionAt       DateTime?
+  isActive                Boolean   @default(true)
+  createdAt               DateTime  @default(now())
+}
+
+// Wallet Transactions
+model wallet_transactions {
+  id                      String    @id
+  walletId                String?
+  type                    String?   // credit, debit
+  amount                  Float?
+  description             String?
+  reference               String?
+  balanceAfter            Float?
+  createdBy               String?
+  createdAt               DateTime  @default(now())
+}
+
+// ==================== MISSING TABLES ADDED ====================
+
+// Wards - Ward definitions
+model wards {
+  id                      String    @id
+  name                    String
+  type                    String    // male_medical, female_medical, pediatric, maternity, emergency, icu, theatre
+  floor                   String?
+  totalBeds               Int       @default(0)
+  availableBeds           Int       @default(0)
+  occupiedBeds            Int       @default(0)
+  nurseInCharge           String?
+  status                  String    @default("active") // active, maintenance, closed
+  notes                   String?
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+  
+  @@index([type])
+  @@index([status])
+}
+
+// Beds - Bed management
+model beds {
+  id                      String    @id
+  wardId                  String
+  wardName                String?
+  bedNumber               Int
+  roomNumber              String?
+  roomType                String    @default("general") // general, semi_private, private
+  status                  String    @default("available") // available, occupied, reserved, maintenance, cleaning
+  patientId               String?
+  patientName             String?
+  admittedAt              DateTime?
+  expectedDischarge       DateTime?
+  notes                   String?
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+  
+  @@index([wardId])
+  @@index([status])
+}
+
+// Staff Messages - Internal messaging
+model staff_messages {
+  id                      String    @id
+  senderId                String
+  senderName              String
+  senderRole              String
+  recipientId             String?
+  recipientRole           String?
+  message                 String
+  subject                 String?
+  isBroadcast             Boolean   @default(false)
+  isRead                  Boolean   @default(false)
+  readAt                  DateTime?
+  priority                String    @default("normal") // low, normal, high, urgent
+  attachments             Json?
+  createdAt               DateTime  @default(now())
+  
+  @@index([senderId])
+  @@index([recipientId])
+  @@index([recipientRole])
+  @@index([isRead])
+}
+
+// Video Consultations
+model video_consultations {
+  id                      String    @id
+  patientId               String?
+  patient                 Json?
+  doctorId                String
+  doctorName              String
+  doctorInitials          String?
+  consultationId          String?
+  chiefComplaint          String?
+  scheduledDateTime       DateTime?
+  status                  String    @default("scheduled") // scheduled, waiting, in_progress, completed, cancelled, no_show
+  roomCode                String    @unique
+  startedAt               DateTime?
+  endedAt                 DateTime?
+  duration                Int?      // minutes
+  participantIds          Json?
+  isRecorded              Boolean   @default(false)
+  recordingUrl            String?
+  notes                   String?
+  followUpRequired        Boolean   @default(false)
+  followUpDate            DateTime?
+  createdBy               String
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+  cancelledAt             DateTime?
+  cancelledBy             String?
+  cancellationReason      String?
+  
+  @@index([doctorId])
+  @@index([patientId])
+  @@index([status])
+  @@index([scheduledDateTime])
+}
+
+// Video Consultation Participants
+model video_consultation_participants {
+  id                      String    @id
+  consultationId          String
+  userId                  String
+  userName                String
+  userRole                String    // DOCTOR, PATIENT, NURSE, OTHER
+  joinedAt                DateTime?
+  leftAt                  DateTime?
+  isVideoEnabled          Boolean   @default(true)
+  isAudioEnabled          Boolean   @default(true)
+  connectionState         String    @default("connecting") // connecting, connected, disconnected, failed
+  createdAt               DateTime  @default(now())
+  
+  @@index([consultationId])
+  @@index([userId])
+}
+
+// Video Consultation Chat
+model video_consultation_chat {
+  id                      String    @id
+  consultationId          String
+  senderId                String
+  senderName              String
+  message                 String
+  isSystem                Boolean   @default(false)
+  createdAt               DateTime  @default(now())
+  
+  @@index([consultationId])
+}
+
+// Bills - Patient Billing
+model bills {
+  id                      String    @id
+  billNumber              String    @unique
+  patientId               String?
+  patient                 Json?
+  totalAmount             Float     @default(0)
+  amountPaid              Float     @default(0)
+  balance                 Float     @default(0)
+  discount                Float     @default(0)
+  tax                     Float     @default(0)
+  status                  String    @default("pending") // pending, partial, paid, cancelled, refunded
+  dueDate                 DateTime?
+  paidAt                  DateTime?
+  items                   Json?
+  notes                   String?
+  createdBy               String?
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+  
+  @@index([patientId])
+  @@index([status])
+}
+
+// Payments
+model payments {
+  id                      String    @id
+  billId                  String?
+  patientId               String?
+  patient                 Json?
+  amount                  Float
+  paymentMethod           String    // cash, card, transfer, insurance, wallet
+  receiptNumber           String    @unique
+  reference               String?
+  description             String?
+  status                  String    @default("completed") // pending, completed, failed, refunded
+  collectedBy             String
+  collectedAt             DateTime  @default(now())
+  notes                   String?
+  createdAt               DateTime  @default(now())
+  
+  @@index([billId])
+  @@index([patientId])
+  @@index([status])
+}
+
+// Expenses
+model expenses {
+  id                      String    @id
+  expenseNumber           String    @unique
+  category                String    // utilities, supplies, equipment, salaries, maintenance, other
+  subCategory             String?
+  description             String
+  amount                  Float
+  paidTo                  String?
+  paymentMethod           String    @default("cash") // cash, bank, cheque
+  reference               String?
+  authorizedBy            String
+  authorizedAt            DateTime?
+  status                  String    @default("pending") // pending, approved, paid, cancelled
+  date                    DateTime
+  notes                   String?
+  attachments             Json?
+  createdBy               String?
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+  
+  @@index([category])
+  @@index([status])
+  @@index([date])
+}
+
+// Inventory Items
+model inventory_items {
+  id                      String    @id
+  name                    String
+  category                String    // medical, office, cleaning, kitchen, other
+  sku                     String?   @unique
+  description             String?
+  quantityInStock         Int       @default(0)
+  reorderLevel            Int       @default(10)
+  unit                    String    // pieces, boxes, liters, kg
+  unitPrice               Float?
+  supplier                String?
+  supplierContact         String?
+  location                String?
+  lastRestocked           DateTime?
+  expiryDate              DateTime?
+  notes                   String?
+  isActive                Boolean   @default(true)
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+  
+  @@index([category])
+  @@index([quantityInStock])
+}
+
+// Equipment
+model equipment {
+  id                      String    @id
+  name                    String
+  category                String
+  assetTag                String?   @unique
+  serialNumber            String?
+  manufacturer            String?
+  model                   String?
+  purchaseDate            DateTime?
+  purchasePrice           Float?
+  location                String
+  department              String?
+  status                  String    @default("working") // working, needs_repair, under_maintenance, retired, disposed
+  lastMaintenanceDate     DateTime?
+  nextMaintenanceDate     DateTime?
+  warrantyExpiry          DateTime?
+  assignedTo              String?
+  notes                   String?
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+  
+  @@index([category])
+  @@index([status])
+  @@index([department])
+}
+
+// Medical Assets
+model medical_assets {
+  id                      String    @id
+  name                    String
+  category                String
+  assetTag                String    @unique
+  serialNumber            String?
+  manufacturer            String?
+  model                   String?
+  purchaseDate            DateTime?
+  purchasePrice           Float?
+  location                String
+  department              String
+  status                  String    @default("in_use") // in_use, available, maintenance, retired, disposed
+  lastMaintenanceDate     DateTime?
+  nextMaintenanceDate     DateTime?
+  warrantyExpiry          DateTime?
+  assignedTo              String?
+  notes                   String?
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+  
+  @@index([category])
+  @@index([status])
+  @@index([department])
+}
+
+// Shift Swaps
+model shift_swaps {
+  id                      String    @id
+  requesterId             String
+  requesterName           String
+  requesterShiftId        String?
+  requesterShiftDate      String?
+  requesterShiftType      String?
+  requestedStaffId        String
+  requestedStaffName      String
+  requestedShiftId        String?
+  requestedShiftDate      String?
+  requestedShiftType      String?
+  reason                  String
+  status                  String    @default("pending") // pending, approved, rejected, cancelled
+  reviewedBy              String?
+  reviewedAt              DateTime?
+  rejectionReason         String?
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+  
+  @@index([requesterId])
+  @@index([requestedStaffId])
+  @@index([status])
+}
+
+// Certifications
+model certifications {
+  id                      String    @id
+  staffId                 String
+  staffName               String
+  certificationName       String
+  issuingBody             String
+  dateObtained            DateTime
+  expiryDate              DateTime?
+  certificateNumber       String?
+  documentUrl             String?
+  isExpired               Boolean   @default(false)
+  isExpiringSoon          Boolean   @default(false)
+  cpdPoints               Int?
+  notes                   String?
+  reminderSentAt          DateTime?
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+  
+  @@index([staffId])
+  @@index([expiryDate])
+  @@index([isExpired])
+}
+
+// Training Records
+model training_records {
+  id                      String    @id
+  staffId                 String
+  staffName               String
+  trainingName            String
+  trainingType            String    // mandatory, optional, departmental
+  provider                String
+  startDate               DateTime
+  endDate                 DateTime
+  durationHours           Int
+  status                  String    @default("scheduled") // scheduled, in_progress, completed, cancelled
+  certificateIssued       Boolean   @default(false)
+  certificateUrl          String?
+  cpdPointsEarned         Int?
+  score                   Float?
+  notes                   String?
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+  
+  @@index([staffId])
+  @@index([trainingType])
+  @@index([status])
+}
+
+// Staff Attendance (Extended)
+model staff_attendances {
+  id                      String    @id
+  staffId                 String
+  staffName               String
+  staffRole               String
+  date                    DateTime
+  clockIn                 DateTime?
+  clockOut                DateTime?
+  clockInMethod           String    @default("manual") // manual, biometric, card
+  clockOutMethod          String?
+  workHours               Float?
+  overtimeHours           Float?
+  status                  String    @default("present") // present, absent, late, early_departure, on_leave, holiday
+  location                String?
+  notes                   String?
+  isApproved              Boolean   @default(false)
+  approvedBy              String?
+  approvedAt              DateTime?
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+  
+  @@index([staffId])
+  @@index([date])
+  @@index([status])
+}
+
+// Antenatal Visits
+model antenatal_visits {
+  id                      String    @id
+  patientId               String
+  patient                 Json?
+  visitNumber             Int
+  gestationalAge          Int       // weeks
+  bloodPressureSystolic   Int?
+  bloodPressureDiastolic  Int?
+  weight                  Float?
+  fundalHeight             Float?
+  fetalHeartRate          Int?
+  fetalMovement           String?
+  presentation            String?
+  urineProtein            String?
+  hemoglobinLevel         Float?
+  riskFactors             Json?
+  notes                   String?
+  seenBy                  String
+  nextAppointmentDate     DateTime?
+  createdAt               DateTime  @default(now())
+  
+  @@index([patientId])
+  @@index([visitNumber])
+}
+
+// Ambulance Calls
+model ambulance_calls {
+  id                      String    @id
+  patientName             String
+  patientPhone            String?
+  pickupLocation          String
+  destination             String
+  reason                  String
+  status                  String    @default("dispatched") // dispatched, en_route, arrived, completed, cancelled
+  driverName              String?
+  driverPhone             String?
+  vehicleNumber           String?
+  dispatchedAt            DateTime  @default(now())
+  enRouteAt               DateTime?
+  arrivedAt               DateTime?
+  completedAt             DateTime?
+  distance                Float?
+  notes                   String?
+  createdBy               String?
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+  
+  @@index([status])
+  @@index([dispatchedAt])
+}
+
+// Dispensed Drugs
+model dispensed_drugs {
+  id                      String    @id
+  patientId               String?
+  patient                 Json?
+  drugId                  String?
+  drugName                String?
+  quantity                Int
+  unitPrice               Float?
+  totalPrice              Float?
+  dispensingInitials      String
+  prescriptionId          String?
+  consultationId          String?
+  dispensedAt             DateTime  @default(now())
+  notes                   String?
+  createdAt               DateTime  @default(now())
+  
+  @@index([patientId])
+  @@index([drugId])
+  @@index([dispensedAt])
+}
+
+// QR Codes for Patients
+model patient_qr_codes {
+  id                      String    @id
+  patientId               String    @unique
+  qrData                  String
+  qrImage                 String?
+  generatedAt             DateTime  @default(now())
+  printedAt               DateTime?
+  printedBy               String?
+  isActive                Boolean   @default(true)
+  createdAt               DateTime  @default(now())
+  
+  @@index([patientId])
+}
+
+// Two Factor Auth Setup
+model two_factor_setups {
+  id                      String    @id
+  userId                  String    @unique
+  secret                  String
+  backupCodes             Json?
+  isEnabled               Boolean   @default(false)
+  enabledAt               DateTime?
+  verifiedAt              DateTime?
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+  
+  @@index([userId])
+}
+
+// Data Backups
+model backup_records {
+  id                      String    @id
+  type                    String    // automatic, manual
+  size                    Float?    // in MB
+  location                String
+  status                  String    @default("in_progress") // in_progress, completed, failed
+  startedAt               DateTime  @default(now())
+  completedAt             DateTime?
+  createdBy               String?
+  notes                   String?
+  createdAt               DateTime  @default(now())
+  
+  @@index([type])
+  @@index([status])
+}
+
+// Patient File Access Tracking
+model patient_file_access {
+  id                      String    @id
+  patientId               String
+  patientName             String
+  openedBy                String
+  openedByName            String
+  openedByRole            String
+  openedAt                DateTime  @default(now())
+  action                  String    @default("viewed") // viewed, edited, created
+  section                 String?
+  createdAt               DateTime  @default(now())
+  
+  @@index([patientId])
+  @@index([openedBy])
+  @@index([openedAt])
+}
+
+// Diagnosis Records
+model diagnosis_records {
+  id                      String    @id
+  consultationId          String
+  patientId               String
+  patient                 Json?
+  diagnosis               String
+  icdCode                 String?
+  diagnosisType           String    @default("provisional") // provisional, final, differential
+  doctorInitials          String
+  doctorName              String?
+  notes                   String?
+  recordedAt              DateTime  @default(now())
+  createdAt               DateTime  @default(now())
+  
+  @@index([consultationId])
+  @@index([patientId])
+  @@index([icdCode])
+}
+
+// Electronic Prescriptions
+model electronic_prescriptions {
+  id                      String    @id
+  patientId               String
+  patient                 Json?
+  doctorId                String
+  doctorName              String
+  doctorInitials          String
+  items                   Json?
+  diagnosis               String?
+  notes                   String?
+  drugInteractions        Json?
+  hasAllergyWarning       Boolean   @default(false)
+  allergyDetails          String?
+  status                  String    @default("pending") // pending, dispensed, cancelled
+  dispensedAt             DateTime?
+  dispensedBy             String?
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+  
+  @@index([patientId])
+  @@index([doctorId])
+  @@index([status])
+}
+
+// Queue Tickets
+model queue_tickets {
+  id                      String    @id
+  patientId               String
+  patient                 Json?
+  ticketNumber            String    @unique
+  unit                    String
+  priority                String    @default("normal") // normal, urgent, emergency
+  status                  String    @default("waiting") // waiting, called, in_progress, completed, no_show
+  issuedAt                DateTime  @default(now())
+  calledAt                DateTime?
+  completedAt             DateTime?
+  estimatedWaitMinutes    Int?
+  notifiedAt              DateTime?
+  notes                   String?
+  
+  @@index([patientId])
+  @@index([unit])
+  @@index([status])
+  @@index([issuedAt])
+}
+
+// Open Heavens Devotionals
+model open_heavens_devotionals {
+  id                      String    @id
+  date                    DateTime  @unique
+  title                   String
+  memoryVerse             String
+  memoryVerseReference    String
+  bibleReading            String
+  bibleReadingReference   String
+  bibleInOneYear          String?
+  message                 String
+  prayerPoints            Json?
+  actionPoint             String?
+  author                  String    @default("Pastor E.A. Adeboye")
+  topic                   String?
+  source                  String?
+  link                    String?
+  hymn                    Json?
+  createdAt               DateTime  @default(now())
+  
+  @@index([date])
+}
+
+// Daily Verses
+model daily_verses {
+  id                      String    @id
+  date                    DateTime  @unique
+  verse                   String
+  reference               String
+  translation             String?
+  createdAt               DateTime  @default(now())
+  
+  @@index([date])
+}
