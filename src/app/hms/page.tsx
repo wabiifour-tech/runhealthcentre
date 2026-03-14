@@ -8078,8 +8078,10 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
         }
         
         setRoutingRequests(prev => [newRequest, ...prev])
-        
-        showToast(`✅ Request sent to ${receiverStaff?.name || (routingForm.receiverRole ? getRoleDisplayName(routingForm.receiverRole as UserRole) : routingForm.receiverDepartment || 'all staff')}!`, 'success')
+
+        // Show success message with visual feedback
+        const receiverName = receiverStaff?.name || (routingForm.receiverRole ? getRoleDisplayName(routingForm.receiverRole as UserRole) : routingForm.receiverDepartment || 'all staff')
+        showToast(`✅ Request sent successfully to ${receiverName}! They will be notified immediately.`, 'success')
         
         // Log activity
         logUserActivity('ROUTING_REQUEST_SENT', `Sent ${routingForm.requestType} request to ${receiverStaff?.name || (routingForm.receiverRole ? getRoleDisplayName(routingForm.receiverRole as UserRole) : 'department')}`, 'routing', routingForm.subject)
@@ -8689,7 +8691,7 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
     })
 
     setShowConsultationDialog(false)
-    showToast('Consultation completed and file sent!', 'success')
+    showToast(`✅ Consultation completed! File sent to: ${destinationNames.join(', ')}`, 'success')
 
     // Dispatch real-time event (don't play sound here - receiver will hear it)
     window.dispatchEvent(new CustomEvent('consultationCompleted', {
@@ -13182,20 +13184,34 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
             <div className="space-y-6">
               <div className="flex justify-between items-center">
                 <h3 className="text-lg font-semibold">Patient File Management</h3>
-                <Badge className="bg-teal-100 text-teal-800">
-                  {consultations.filter(c => c.referredTo === 'nurse' && c.status === 'pending_review').length} pending from Records
-                </Badge>
+                <div className="flex gap-2">
+                  <Badge className="bg-teal-100 text-teal-800">
+                    {consultations.filter(c => c.referredTo === 'nurse' && c.status === 'pending_review').length} from Records
+                  </Badge>
+                  <Badge className="bg-blue-100 text-blue-800">
+                    {getIncomingRequests().filter(r => r.receiverRole === 'NURSE' || r.receiverId === user?.id).length} routing requests
+                  </Badge>
+                </div>
               </div>
 
               {/* Tabs for different file categories */}
               <Tabs defaultValue="fromRecords" className="w-full">
-                <TabsList className="grid w-full grid-cols-3">
+                <TabsList className="grid w-full grid-cols-4">
                   <TabsTrigger value="fromRecords" className="flex items-center gap-2">
                     <FileText className="h-4 w-4" />
                     From Records
                     {consultations.filter(c => c.referredTo === 'nurse' && c.status === 'pending_review').length > 0 && (
                       <Badge className="bg-orange-500 text-white ml-1">
                         {consultations.filter(c => c.referredTo === 'nurse' && c.status === 'pending_review').length}
+                      </Badge>
+                    )}
+                  </TabsTrigger>
+                  <TabsTrigger value="incomingRequests" className="flex items-center gap-2">
+                    <Inbox className="h-4 w-4" />
+                    Routing Requests
+                    {getIncomingRequests().filter(r => r.receiverRole === 'NURSE' || r.receiverId === user?.id).length > 0 && (
+                      <Badge className="bg-blue-500 text-white ml-1">
+                        {getIncomingRequests().filter(r => r.receiverRole === 'NURSE' || r.receiverId === user?.id).length}
                       </Badge>
                     )}
                   </TabsTrigger>
@@ -13302,6 +13318,115 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                                       }}
                                     >
                                       <Phone className="h-4 w-4 mr-2" /> Call Patient
+                                    </Button>
+                                  )}
+                                </div>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+
+                {/* Incoming Routing Requests - From doctors, pharmacists, lab, etc. */}
+                <TabsContent value="incomingRequests" className="mt-4">
+                  <Card className="shadow-md border-l-4 border-l-blue-500">
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <Inbox className="h-5 w-5 text-blue-600" />
+                        Routing Requests
+                      </CardTitle>
+                      <CardDescription>
+                        Patient files and requests routed to you from other departments
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      {getIncomingRequests().filter(r => r.receiverRole === 'NURSE' || r.receiverId === user?.id).length === 0 ? (
+                        <div className="text-center py-12 text-gray-500">
+                          <Inbox className="h-16 w-16 mx-auto mb-4 text-gray-300" />
+                          <p className="text-lg">No routing requests</p>
+                          <p className="text-sm">Requests from doctors, pharmacy, and lab will appear here</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          {getIncomingRequests().filter(r => r.receiverRole === 'NURSE' || r.receiverId === user?.id).map(request => {
+                            const patient = patients.find(p => p.id === request.patientId)
+                            return (
+                              <div key={request.id} className={`p-4 rounded-lg border hover:bg-white transition-colors ${
+                                request.priority === 'emergency' ? 'bg-red-50 border-red-200' :
+                                request.priority === 'urgent' ? 'bg-orange-50 border-orange-200' :
+                                'bg-blue-50 border-blue-200'
+                              }`}>
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-4">
+                                    <Avatar className="h-12 w-12">
+                                      <AvatarFallback className={getAvatarColor(request.senderName)}>
+                                        {request.senderInitials || request.senderName?.split(' ').map((n: string) => n[0]).join('').substring(0, 2) || '??'}
+                                      </AvatarFallback>
+                                    </Avatar>
+                                    <div>
+                                      <p className="font-semibold text-gray-800">{request.subject}</p>
+                                      <div className="flex items-center gap-2 flex-wrap mt-1">
+                                        <Badge className={cn(
+                                          request.priority === 'emergency' ? 'bg-red-100 text-red-800' :
+                                          request.priority === 'urgent' ? 'bg-orange-100 text-orange-800' :
+                                          'bg-blue-100 text-blue-800'
+                                        )}>
+                                          {request.priority?.toUpperCase() || 'ROUTINE'}
+                                        </Badge>
+                                        <Badge variant="outline">{request.requestType?.replace('_', ' ')}</Badge>
+                                        {patient && (
+                                          <Badge className="bg-gradient-to-r from-blue-600 to-teal-500 text-white text-xs">
+                                            {patient.ruhcCode}
+                                          </Badge>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </div>
+                                  <div className="text-right">
+                                    <p className="text-sm text-gray-500">From: <Badge className="bg-purple-100 text-purple-800">{request.senderName}</Badge></p>
+                                    <p className="text-xs text-gray-400">{formatDateTime(request.createdAt)}</p>
+                                  </div>
+                                </div>
+                                {request.message && (
+                                  <div className="mt-3 p-3 bg-white rounded-lg border">
+                                    <p className="text-sm"><strong>Message:</strong> {request.message}</p>
+                                  </div>
+                                )}
+                                {patient && (
+                                  <div className="mt-2 text-sm text-gray-600">
+                                    <strong>Patient:</strong> {getFullName(patient.firstName, patient.lastName, patient.middleName, patient.title)}
+                                  </div>
+                                )}
+                                <div className="mt-3 flex flex-wrap gap-2 justify-end">
+                                  <Badge className={cn(
+                                    request.status === 'pending' && 'bg-yellow-100 text-yellow-800',
+                                    request.status === 'acknowledged' && 'bg-blue-100 text-blue-800',
+                                    request.status === 'in_progress' && 'bg-purple-100 text-purple-800',
+                                    request.status === 'completed' && 'bg-green-100 text-green-800'
+                                  )}>
+                                    {request.status?.replace('_', ' ')}
+                                  </Badge>
+                                  {request.status === 'pending' && (
+                                    <Button size="sm" onClick={() => acknowledgeRequest(request.id)} className="bg-blue-600 hover:bg-blue-700">
+                                      <CheckCircle className="h-4 w-4 mr-1" /> Acknowledge
+                                    </Button>
+                                  )}
+                                  {request.status === 'acknowledged' && (
+                                    <Button size="sm" onClick={() => startRequest(request.id)} className="bg-purple-600 hover:bg-purple-700">
+                                      <Play className="h-4 w-4 mr-1" /> Start
+                                    </Button>
+                                  )}
+                                  {request.status === 'in_progress' && (
+                                    <Button size="sm" onClick={() => completeRequest(request.id)} className="bg-green-600 hover:bg-green-700">
+                                      <CheckCircle className="h-4 w-4 mr-1" /> Complete
+                                    </Button>
+                                  )}
+                                  {patient && (
+                                    <Button size="sm" variant="outline" onClick={() => { setSelectedPatient(patient); setActiveTab('patient-detail') }}>
+                                      <Eye className="h-4 w-4 mr-1" /> View Patient
                                     </Button>
                                   )}
                                 </div>
