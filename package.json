@@ -2,8 +2,9 @@
   "name": "runhealthcentre",
   "version": "1.0.0",
   "private": true,
+  "packageManager": "npm@11.9.0",
   "engines": {
-    "node": ">=18.0.0"
+    "node": "20"
   },
   "scripts": {
     "dev": "next dev -p 3000 2>&1 | tee dev.log",
