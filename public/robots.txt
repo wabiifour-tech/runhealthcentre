@@ -1,0 +1,18 @@
+User-agent: Googlebot
+Allow: /
+
+User-agent: Bingbot
+Allow: /
+
+User-agent: Twitterbot
+Allow: /
+
+User-agent: facebookexternalhit
+Allow: /
+
+User-agent: *
+Allow: /
+
+# RUN Health Centre - Redeemer's University Nigeria
+# Hospital Management System
+Sitemap: https://runhealthcentre.vercel.app/sitemap.xml
