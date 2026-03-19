@@ -1,6 +1,6 @@
 {
-  "name": "RUHC HMS",
-  "short_name": "RUHC",
+  "name": "RUHC Health Management System",
+  "short_name": "RUHC HMS",
   "description": "Redeemer's University Health Centre - Health Management System. Works offline!",
   "start_url": "/hms",
   "display": "standalone",
@@ -21,6 +21,18 @@
       "sizes": "512x512",
       "type": "image/jpeg",
       "purpose": "maskable"
+    },
+    {
+      "src": "/runlogo.jpg",
+      "sizes": "192x192",
+      "type": "image/jpeg",
+      "purpose": "any"
+    },
+    {
+      "src": "/runlogo.jpg",
+      "sizes": "192x192",
+      "type": "image/jpeg",
+      "purpose": "maskable"
     }
   ],
   "categories": ["medical", "health", "healthcare"],
@@ -38,11 +50,31 @@
     {
       "name": "Queue",
       "short_name": "Queue",
-      "description": "View queue",
+      "description": "View patient queue",
       "url": "/hms?tab=queue",
+      "icons": [{ "src": "/runlogo.jpg", "sizes": "96x96" }]
+    },
+    {
+      "name": "Dashboard",
+      "short_name": "Dashboard",
+      "description": "Go to dashboard",
+      "url": "/hms",
       "icons": [{ "src": "/runlogo.jpg", "sizes": "96x96" }]
     }
   ],
   "related_applications": [],
-  "display_override": ["window-controls-overlay", "standalone", "browser"]
+  "display_override": ["window-controls-overlay", "standalone", "browser"],
+  "edge_side_panel": {
+    "preferred_width": 400
+  },
+  "handle_links": "preferred",
+  "launch_handler": {
+    "client_mode": "navigate-existing"
+  },
+  "protocol_handlers": [
+    {
+      "protocol": "web+ruhc",
+      "url": "/hms?patient=%s"
+    }
+  ]
 }
