@@ -11,6 +11,7 @@ export interface ToastProps {
   open?: boolean
   onOpenChange?: (open: boolean) => void
   variant?: 'default' | 'destructive' | 'success'
+  children?: React.ReactNode
 }
 
 export interface ToastActionElement {
@@ -28,6 +29,7 @@ export function Toast({
   title,
   description,
   action,
+  children,
   ...props 
 }: ToastProps & { className?: string }) {
   return (
@@ -41,19 +43,23 @@ export function Toast({
       )}
       {...props}
     >
-      <div className="grid gap-1">
-        {title && (
-          <div className="text-sm font-semibold">
-            {title}
+      {children || (
+        <>
+          <div className="grid gap-1">
+            {title && (
+              <div className="text-sm font-semibold">
+                {title}
+              </div>
+            )}
+            {description && (
+              <div className="text-sm opacity-90">
+                {description}
+              </div>
+            )}
           </div>
-        )}
-        {description && (
-          <div className="text-sm opacity-90">
-            {description}
-          </div>
-        )}
-      </div>
-      {action}
+          {action}
+        </>
+      )}
     </div>
   )
 }

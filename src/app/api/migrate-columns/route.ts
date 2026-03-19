@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
       'assignedRecordsName TEXT',
     ]
     
-    const results = []
+    const results: { column: string; status: string; error?: string }[] = []
     
     for (const colDef of columnsToAdd) {
       const colName = colDef.split(' ')[0]

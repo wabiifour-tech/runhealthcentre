@@ -1,16 +1,21 @@
 import { cn } from '@/lib/utils'
+import { CSSProperties } from 'react'
 
 interface SkeletonProps {
   className?: string
+  style?: CSSProperties
+  'data-sidebar'?: string
 }
 
-export function Skeleton({ className }: SkeletonProps) {
+export function Skeleton({ className, style, ...props }: SkeletonProps) {
   return (
     <div
       className={cn(
         'animate-pulse rounded-md bg-gray-200',
         className
       )}
+      style={style}
+      {...props}
     />
   )
 }

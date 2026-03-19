@@ -210,4 +210,23 @@ export const prisma = {
   }
 }
 
+// SQL helper functions for raw queries
+export async function sql<T = any>(query: string, params: any[] = []): Promise<T[]> {
+  const pool = getPool()
+  const result = await pool.query(query, params)
+  return result.rows as T[]
+}
+
+export async function sqlOne<T = any>(query: string, params: any[] = []): Promise<T | null> {
+  const pool = getPool()
+  const result = await pool.query(query, params)
+  return result.rows[0] as T || null
+}
+
+export async function sqlExec(query: string, params: any[] = []): Promise<number> {
+  const pool = getPool()
+  const result = await pool.query(query, params)
+  return result.rowCount || 0
+}
+
 export default prisma
