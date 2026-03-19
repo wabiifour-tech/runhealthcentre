@@ -26096,7 +26096,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                           <SelectValue placeholder="Any available nurse" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="">Any available nurse</SelectItem>
+                          <SelectItem value="any">Any available nurse</SelectItem>
                           {systemUsers.filter(u => u.role === 'NURSE' && u.isActive).map(staff => (
                             <SelectItem key={staff.id} value={staff.id}>
                               {staff.name} {staff.department && `(${staff.department})`}
@@ -26162,7 +26162,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                           <SelectValue placeholder="Any available pharmacist" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="">Any available pharmacist</SelectItem>
+                          <SelectItem value="any">Any available pharmacist</SelectItem>
                           {systemUsers.filter(u => u.role === 'PHARMACIST' && u.isActive).map(staff => (
                             <SelectItem key={staff.id} value={staff.id}>
                               {staff.name}
@@ -26228,7 +26228,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                           <SelectValue placeholder="Any available lab technician" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="">Any available lab technician</SelectItem>
+                          <SelectItem value="any">Any available lab technician</SelectItem>
                           {systemUsers.filter(u => u.role === 'LAB_TECHNICIAN' && u.isActive).map(staff => (
                             <SelectItem key={staff.id} value={staff.id}>
                               {staff.name}
@@ -26294,7 +26294,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                           <SelectValue placeholder="Any available records officer" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="">Any available records officer</SelectItem>
+                          <SelectItem value="any">Any available records officer</SelectItem>
                           {systemUsers.filter(u => u.role === 'RECORDS_OFFICER' && u.isActive).map(staff => (
                             <SelectItem key={staff.id} value={staff.id}>
                               {staff.name}
