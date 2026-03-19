@@ -38,6 +38,9 @@
   ],
   "exclude": [
     "node_modules",
-    "skills"
+    "skills",
+    "src/__tests__",
+    "**/*.test.ts",
+    "**/*.spec.ts"
   ]
 }
