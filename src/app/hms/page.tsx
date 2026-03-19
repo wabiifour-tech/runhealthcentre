@@ -1,5 +1,5 @@
 'use client'
-// HMS v2.5.1 - Fixed duplicate state definitions
+// RUHC Health Management System - Main Application
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { Button } from '@/components/ui/button'
@@ -9551,33 +9551,16 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
     })
   }
 
-  // Transcribe audio using ASR API with fallback to Web Speech API
+  // Audio transcription - uses browser Web Speech API for real-time recognition
+  // For recorded audio, users should type manually or use real-time speech recognition
   const transcribeAudio = async (base64Audio: string) => {
     setIsTranscribing(true)
     setTranscriptionError('')
     
-    try {
-      const response = await fetch('/api/asr', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ audioBase64: base64Audio })
-      })
-      
-      const data = await response.json()
-      
-      if (data.success && data.transcription) {
-        setVoiceNoteForm(prev => ({ ...prev, transcription: data.transcription }))
-        setIsTranscribing(false)
-      } else {
-        // If server ASR failed, show error and let user type
-        setTranscriptionError(data.error || 'Could not transcribe audio. Please type your message or try again.')
-        setIsTranscribing(false)
-      }
-    } catch (error) {
-      console.error('Transcription error:', error)
-      setTranscriptionError('Transcription failed. Please type your message manually.')
-      setIsTranscribing(false)
-    }
+    // Browser Web Speech API doesn't support transcription from recorded audio
+    // Users should use real-time speech recognition or type manually
+    setTranscriptionError('Please use the real-time speech recognition button or type your message manually.')
+    setIsTranscribing(false)
   }
 
   // Real-time speech recognition using Web Speech API (free, no API key needed)
@@ -9646,9 +9629,10 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
     }
   }
 
-  // Generate TTS audio for a text message
+  // Text-to-Speech using browser's native Web Speech API
   const generateTTS = async (text: string, voiceNoteId: string) => {
     if (!text || playingTTSId === voiceNoteId) {
+      window.speechSynthesis.cancel()
       setPlayingTTSId(null)
       return
     }
@@ -9656,28 +9640,39 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
     setIsGeneratingTTS(true)
     
     try {
-      const response = await fetch('/api/tts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text, speed: 1.0 })
-      })
+      // Cancel any ongoing speech
+      window.speechSynthesis.cancel()
       
-      const data = await response.json()
+      // Create utterance
+      const utterance = new SpeechSynthesisUtterance(text)
+      utterance.rate = 1.0
+      utterance.pitch = 1.0
+      utterance.volume = 1.0
       
-      if (data.success && data.audioBase64) {
-        // Create audio element and play
-        const audio = new Audio(`data:audio/wav;base64,${data.audioBase64}`)
-        setPlayingTTSId(voiceNoteId)
-        
-        audio.onended = () => {
-          setPlayingTTSId(null)
-        }
-        
-        await audio.play()
+      // Try to get a good English voice
+      const voices = window.speechSynthesis.getVoices()
+      const englishVoice = voices.find(v => v.lang.startsWith('en'))
+      if (englishVoice) {
+        utterance.voice = englishVoice
       }
+      
+      utterance.onstart = () => {
+        setPlayingTTSId(voiceNoteId)
+      }
+      
+      utterance.onend = () => {
+        setPlayingTTSId(null)
+        setIsGeneratingTTS(false)
+      }
+      
+      utterance.onerror = () => {
+        setPlayingTTSId(null)
+        setIsGeneratingTTS(false)
+      }
+      
+      window.speechSynthesis.speak(utterance)
     } catch (error) {
-      console.error('TTS error:', error)
-    } finally {
+      console.error('Speech synthesis error:', error)
       setIsGeneratingTTS(false)
     }
   }
@@ -10567,7 +10562,6 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
     { id: 'openHeavens', label: 'Open Heavens', icon: Heart },
     // Notifications Center - Admin only
     ...(user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN' ? [{ id: 'notifications', label: 'Notifications', icon: Bell }] : []),
-    // AI Symptom Checker - REMOVED
     // Emergency - Available to all
     { id: 'emergency', label: 'Emergency', icon: AlertTriangle },
     // Student Health Dashboard
@@ -24512,7 +24506,7 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                   />
                   {audioBlob && !isTranscribing && (
                     <p className="text-xs text-gray-500 mt-1">
-                      AI has transcribed your voice. You can edit the text above if needed.
+                      Voice transcription complete. You can edit the text above if needed.
                     </p>
                   )}
                 </>
@@ -25554,54 +25548,6 @@ Redeemer's University Health Centre, Ede, Osun State, Nigeria
                   🔒 This data was recorded by the nurse and is protected. Any modifications by you will be recorded separately.
                 </p>
               </div>
-            </div>
-
-            <Separator />
-
-            {/* AI Diagnosis Assistant */}
-            <div className="p-4 bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg border border-purple-200">
-              <h4 className="font-medium mb-3 flex items-center gap-2">
-                <Activity className="h-4 w-4 text-purple-600" />
-                🤖 AI Diagnosis Assistant
-              </h4>
-              <p className="text-xs text-gray-600 mb-3">
-                Get AI-powered diagnosis suggestions based on symptoms. This is an assistance tool, not a replacement for clinical judgment.
-              </p>
-              <Button 
-                variant="outline" 
-                className="w-full border-purple-300 hover:bg-purple-100"
-                onClick={async () => {
-                  const symptoms = `${consultationForm.chiefComplaint} ${consultationForm.signsAndSymptoms}`.trim()
-                  if (!symptoms) {
-                    showToast('No symptoms to analyze', 'warning')
-                    return
-                  }
-                  try {
-                    const response = await fetch('/api/ai-suggestions', {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ type: 'diagnosis', data: { symptoms } })
-                    })
-                    const result = await response.json()
-                    if (result.success && result.suggestions) {
-                      const suggestionsText = result.suggestions.map((s: any, i: number) => 
-                        `${i + 1}. ${s.condition} (${Math.round(s.confidence * 100)}% confidence)\n   ${s.description}\n   Recommendations: ${s.recommendations?.join(', ')}`
-                      ).join('\n\n')
-                      setConsultationForm({ 
-                        ...consultationForm, 
-                        provisionalDiagnosis: suggestionsText || 'No suggestions available'
-                      })
-                      showToast('AI suggestions added to Provisional Diagnosis field. Review and modify as needed.', 'success')
-                    } else {
-                      showToast('Unable to get AI suggestions. Please try again.', 'error')
-                    }
-                  } catch (error) {
-                    showToast('Error connecting to AI service', 'error')
-                  }
-                }}
-              >
-                <Activity className="h-4 w-4 mr-2" /> Get AI Diagnosis Suggestions
-              </Button>
             </div>
 
             <Separator />
