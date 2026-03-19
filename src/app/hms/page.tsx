@@ -1502,6 +1502,21 @@ const getRoleDisplayName = (role: UserRole) => role.replace('_', ' ').replace(/\
 const getRoleBadgeColor = (role: UserRole) => { const colors: Record<UserRole, string> = { SUPER_ADMIN: 'bg-purple-100 text-purple-800', ADMIN: 'bg-blue-100 text-blue-800', DOCTOR: 'bg-green-100 text-green-800', NURSE: 'bg-teal-100 text-teal-800', PHARMACIST: 'bg-orange-100 text-orange-800', LAB_TECHNICIAN: 'bg-pink-100 text-pink-800', MATRON: 'bg-indigo-100 text-indigo-800', RECORDS_OFFICER: 'bg-cyan-100 text-cyan-800' }; return colors[role] }
 const getStatusBadgeColor = (status: string) => { const s = status.toLowerCase(); if (s.includes('pending')) return 'bg-yellow-100 text-yellow-800'; if (s.includes('progress')) return 'bg-blue-100 text-blue-800'; if (s.includes('complete') || s.includes('dispensed') || s === 'paid') return 'bg-green-100 text-green-800'; if (s.includes('cancel')) return 'bg-red-100 text-red-800'; return 'bg-gray-100 text-gray-800' }
 
+// Convert UserRole to referredTo value (lowercase department name)
+const getReferredToFromRole = (role: UserRole | string): string => {
+  const mapping: Record<string, string> = {
+    'NURSE': 'nurse',
+    'DOCTOR': 'doctor',
+    'PHARMACIST': 'pharmacy',
+    'LAB_TECHNICIAN': 'laboratory',
+    'MATRON': 'matron',
+    'RECORDS_OFFICER': 'records',
+    'ADMIN': 'admin',
+    'SUPER_ADMIN': 'super_admin'
+  }
+  return mapping[role] || role.toLowerCase()
+}
+
 // NEW: Get patient status color coding
 const getPatientStatusColor = (patient: Patient): { bg: string; text: string; label: string } => {
   if (patient.currentUnit && patient.bedNumber) {
@@ -8382,7 +8397,7 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
       updatedAt: now,
       sentAt: now,
       hasPrescription: false,
-      referredTo: sendPatientForm.destination as any,
+      referredTo: getReferredToFromRole(sendPatientForm.destination || '') as any,
       referralNotes: sendPatientForm.notes
     }
 

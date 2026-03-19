@@ -12,3 +12,7 @@ Allow: /
 
 User-agent: *
 Allow: /
+
+# RUN Health Centre - Redeemer's University Nigeria
+# Hospital Management System
+Sitemap: https://runhealthcentre.vercel.app/sitemap.xml
