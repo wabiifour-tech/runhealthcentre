@@ -1495,8 +1495,19 @@ const formatCurrency = (amount: number) => `₦${amount.toLocaleString()}`
 const formatDate = (date: string) => new Date(date).toLocaleDateString('en-NG', { year: 'numeric', month: 'short', day: 'numeric' })
 const formatDateTime = (date: string) => new Date(date).toLocaleString('en-NG', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
 const formatAge = (dob: string) => { const d = new Date(dob); const t = new Date(); let a = t.getFullYear() - d.getFullYear(); const m = t.getMonth() - d.getMonth(); if (m < 0 || (m === 0 && t.getDate() < d.getDate())) a--; return `${a}y` }
-const getFullName = (f: string, l: string, m?: string, t?: string) => { const name = m ? `${f} ${m} ${l}` : `${f} ${l}`; return t ? `${t} ${name}` : name }
-const getInitials = (f: string, l: string) => `${f[0]}${l[0]}`.toUpperCase()
+const getFullName = (f: string, l: string, m?: string, t?: string) => { 
+  const firstName = f || ''
+  const lastName = l || ''
+  const middleName = m || ''
+  const title = t || ''
+  const name = middleName ? `${firstName} ${middleName} ${lastName}` : `${firstName} ${lastName}`.trim()
+  return title ? `${title} ${name}`.trim() : name || 'Unknown'
+}
+const getInitials = (f: string, l: string) => {
+  const first = (f || '').charAt(0).toUpperCase()
+  const last = (l || '').charAt(0).toUpperCase()
+  return `${first}${last}` || 'NA'
+}
 const getAvatarColor = (name: string) => { const colors = ['bg-blue-500', 'bg-green-500', 'bg-purple-500', 'bg-orange-500', 'bg-pink-500', 'bg-teal-500']; return colors[name.length % colors.length] }
 const getRoleDisplayName = (role: UserRole) => role.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())
 const getRoleBadgeColor = (role: UserRole) => { const colors: Record<UserRole, string> = { SUPER_ADMIN: 'bg-purple-100 text-purple-800', ADMIN: 'bg-blue-100 text-blue-800', DOCTOR: 'bg-green-100 text-green-800', NURSE: 'bg-teal-100 text-teal-800', PHARMACIST: 'bg-orange-100 text-orange-800', LAB_TECHNICIAN: 'bg-pink-100 text-pink-800', MATRON: 'bg-indigo-100 text-indigo-800', RECORDS_OFFICER: 'bg-cyan-100 text-cyan-800' }; return colors[role] }
@@ -8360,46 +8371,51 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
 
   // Records Officer sends patient to department (nurse, doctor, lab, pharmacy)
   const sendPatientToDepartment = async () => {
-    if (!user) {
-      showToast('You must be logged in to perform this action', 'warning')
-      return
-    }
-    if (!sendPatientForm.patientId || !sendPatientForm.staffId) {
-      showToast('Please select a patient and staff member', 'warning')
-      return
-    }
+    try {
+      if (!user) {
+        showToast('You must be logged in to perform this action', 'warning')
+        return
+      }
+      if (!sendPatientForm.patientId || !sendPatientForm.staffId) {
+        showToast('Please select a patient and staff member', 'warning')
+        return
+      }
+      if (!sendPatientForm.destination) {
+        showToast('Please select a destination department', 'warning')
+        return
+      }
 
-    const patient = patients.find(p => p.id === sendPatientForm.patientId)
-    if (!patient) {
-      showToast('Patient not found', 'warning')
-      return
-    }
+      const patient = patients.find(p => p.id === sendPatientForm.patientId)
+      if (!patient) {
+        showToast('Patient not found', 'warning')
+        return
+      }
 
-    const senderName = getUserDisplayName(user)
-    const patientName = getFullName(patient.firstName, patient.lastName, patient.middleName, patient.title)
-    const destinationName = sendPatientForm.destination ? getRoleDisplayName(sendPatientForm.destination as UserRole) : 'Staff'
+      const senderName = getUserDisplayName(user) || user.name || 'Unknown'
+      const patientName = getFullName(patient.firstName || '', patient.lastName || '', patient.middleName, patient.title)
+      const destinationName = sendPatientForm.destination ? getRoleDisplayName(sendPatientForm.destination as UserRole) : 'Staff'
 
-    // Generate unique ID
-    const consultationId = `c${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
-    const now = new Date().toISOString()
+      // Generate unique ID
+      const consultationId = `c${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+      const now = new Date().toISOString()
 
-    // Create a consultation record for routing - with all required fields for database
-    const newConsultation: Consultation = {
-      id: consultationId,
-      patientId: sendPatientForm.patientId,
-      patient,
-      doctorId: sendPatientForm.staffId,
-      doctorName: sendPatientForm.staffName || 'Staff',
-      chiefComplaint: `Sent from Records - ${sendPatientForm.notes || 'No complaint specified'}`,
-      sentByNurseInitials: senderName,
-      status: 'pending_review',
-      createdAt: now,
-      updatedAt: now,
-      sentAt: now,
-      hasPrescription: false,
-      referredTo: getReferredToFromRole(sendPatientForm.destination || '') as any,
-      referralNotes: sendPatientForm.notes
-    }
+      // Create a consultation record for routing - with all required fields for database
+      const newConsultation: Consultation = {
+        id: consultationId,
+        patientId: sendPatientForm.patientId,
+        patient,
+        doctorId: sendPatientForm.staffId,
+        doctorName: sendPatientForm.staffName || 'Staff',
+        chiefComplaint: `Sent from Records - ${sendPatientForm.notes || 'No complaint specified'}`,
+        sentByNurseInitials: senderName,
+        status: 'pending_review',
+        createdAt: now,
+        updatedAt: now,
+        sentAt: now,
+        hasPrescription: false,
+        referredTo: getReferredToFromRole(sendPatientForm.destination || '') as any,
+        referralNotes: sendPatientForm.notes
+      }
 
     // First, save to database and WAIT for it to complete
     const result = await saveConsultationToDB(newConsultation)
@@ -8500,13 +8516,17 @@ ${analyticsData.departmentStats.map(d => `${d.name}: ${d.patients} patients, ${f
       detail: {
         patientName,
         fromRole: user?.role,
-        toRole: sendPatientForm.destination.toUpperCase(),
+        toRole: (sendPatientForm.destination || '').toUpperCase(),
         toStaff: sendPatientForm.staffName,
         notes: sendPatientForm.notes
       }
     }))
 
     // Don't play sound here - only the receiver should hear it
+    } catch (error) {
+      console.error('Error sending patient to department:', error)
+      showToast('An error occurred. Please try again.', 'error')
+    }
   }
 
   // Doctor starts consultation
